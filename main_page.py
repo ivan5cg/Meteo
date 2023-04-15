@@ -62,85 +62,111 @@ url_run = f'{url}&run={valid_run}'
 temp_data = get_arome_data(url_run)
 
 
+url = "https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&mode=13&sort=0"
+url_run = f'{url}&run={valid_run}'
+
+wind_data = get_arome_data(url_run)
+
+
 import matplotlib.pyplot as plt
 
-# Set figure size and resolution
-fig, ax = plt.subplots(figsize=(10, 6), dpi=80)
+def plot_data(data,type="temp"):
 
-# Set plot style
-plt.style.use('ggplot')
+        data = data
 
-# Iterate over the columns and plot each one
-for column in temp_data.columns:
-    ax.plot(temp_data.index, temp_data[column], label=column, alpha=0.9)
+        # Set figure size and resolution
+        fig, ax = plt.subplots(figsize=(10, 6), dpi=80)
 
-# Add title and labels
-plt.title('Temperature Forecast for the next 2 days', fontsize=16)
-plt.xlabel('Date', fontsize=12)
-plt.ylabel('Temperature (°C)', fontsize=12)
+        # Set plot style
+        plt.style.use('ggplot')
 
-# Remove top and right spines
-ax.spines['right'].set_visible(False)
-ax.spines['top'].set_visible(False)
+        # Iterate over the columns and plot each one
+        for column in data.columns:
+            ax.plot(data.index, data[column], label=column, alpha=0.9)
 
-# Set x-axis tick parameters
-plt.xticks(fontsize=10, rotation=0, ha='right')
-
-# Set y-axis tick parameters
-plt.yticks(fontsize=10)
-
-# Add vertical lines for each hour
-for hour in temp_data.index:
-    ax.axvline(hour, linestyle='--', color='black', alpha=0.1)
-
-# Remove gridlines
-plt.grid(True)
-
-# Compute the minimum and maximum temperature for each day and their respective indexes
-dates = list(set(temp_data.index.date))
-min_temps = []
-max_temps = []
-min_idx = []
-max_idx = []
-
-for date in dates:
-    df = temp_data.loc[temp_data.index.date == date]
-    min_temp = df.min().min()
-    max_temp = df.max().max()
-    min_idx.append(temp_data.loc[temp_data.index.date == date].idxmin().min())
-    max_idx.append(temp_data.loc[temp_data.index.date == date].idxmax().min())
-    min_temps.append(min_temp)
-    max_temps.append(max_temp)
-
-# Add the minimum temperature text to the plot
-for i, temp in enumerate(min_temps):
-    min_temp = "{:.1f}°C".format(temp)
-    ax.text(min_idx[i], temp, min_temp, ha='left', va='top', color='blue',fontweight="bold")
-
-# Add the maximum temperature text to the plot
-for i, temp in enumerate(max_temps):
-    max_temp = "{:.1f}°C".format(temp)
-    ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
+        # Add title and labels
 
 
-# Format x-axis ticks
-# Format x-axis ticks
-ticks = []
-tick_labels = []
-for date in temp_data.index:
-        if date.hour == 0:
-            tick_labels.append(date.strftime('%a, %b %d'))
-            ticks.append(date)
-        if date.hour % 6 == 0:
-            tick_labels.append(date.strftime('%H'))
-            ticks.append(date)
-            pass
+        if type == "temp":
 
-        #else:
-            #tick_labels.append(temp_data.index[hour].strftime('%H'))
-            #ticks.append(temp_data.index[hour])
 
-ax.set_xticks(ticks)
-ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
+            plt.title('Temperature Forecast for the next 2 days', fontsize=16)
+            plt.xlabel('Date', fontsize=12)
+            plt.ylabel('Temperature (°C)', fontsize=12)
 
-st.pyplot(fig)
+
+        if type == "wind":
+
+
+            plt.title('Wind Gusts Forecast for the next 2 days', fontsize=16)
+            plt.xlabel('Date', fontsize=12)
+            plt.ylabel('Wind gusts (km/h)', fontsize=12)
+
+        
+
+        # Remove top and right spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+
+        # Set x-axis tick parameters
+        plt.xticks(fontsize=10, rotation=0, ha='right')
+
+        # Set y-axis tick parameters
+        plt.yticks(fontsize=10)
+
+        # Add vertical lines for each hour
+        for hour in data.index:
+            ax.axvline(hour, linestyle='--', color='black', alpha=0.1)
+
+        # Remove gridlines
+        plt.grid(True)
+
+        # Compute the minimum and maximum temperature for each day and their respective indexes
+        dates = list(set(data.index.date))
+        min_temps = []
+        max_temps = []
+        min_idx = []
+        max_idx = []
+
+        for date in dates:
+            df = data.loc[data.index.date == date]
+            min_temp = df.min().min()
+            max_temp = df.max().max()
+            min_idx.append(data.loc[data.index.date == date].idxmin().min())
+            max_idx.append(data.loc[data.index.date == date].idxmax().min())
+            min_temps.append(min_temp)
+            max_temps.append(max_temp)
+
+        # Add the minimum temperature text to the plot
+        for i, temp in enumerate(min_temps):
+            min_temp = "{:.1f}".format(temp)
+            ax.text(min_idx[i], temp, min_temp, ha='left', va='top', color='blue',fontweight="bold")
+
+        # Add the maximum temperature text to the plot
+        for i, temp in enumerate(max_temps):
+            max_temp = "{:.1f}".format(temp)
+            ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
+
+
+        # Format x-axis ticks
+        # Format x-axis ticks
+        ticks = []
+        tick_labels = []
+        for date in data.index:
+                if date.hour == 0:
+                    tick_labels.append(date.strftime('%a, %b %d'))
+                    ticks.append(date)
+                if date.hour % 6 == 0:
+                    tick_labels.append(date.strftime('%H'))
+                    ticks.append(date)
+                    pass
+
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
+
+
+
+st.pyplot(plot_data(temp_data,type="temp"))
+
+
+st.pyplot(plot_data(wind_data,type="wind"))
