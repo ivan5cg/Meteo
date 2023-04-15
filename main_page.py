@@ -4,6 +4,9 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 
+st.set_option('deprecation.showPyplotGlobalUse', False)
+
+
 def get_arome_data(url):
 
 #url = 'https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&run=9&mode=8&sort=0'  # Replace this with the URL containing the table
