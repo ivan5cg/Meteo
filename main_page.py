@@ -164,9 +164,10 @@ def plot_data(data,type="temp"):
         ax.set_xticks(ticks)
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
 
+temp_graph = plot_data(temp_data,type="temp")
 
+st.pyplot(temp_graph)
 
-st.pyplot(plot_data(temp_data,type="temp"))
+wind_graph = plot_data(wind_data,type="wind")
 
-
-st.pyplot(plot_data(wind_data,type="wind"))
+st.pyplot(wind_graph)
