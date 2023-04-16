@@ -70,7 +70,7 @@ st.write("Last valid forecast: ",valid_run)
 
 
 aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_3195_datos-horarios.csv?k=mad&l=3195&datos=det&w=0&f=temperatura&x=h24" ,
-                            encoding="latin-1",skiprows=2,parse_dates=True,index_col=0)
+                            encoding="latin-1",skiprows=2,parse_dates=True,index_col=0,dayfirst=True)
 aemet_horario.index = aemet_horario.index.tz_localize('Europe/Madrid')
 
 
