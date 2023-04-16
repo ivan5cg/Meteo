@@ -3,9 +3,9 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import numpy as np
 import streamlit as st
+import matplotlib.pyplot as plt
 
 st.set_option('deprecation.showPyplotGlobalUse', False)
-
 
 def get_arome_data(url):
 
@@ -35,6 +35,8 @@ def get_arome_data(url):
     # Create a DataFrame from the data
     df = pd.DataFrame(data, columns=headers)
     df.index = pd.to_datetime(df["Date"])
+
+    df.index = df.index.tz_convert('Europe/Madrid')
     df = df.drop("Date",axis=1)
     df = df.drop("Ech.",axis=1)
     df = df.astype("float")
@@ -42,70 +44,87 @@ def get_arome_data(url):
     return df
 
 
+def get_last_arome_run():
 
-runs = [3, 9, 15, 21]
-url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&mode=8&sort=0'
+    runs = [3, 9, 15, 21]
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&mode=8&sort=0'
 
-last_index = pd.Timestamp(year=2017, month=1, day=1,tz="UTC")
+    last_index = pd.Timestamp(year=2017, month=1, day=1,tz="UTC")
 
-for run in runs:
-    url_run = f'{url}&run={run}'
-    last_index_run = get_arome_data(url_run).index[-1]
+    for run in runs:
+        url_run = f'{url}&run={run}'
+        last_index_run = get_arome_data(url_run).index[-1]
 
-    if last_index_run > last_index:
-        last_index = last_index_run
-        valid_run = run
-    else:
-        pass
+        if last_index_run > last_index:
+            last_index = last_index_run
+            valid_run = run
+        else:
+            pass
 
-
-url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&mode=8&sort=0'
-url_run = f'{url}&run={valid_run}'
-
-temp_data = get_arome_data(url_run)
+    return valid_run
 
 
-url = "https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&mode=13&sort=0"
-url_run = f'{url}&run={valid_run}'
+valid_run = get_last_arome_run()
 
-wind_data = get_arome_data(url_run)
+st.write("Last valid forecast: ",valid_run)
 
 
-import matplotlib.pyplot as plt
+aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_3195_datos-horarios.csv?k=mad&l=3195&datos=det&w=0&f=temperatura&x=h24" ,
+                            encoding="latin-1",skiprows=2,parse_dates=True,index_col=0)
+aemet_horario.index = aemet_horario.index.tz_localize('Europe/Madrid')
 
-def plot_data(data,type="temp"):
+
+def get_temp_data(valid_run):
+
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&mode=8&sort=0'
+    url_run = f'{url}&run={valid_run}'
+
+    temp_data = get_arome_data(url_run)
+
+    return temp_data
+
+
+
+def get_wind_gust_data(valid_run):
+
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&mode=13&sort=0'
+    url_run = f'{url}&run={valid_run}'
+
+    wind_gust_data = get_arome_data(url_run)
+
+    return wind_gust_data
+
+
+
+
+temp_data = get_temp_data(valid_run)
+temp_data["Actual temp"] = aemet_horario["Temperatura (ºC)"]
+
+def plot_temp_data(data):
+        
 
         data = data
 
         # Set figure size and resolution
-        fig, ax = plt.subplots(figsize=(10, 6), dpi=80)
+        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
 
         # Set plot style
         plt.style.use('ggplot')
 
         # Iterate over the columns and plot each one
-        for column in data.columns:
-            ax.plot(data.index, data[column], label=column, alpha=0.9)
+        for column in data.columns[:-1]:
+            ax.plot(data.index, data[column], alpha=0.9)
+
+        ax.plot(data["Actual temp"], alpha=1,linewidth=4,color="black")
 
         # Add title and labels
 
 
-        if type == "temp":
+        plt.title('Temperature Forecast for the next 2 days', fontsize=16)
+        plt.xlabel('Date', fontsize=12)
+        plt.ylabel('Temperature (°C)', fontsize=12)
 
-
-            plt.title('Temperature Forecast for the next 2 days', fontsize=16)
-            plt.xlabel('Date', fontsize=12)
-            plt.ylabel('Temperature (°C)', fontsize=12)
-
-
-        if type == "wind":
-
-
-            plt.title('Wind Gusts Forecast for the next 2 days', fontsize=16)
-            plt.xlabel('Date', fontsize=12)
-            plt.ylabel('Wind gusts (km/h)', fontsize=12)
-
-        
+       
 
         # Remove top and right spines
         ax.spines['right'].set_visible(False)
@@ -167,10 +186,8 @@ def plot_data(data,type="temp"):
         ax.set_xticks(ticks)
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
 
-temp_graph = plot_data(temp_data,type="temp")
+        return 
 
-st.pyplot(temp_graph)
 
-wind_graph = plot_data(wind_data,type="wind")
 
-st.pyplot(wind_graph)
+st.pyplot(plot_temp_data(temp_data))
