@@ -115,7 +115,7 @@ def plot_temp_data(data):
         for column in data.columns[:-1]:
             ax.plot(data.index, data[column], alpha=0.9)
 
-        ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
+        ax.plot(data["Actual data"], alpha=1,linewidth=5,color="black")
 
         # Add title and labels
 
@@ -210,7 +210,7 @@ def plot_wind_data(data):
         for column in data.columns[:-1]:
             ax.plot(data.index, data[column], alpha=0.9)
 
-        ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
+        ax.plot(data["Actual data"], alpha=1,linewidth=5,color="black")
 
         # Add title and labels
 
