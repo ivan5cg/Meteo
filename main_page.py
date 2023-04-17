@@ -102,7 +102,31 @@ def get_pressure_data(valid_run):
 
     return pressure_data
 
+#####################################################
 
+datos_df_global = pd.read_csv("retiro 1950.csv",index_col="fecha",parse_dates=True)
+
+datos_df_global = datos_df_global[~((datos_df_global.index.month == 2) & (datos_df_global.index.day == 29) & datos_df_global.index.is_leap_year)]
+
+datos_df_global['día_del_año'] = datos_df_global.index.day_of_year
+
+es_bisiesto = datos_df_global.index.year % 4 == 0
+es_bisiesto &= (datos_df_global.index.year % 100 != 0) | (datos_df_global.index.year % 400 == 0)
+marzo_en_adelante = datos_df_global.index.month >= 3
+datos_df_global.loc[es_bisiesto & marzo_en_adelante, 'día_del_año'] -= 1
+
+temp_medias = datos_df_global[["día_del_año","tmed","tmax","tmin"]]
+temp_medias = temp_medias.dropna(how="any")
+
+temp_medias_rolling = temp_medias[["tmed","tmax","tmin"]].rolling(15,center=True).mean().dropna()
+temp_medias_rolling["día del año"] = temp_medias_rolling.index.day_of_year
+
+es_bisiesto = temp_medias_rolling.index.year % 4 == 0
+es_bisiesto &= (temp_medias_rolling.index.year % 100 != 0) | (temp_medias_rolling.index.year % 400 == 0)
+marzo_en_adelante = temp_medias_rolling.index.month >= 3
+temp_medias_rolling.loc[es_bisiesto & marzo_en_adelante, 'día del año'] -= 1
+
+temp_medias_rolling = temp_medias_rolling.groupby("día del año").quantile([0.15, 0.85]).unstack()
 
 #####################################################
 
@@ -114,7 +138,6 @@ def plot_temp_data(data):
         
 
         data = data
-
         # Set figure size and resolution
         fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
 
@@ -125,7 +148,7 @@ def plot_temp_data(data):
         for column in data.columns[:-1]:
             ax.plot(data.index, data[column], alpha=0.9)
 
-        ax.plot(data["Actual data"], alpha=1,linewidth=5,color="black")
+        ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
 
         # Add title and labels
 
@@ -134,7 +157,7 @@ def plot_temp_data(data):
         plt.xlabel('Date', fontsize=12)
         plt.ylabel('Temperature (°C)', fontsize=12)
 
-       
+
 
         # Remove top and right spines
         ax.spines['right'].set_visible(False)
@@ -180,21 +203,33 @@ def plot_temp_data(data):
             ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
 
 
+        max_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[0]
+        max_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[1]
+
+        ax.fill_between(data.index,max_usual_temp_upper,max_usual_temp_lower, alpha=0.2, color='red')
+
+        min_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[0]
+        min_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[1]
+
+        ax.fill_between(data.index,min_usual_temp_upper,min_usual_temp_lower, alpha=0.2, color='blue')
+
+
+
         # Format x-axis ticks
         # Format x-axis ticks
         ticks = []
         tick_labels = []
         for date in data.index:
                 if date.hour == 0:
-                    tick_labels.append(date.strftime('%a, %b %d'))
+                    tick_labels.append(date.strftime('%a %b %d'))
                     ticks.append(date)
                 if date.hour % 6 == 0:
                     tick_labels.append(date.strftime('%H'))
                     ticks.append(date)
                     pass
 
-        ax.set_xticks(ticks)
-        ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
+        ax.set_xticks(ticks);
+        ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center');
 
         return 
 
