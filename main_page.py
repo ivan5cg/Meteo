@@ -150,7 +150,7 @@ records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 20
                         axis=0, subset=pd.IndexSlice[:, ['T. max', 'T. min']])
 
 
-st.write(datetime.now().strftime("%A, %d de %B de %Y"))
+st.write(datetime.now().strftime("%A, %d %B %Y"))
 
 
 st.write(records_dia)
