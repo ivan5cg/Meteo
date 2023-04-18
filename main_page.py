@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
@@ -129,6 +130,38 @@ temp_medias_rolling.loc[es_bisiesto & marzo_en_adelante, 'día del año'] -= 1
 temp_medias_rolling = temp_medias_rolling.groupby("día del año").quantile([0.15, 0.85]).unstack()
 
 #####################################################
+
+año_max_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].idxmax().year
+año_min_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].idxmax().year
+
+año_min_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].idxmin().year
+año_max_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].idxmin().year
+
+max_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].max()
+min_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].max()
+
+min_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].min()
+max_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].min()
+
+records_dia = pd.DataFrame(columns=["T. max","T. min"],index=["Record calor","Record frío"])
+records_dia["T. max"] = ["{} ({})".format(max_maxima, año_max_maxima),"{} ({})".format(max_minima, año_max_minima)]
+records_dia["T. min"] = ["{} ({})".format(min_maxima, año_max_minima),"{} ({})".format(min_minima, año_min_minima)]
+records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 204, 204, 0.4)' if x.name == 'T. max' else 'background-color: rgba(204, 204, 255, 0.4)' for i in x], 
+                        axis=0, subset=pd.IndexSlice[:, ['T. max', 'T. min']])
+
+
+st.write(datetime.now().strftime("%A, %d de %B de %Y"))
+
+
+st.write(records_dia)
+
+
+
+
+
+
+########################################################
+
 
 
 temp_data = get_temp_data(valid_run)
@@ -329,7 +362,6 @@ def plot_wind_data(data):
 st.pyplot(plot_wind_data(wind_data))
 
 #@#############################################
-
 
 pressure_data = get_pressure_data(valid_run)
 
