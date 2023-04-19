@@ -542,7 +542,6 @@ prec_data = get_prec_data(valid_run)
 prec_data["Actual data"] = aemet_horario["Precipitación (mm)"]
 
 def plot_prec_data(data):
-        
 
         data = data
 
@@ -631,6 +630,6 @@ def plot_prec_data(data):
 
         return 
 
-st.write(prec_data)
+#st.write(prec_data)
 
-#st.pyplot(get_prec_data(prec_data))
+st.pyplot(get_prec_data(prec_data))
