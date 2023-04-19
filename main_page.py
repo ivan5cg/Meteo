@@ -378,7 +378,7 @@ def plot_prec_data(data):
 
 #st.write(prec_data)
 
-st.pyplot(prec_data)
+st.pyplot(plot_prec_data(prec_data))
 
 #######################################################
 wind_data = get_wind_gust_data(valid_run)
