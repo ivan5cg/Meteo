@@ -627,6 +627,10 @@ def plot_prec_data(data):
         ax.set_xticks(ticks)
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
 
+        ax.set_ylim(bottom=0)
+
         return 
 
-st.pyplot(get_prec_data(prec_data))
+st.write(prec_data)
+
+#st.pyplot(get_prec_data(prec_data))
