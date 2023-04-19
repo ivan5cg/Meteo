@@ -84,7 +84,6 @@ def get_temp_data(valid_run):
 
     return temp_data
 
-
 def get_wind_gust_data(valid_run):
 
     url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&mode=13&sort=0'
@@ -102,6 +101,16 @@ def get_pressure_data(valid_run):
     pressure_data = get_arome_data(url_run)
 
     return pressure_data
+
+def get_mucape_data(valid_run):
+
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&mode=0&sort=0'
+    url_run = f'{url}&run={valid_run}'
+
+    mucape_data = get_arome_data(url_run)
+
+    return mucape_data
+
 
 #####################################################
 
@@ -453,3 +462,71 @@ def plot_pressure_data(data):
         return 
 
 st.pyplot(plot_pressure_data(pressure_data))
+
+################################################
+
+mucape_data = get_mucape_data(valid_run)
+
+def plot_mucape_data(data):
+
+        data = data.astype("int")
+
+        # Set figure size and resolution
+        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
+
+        # Set plot style
+        plt.style.use('ggplot')
+
+        # Iterate over the columns and plot each one
+        for column in data.columns[:-1]:
+            ax.plot(data.index, data[column], alpha=0.9)
+
+        #ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
+
+        # Add title and labels
+
+
+        plt.title('Storm Potential Forecast for the next 2 days', fontsize=16)
+        plt.xlabel('Date', fontsize=12)
+        plt.ylabel('J/kg', fontsize=12)
+
+       
+
+        # Remove top and right spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+
+        # Set x-axis tick parameters
+        plt.xticks(fontsize=10, rotation=0, ha='right')
+
+        # Set y-axis tick parameters
+        plt.yticks(fontsize=10)
+
+        # Add vertical lines for each hour
+        for hour in data.index:
+            ax.axvline(hour, linestyle='--', color='black', alpha=0.1)
+
+        # Remove gridlines
+        plt.grid(True)
+
+
+
+        # Format x-axis ticks
+        # Format x-axis ticks
+        ticks = []
+        tick_labels = []
+        for date in data.index:
+                if date.hour == 0:
+                    tick_labels.append(date.strftime('%a, %b %d'))
+                    ticks.append(date)
+                if date.hour % 6 == 0:
+                    tick_labels.append(date.strftime('%H'))
+                    ticks.append(date)
+                    pass
+
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
+
+        return 
+
+st.pyplot(plot_mucape_data(mucape_data))
