@@ -164,7 +164,7 @@ st.write(datetime.now().strftime("%A, %d %B %Y"))
 
 st.write(records_dia)
 
-
+st.write(aemet_horario.index[0].strftime("%A %d %B %H:%M: "),aemet_horario["Temperatura (ºC)"].iloc[0],"º")
 
 
 
