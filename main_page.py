@@ -159,14 +159,10 @@ records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 20
                         axis=0, subset=pd.IndexSlice[:, ['T. max', 'T. min']])
 
 
-st.write(datetime.now().strftime("%A, %d %B %Y"))
-
-
-st.write(records_dia)
-
 st.write(aemet_horario.index[0].strftime("%A %d %B %H:%M: "),str(aemet_horario["Temperatura (ºC)"].iloc[0])+"º")
 
 
+st.write(records_dia)
 
 
 ########################################################
