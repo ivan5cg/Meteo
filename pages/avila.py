@@ -70,7 +70,7 @@ valid_run = get_last_arome_run()
 st.write("Last valid forecast: ",valid_run)
 
 
-aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_2444_datos-horarios.csv?k=cle&l=2444&datos=det&w=0&f=temperatura&x=h24" ,
+aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_2444_datos-horarios.csv?k=mad&l=2444&datos=det&w=0&f=temperatura&x=h24" ,
                             encoding="latin-1",skiprows=2,parse_dates=True,index_col=0,dayfirst=True)
 aemet_horario.index = aemet_horario.index.tz_localize('Europe/Madrid')
 
@@ -123,12 +123,56 @@ def get_prec_data(valid_run):
 
 #####################################################
 
+datos_df_global = pd.read_csv("avila 1990.csv",index_col="fecha",parse_dates=True)
+
+datos_df_global = datos_df_global[~((datos_df_global.index.month == 2) & (datos_df_global.index.day == 29) & datos_df_global.index.is_leap_year)]
+
+datos_df_global['día_del_año'] = datos_df_global.index.day_of_year
+
+es_bisiesto = datos_df_global.index.year % 4 == 0
+es_bisiesto &= (datos_df_global.index.year % 100 != 0) | (datos_df_global.index.year % 400 == 0)
+marzo_en_adelante = datos_df_global.index.month >= 3
+datos_df_global.loc[es_bisiesto & marzo_en_adelante, 'día_del_año'] -= 1
+
+temp_medias = datos_df_global[["día_del_año","tmed","tmax","tmin"]]
+temp_medias = temp_medias.dropna(how="any")
+
+temp_medias_rolling = temp_medias[["tmed","tmax","tmin"]].rolling(15,center=True).mean().dropna()
+temp_medias_rolling["día del año"] = temp_medias_rolling.index.day_of_year
+
+es_bisiesto = temp_medias_rolling.index.year % 4 == 0
+es_bisiesto &= (temp_medias_rolling.index.year % 100 != 0) | (temp_medias_rolling.index.year % 400 == 0)
+marzo_en_adelante = temp_medias_rolling.index.month >= 3
+temp_medias_rolling.loc[es_bisiesto & marzo_en_adelante, 'día del año'] -= 1
+
+temp_medias_rolling = temp_medias_rolling.groupby("día del año").quantile([0.15, 0.85]).unstack()
 
 #####################################################
 
+año_max_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].idxmax().year
+año_min_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].idxmax().year
+
+año_min_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].idxmin().year
+año_max_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].idxmin().year
+
+max_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].max()
+min_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].max()
+
+min_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].min()
+max_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].min()
+
+records_dia = pd.DataFrame(columns=["T. max","T. min"],index=["Record calor","Record frío"])
+records_dia["T. max"] = ["{} ({})".format(max_maxima, año_max_maxima),"{} ({})".format(max_minima, año_max_minima)]
+records_dia["T. min"] = ["{} ({})".format(min_maxima, año_max_minima),"{} ({})".format(min_minima, año_min_minima)]
+records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 204, 204, 0.4)' if x.name == 'T. max' else 'background-color: rgba(204, 204, 255, 0.4)' for i in x], 
+                        axis=0, subset=pd.IndexSlice[:, ['T. max', 'T. min']])
 
 
 st.write(aemet_horario.index[0].strftime("%A %d %B %H:%M: "),str(aemet_horario["Temperatura (ºC)"].iloc[0])+"º")
+
+
+st.write(records_dia)
+
 
 ########################################################
 
