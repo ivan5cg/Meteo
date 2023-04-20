@@ -189,7 +189,7 @@ def plot_temp_data(data):
         fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
 
         # Set plot style
-        plt.style.use('ggplot')
+        plt.style.use('default')
 
         # Iterate over the columns and plot each one
         for column in data.columns[:-1]:
@@ -295,7 +295,7 @@ def plot_prec_data(data):
         fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
 
         # Set plot style
-        plt.style.use('ggplot')
+        plt.style.use('default')
 
         # Iterate over the columns and plot each one
         for column in data.columns[:-1]:
@@ -392,7 +392,7 @@ def plot_wind_data(data):
         fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
 
         # Set plot style
-        plt.style.use('ggplot')
+        plt.style.use('default')
 
         # Iterate over the columns and plot each one
         for column in data.columns[:-1]:
@@ -485,7 +485,7 @@ def plot_pressure_data(data):
         fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
 
         # Set plot style
-        plt.style.use('ggplot')
+        plt.style.use('default')
 
         # Iterate over the columns and plot each one
         for column in data.columns[:-1]:
@@ -578,7 +578,7 @@ def plot_mucape_data(data):
         fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
 
         # Set plot style
-        plt.style.use('ggplot')
+        plt.style.use('default')
 
         # Iterate over the columns and plot each one
         for column in data.columns[:-1]:
