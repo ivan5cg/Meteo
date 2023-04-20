@@ -123,7 +123,7 @@ def get_prec_data(valid_run):
 
 #####################################################
 
-datos_df_global = pd.read_csv("avila 1990.csv",index_col="fecha",parse_dates=True)
+datos_df_global = pd.read_csv("pages\avila 1990.csv",index_col="fecha",parse_dates=True)
 
 datos_df_global = datos_df_global[~((datos_df_global.index.month == 2) & (datos_df_global.index.day == 29) & datos_df_global.index.is_leap_year)]
 
