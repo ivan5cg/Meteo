@@ -270,6 +270,7 @@ def plot_temp_data(data):
                 if date.hour == 0:
                     tick_labels.append(date.strftime('%a %b %d'))
                     ticks.append(date)
+                    ax.axvline(date,0,1,color="black",linewidth=2)
                 if date.hour % 6 == 0:
                     tick_labels.append(date.strftime('%H'))
                     ticks.append(date)
@@ -364,6 +365,7 @@ def plot_prec_data(data):
                 if date.hour == 0:
                     tick_labels.append(date.strftime('%a, %b %d'))
                     ticks.append(date)
+                    ax.axvline(date,0,1,color="black",linewidth=2)
                 if date.hour % 6 == 0:
                     tick_labels.append(date.strftime('%H'))
                     ticks.append(date)
@@ -463,6 +465,7 @@ def plot_wind_data(data):
                     ticks.append(date)
                 if date.hour % 6 == 0:
                     tick_labels.append(date.strftime('%H'))
+                    ax.axvline(date,0,1,color="black",linewidth=2)
                     ticks.append(date)
                     pass
 
@@ -556,6 +559,7 @@ def plot_pressure_data(data):
                     ticks.append(date)
                 if date.hour % 6 == 0:
                     tick_labels.append(date.strftime('%H'))
+                    ax.axvline(date,0,1,color="black",linewidth=2)
                     ticks.append(date)
                     pass
 
@@ -624,6 +628,7 @@ def plot_mucape_data(data):
                     ticks.append(date)
                 if date.hour % 6 == 0:
                     tick_labels.append(date.strftime('%H'))
+                    ax.axvline(date,0,1,color="black",linewidth=2)
                     ticks.append(date)
                     pass
 
