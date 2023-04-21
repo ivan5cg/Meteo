@@ -301,6 +301,7 @@ def plot_prec_data(data):
         # Iterate over the columns and plot each one
         for column in data.columns[:-1]:
             ax.plot(data.index, data[column], alpha=0.9)
+            ax.plot(data.index,data[column].cumsum(),alpha=0.5)
 
         ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
 
@@ -326,8 +327,12 @@ def plot_prec_data(data):
         # Add vertical lines for each hour
         for hour in data.index:
             ax.axvline(hour, linestyle='--', color='black', alpha=0.1)
+       # for column in data.column:
+        #    ax.axvline(dataa[column]
 
-        # Remove gridlines
+
+
+        # Rmove gridlines
         plt.grid(True)
 
         # Compute the minimum and maximum temperature for each day and their respective indexes
