@@ -186,11 +186,11 @@ temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
 
 ########################################################
 
-día_año_hoy = (datetime.now()+timedelta(hours=0)).timetuple().tm_yday
+día_año_hoy = (datetime.now()+timedelta(hours=2)).timetuple().tm_yday
 
 día_año_mañana = día_año_hoy + 1 #(datetime.now()+timedelta(hours=0)).timetuple().tm_yday
 
-hora_día = (datetime.now()+timedelta(hours=0)).hour
+hora_día = (datetime.now()+timedelta(hours=2)).hour
 
 
 
@@ -296,6 +296,10 @@ elif percentil_min >= 85 or percentil_min <= 15:
     print("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Será un día extremo\n")
 else:
     print("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Será un día normal\n")
+
+
+
+    
 #########################################################
 
 
