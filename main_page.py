@@ -277,11 +277,11 @@ percentil_min = percentileofscore(arr_min, valor_min)
 
 # Imprimir el resultado
 if percentil_max == 0 or percentil_max == 100:
-    print("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Podría ser un récord\n")  
+    st.write("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Podría ser un récord\n")  
 elif percentil_max >= 85 or percentil_max <= 15:
-    print("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Será un día extremo\n")
+    st.write("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Será un día extremo\n")
 else:
-    print("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Será un día normal\n")
+    st.write("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Será un día normal\n")
 
 
 #print("Mañana se espera una temperatura min de {}º".format(valor_min))
@@ -291,15 +291,15 @@ else:
 
 # Imprimir el resultado
 if percentil_min == 0 or percentil_min == 100:
-    print("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Podría ser un récord\n")
+    st.write("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Podría ser un récord\n")
 elif percentil_min >= 85 or percentil_min <= 15:
-    print("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Será un día extremo\n")
+    st.write("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Será un día extremo\n")
 else:
-    print("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Será un día normal\n")
+    st.write("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Será un día normal\n")
 
 
 
-    
+
 #########################################################
 
 
