@@ -5,10 +5,11 @@ import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
 from datetime import datetime,timedelta
+from scipy.stats import percentileofscore
 
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
-st.write(datetime.now()+ timedelta(hours=2))
+#st.write(datetime.now()+ timedelta(hours=2))
 
 def get_arome_data(url):
 
@@ -179,9 +180,124 @@ st.write(records_dia)
 ########################################################
 
 
-
 temp_data = get_temp_data(valid_run)
 temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
+
+
+########################################################
+
+día_año_hoy = (datetime.now()+timedelta(hours=0)).timetuple().tm_yday
+
+día_año_mañana = día_año_hoy + 1 #(datetime.now()+timedelta(hours=0)).timetuple().tm_yday
+
+hora_día = (datetime.now()+timedelta(hours=0)).hour
+
+
+
+# Definir el array de valores
+arr_max = datos_df_global[datos_df_global["día_del_año"]==día_año_hoy]["tmax"].sort_values()
+
+# Definir el valor para el cual deseas calcular el percentil
+valor_max = temp_data[temp_data.index.day_of_year==día_año_hoy].mean(axis=1).max().round(1)
+
+
+# Definir el array de valores
+arr_min = datos_df_global[datos_df_global["día_del_año"]==día_año_hoy]["tmin"].sort_values()
+
+# Definir el valor para el cual deseas calcular el percentil
+valor_min = temp_data[temp_data.index.day_of_year==día_año_hoy].mean(axis=1).min().round(1)
+
+# Calcular el percentil
+
+percentil_max = percentileofscore(arr_max, valor_max)
+
+percentil_min = percentileofscore(arr_min, valor_min)
+
+#print("Hoy se espera una temperatura máxima de {}º".format(valor_max))
+
+# Imprimir el resultado
+#print("El valor {} ocupa el percentil {} en el array".format(valor, percentil))
+
+# Imprimir el resultado
+if percentil_max == 0 or percentil_max == 100:
+    st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Podría ser un récord\n")
+elif percentil_max >= 85 or percentil_max <= 15:
+    st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Será un día extremo\n")
+else:
+    st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Será un día normal\n")
+
+if hora_día < 9:
+
+    #print("Hoy se espera una temperatura min de {}º".format(valor_min))
+
+    # Imprimir el resultado
+    #print("El valor {} ocupa el percentil {} en el array".format(valor, percentil))
+
+    # Imprimir el resultado
+    if percentil_min == 0 or percentil_min == 100:
+        st.write("Hoy se espera una temperatura min de {}º".format(valor_min),"Podría ser un récord\n")
+    elif percentil_min >= 85 or percentil_min <= 15:
+        st.write("Hoy se espera una temperatura min de {}º".format(valor_min),"Será un día extremo\n")
+    else:
+        st.write("Hoy se espera una temperatura min de {}º".format(valor_min),"Será un día normal\n")
+
+
+
+    
+############################################
+
+
+
+
+from scipy.stats import percentileofscore
+
+# Definir el array de valores
+arr_max = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmax"].sort_values()
+
+# Definir el valor para el cual deseas calcular el percentil
+valor_max = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).max().round(1)
+
+
+# Definir el array de valores
+arr_min = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmin"].sort_values()
+
+# Definir el valor para el cual deseas calcular el percentil
+valor_min = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).min().round(1)
+
+# Calcular el percentil
+
+percentil_max = percentileofscore(arr_max, valor_max)
+
+percentil_min = percentileofscore(arr_min, valor_min)
+
+#rint("Mañana se espera una temperatura máxima de {}º".format(valor_max))
+
+# Imprimir el resultado
+#print("El valor {} ocupa el percentil {} en el array".format(valor, percentil))
+
+# Imprimir el resultado
+if percentil_max == 0 or percentil_max == 100:
+    print("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Podría ser un récord\n")  
+elif percentil_max >= 85 or percentil_max <= 15:
+    print("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Será un día extremo\n")
+else:
+    print("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Será un día normal\n")
+
+
+#print("Mañana se espera una temperatura min de {}º".format(valor_min))
+
+# Imprimir el resultado
+#print("El valor {} ocupa el percentil {} en el array".format(valor, percentil))
+
+# Imprimir el resultado
+if percentil_min == 0 or percentil_min == 100:
+    print("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Podría ser un récord\n")
+elif percentil_min >= 85 or percentil_min <= 15:
+    print("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Será un día extremo\n")
+else:
+    print("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Será un día normal\n")
+#########################################################
+
 
 def plot_temp_data(data):
         
