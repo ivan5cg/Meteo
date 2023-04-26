@@ -4,11 +4,11 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import matplotlib.pyplot as plt
-from datetime import datetime
+from datetime import datetime,timedelta
 
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
-st.write(datetime.now())
+st.write(datetime.now()+ timedelta(hours=2))
 
 def get_arome_data(url):
 
