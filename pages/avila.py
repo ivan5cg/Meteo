@@ -233,11 +233,11 @@ if hora_día < 9:
 
     # Imprimir el resultado
     if percentil_min == 0 or percentil_min == 100:
-        st.write("Hoy se espera una temperatura min de {}º".format(valor_min),"Podría ser un récord\n")
+        st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Podría ser un récord\n")
     elif percentil_min >= 85 or percentil_min <= 15:
-        st.write("Hoy se espera una temperatura min de {}º".format(valor_min),"Será un día extremo\n")
+        st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Será un día extremo\n")
     else:
-        st.write("Hoy se espera una temperatura min de {}º".format(valor_min),"Será un día normal\n")
+        st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Será un día normal\n")
 
 
 
@@ -754,6 +754,10 @@ def plot_mucape_data(data):
 
         ax.set_xticks(ticks)
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
+
+        ax.axhspan(0,300,facecolor='green', alpha=0.17)
+        ax.axhspan(300,1000,facecolor='yellow', alpha=0.17)
+        ax.axhspan(1000,2000,facecolor='red', alpha=0.17)
 
         return 
 
