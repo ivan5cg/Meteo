@@ -187,8 +187,9 @@ dia_mañana = (datetime.now() + timedelta(hours=26)).day
 hora = (datetime.now() + timedelta(hours=2)).hour
 
 temp_mañana = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].mean(axis=1)[0].round(1)
+desv_temp = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].std(axis=1).round(1)[0]
 
-st.write("A esta hora ayer hacía ",str(temp_ayer), "grados, y mañana se esperan ", str(temp_mañana))
+st.write("A esta hora ayer hacía",str(temp_ayer), "grados, y mañana se esperan", str(temp_mañana), "+/-",desv_temp)
 
 ##############
 
