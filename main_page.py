@@ -186,7 +186,7 @@ temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
 temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
 
 dia_mañana = (datetime.now() + timedelta(hours=26)).day
-hora = datetime.now().hour
+hora = (datetime.now() + timedelta(hours=2)).hour
 
 temp_mañana = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].mean(axis=1)[0].round(1)
 
