@@ -188,7 +188,7 @@ hora = datetime.now().hour
 
 temp_mañana = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].mean(axis=1)[0].round(1)
 
-st.write(("A esta hora ayer hacía ",str(temp_ayer), "grados, y mañana se esperan ", str(temp_mañana))
+st.write(("A esta hora ayer hacía ",str(temp_ayer), "grados, y mañana se esperan ", str(temp_mañana)))
 
 ##############
 
