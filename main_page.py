@@ -174,8 +174,6 @@ records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 20
 st.write(aemet_horario.index[0].strftime("%A %d %B %H:%M: "),str(aemet_horario["Temperatura (ºC)"].iloc[0])+"º")
 
 
-st.write(records_dia)
-
 
 ########################################################
 
@@ -192,7 +190,12 @@ hora = datetime.now().hour
 
 temp_mañana = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].mean(axis=1)[0].round(1)
 
-print("A esta hora ayer hacía ",str(temp_ayer), "grados, y mañana se esperan ", str(temp_mañana))
+st.write(("A esta hora ayer hacía ",str(temp_ayer), "grados, y mañana se esperan ", str(temp_mañana))
+
+##############
+
+st.write(records_dia)
+
 
 
 ########################################################
