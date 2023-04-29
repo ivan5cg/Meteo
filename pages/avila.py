@@ -181,6 +181,18 @@ st.write(records_dia)
 temp_data = get_temp_data(valid_run)
 temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
 
+##########################################################
+
+temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
+
+dia_mañana = (datetime.now() + timedelta(hours=24)).day
+hora = datetime.now().hour
+
+temp_mañana = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].mean(axis=1)[0].round(1)
+
+print("A esta hora ayer hacía ",str(temp_ayer), "grados, y mañana se esperan ", str(temp_mañana))
+
+
 
 ########################################################
 
