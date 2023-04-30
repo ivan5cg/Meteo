@@ -82,7 +82,7 @@ aemet_horario.index = aemet_horario.index.tz_localize('Europe/Madrid')
 
 def get_temp_data(valid_run):
 
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.663&lon=-4.695&mode=8&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.659&lon=-4.680&mode=8&sort=0'
     url_run = f'{url}&run={valid_run}'
 
     temp_data = get_arome_data(url_run)
@@ -91,7 +91,7 @@ def get_temp_data(valid_run):
 
 def get_wind_gust_data(valid_run):
 
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.663&lon=-4.695&mode=13&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.659&lon=-4.680&mode=13&sort=0'
     url_run = f'{url}&run={valid_run}'
 
     wind_gust_data = get_arome_data(url_run)
@@ -100,7 +100,7 @@ def get_wind_gust_data(valid_run):
 
 def get_pressure_data(valid_run):
 
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.663&lon=-4.695&mode=1&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.659&lon=-4.680&mode=1&sort=0'
     url_run = f'{url}&run={valid_run}'
 
     pressure_data = get_arome_data(url_run)
@@ -109,7 +109,7 @@ def get_pressure_data(valid_run):
 
 def get_mucape_data(valid_run):
 
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.663&lon=-4.695&mode=0&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.659&lon=-4.680&mode=0&sort=0'
     url_run = f'{url}&run={valid_run}'
 
     mucape_data = get_arome_data(url_run)
@@ -118,7 +118,7 @@ def get_mucape_data(valid_run):
 
 def get_prec_data(valid_run):
 
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.663&lon=-4.695&mode=10&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.659&lon=-4.680&mode=10&sort=0'
     url_run = f'{url}&run={valid_run}'
 
     prec_data = get_arome_data(url_run)
