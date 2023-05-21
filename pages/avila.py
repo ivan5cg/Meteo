@@ -641,6 +641,8 @@ def plot_pressure_data(data):
         plt.xlabel('Date', fontsize=12)
         plt.ylabel('Pressure (hpa)', fontsize=12)
 
+        ax.set_ylim(bottom=980,top=1040)
+
        
 
         # Remove top and right spines
