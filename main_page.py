@@ -440,7 +440,7 @@ def plot_prec_data(data):
         # Iterate over the columns and plot each one
         for column in data.columns[:-1]:
             ax.plot(data.index, data[column], alpha=0.9)
-            ax.plot(data.index,data[column].cumsum(),alpha=0.3,linestyle="--")
+            ax.plot(data.index,data[column].cumsum(),alpha=0.5,linestyle="--")
 
         ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
 
