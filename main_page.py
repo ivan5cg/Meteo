@@ -168,7 +168,7 @@ max_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.toda
 
 records_dia = pd.DataFrame(columns=["T. max","T. min"],index=["Record calor","Record frío"])
 records_dia["T. max"] = ["{} ({})".format(max_maxima, año_max_maxima),"{} ({})".format(max_minima, año_max_minima)]
-records_dia["T. min"] = ["{} ({})".format(min_maxima, año_max_minima),"{} ({})".format(min_minima, año_min_minima)]
+records_dia["T. min"] = ["{} ({})".format(min_maxima, año_min_maxima),"{} ({})".format(min_minima, año_min_minima)]
 records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 204, 204, 0.4)' if x.name == 'T. max' else 'background-color: rgba(204, 204, 255, 0.4)' for i in x], 
                         axis=0, subset=pd.IndexSlice[:, ['T. max', 'T. min']])
 
