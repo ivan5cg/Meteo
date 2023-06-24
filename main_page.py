@@ -251,13 +251,11 @@ percentil_max = percentileofscore(arr_max, valor_max)
 
 percentil_min = percentileofscore(arr_min, valor_min)
 
-#print("Hoy se espera una temperatura máxima de {}º".format(valor_max))
 
-# Imprimir el resultado
-#print("El valor {} ocupa el percentil {} en el array".format(valor, percentil))
-
-# Imprimir el resultado
 if percentil_max == 0 or percentil_max == 100:
+
+    estadistica_max_hoy =""
+
     st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Podría ser un récord\n")
 elif percentil_max >= 85 or percentil_max <= 15:
     st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Será un día extremo\n")
@@ -266,12 +264,7 @@ else:
 
 if hora_día < 9:
 
-    #print("Hoy se espera una temperatura min de {}º".format(valor_min))
 
-    # Imprimir el resultado
-    #print("El valor {} ocupa el percentil {} en el array".format(valor, percentil))
-
-    # Imprimir el resultado
     if percentil_min == 0 or percentil_min == 100:
         st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Podría ser un récord\n")
     elif percentil_min >= 85 or percentil_min <= 15:
@@ -289,7 +282,7 @@ col1,col2,col3 = st.columns(3)
 
 if hora_día < 9:
 
-    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min)
+    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,"-Extremo")
     col2.metric(":thermometer: Máxima hoy (ºC)",valor_max)
 
 else:
