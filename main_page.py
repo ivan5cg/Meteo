@@ -213,8 +213,8 @@ col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de maña
 
 ##########################################################
 
-
-
+st.sidebar.subheader("")
+st.sidebar.subheader("Records para un día como hoy:")
 
 st.sidebar.dataframe(records_dia)
 
