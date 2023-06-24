@@ -199,8 +199,8 @@ fiabilidad = 10*np.exp(-0.05*desv_temp**2.5)
 
 col1,col2,col3 = st.columns(3)
 
-col1.metric(":thermometer: actual (ºC)",temp_actual,(temp_actual-temp_ayer).round(1),delta_color="inverse")
-col2.metric(":thermometer: mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
+col1.metric(":thermometer: Actual (ºC)",temp_actual,(temp_actual-temp_ayer).round(1),delta_color="inverse")
+col2.metric(":thermometer: Mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
 col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de mañana a esta hora, calculada sobre 10")
 
 st.divider()
@@ -277,8 +277,6 @@ percentil_min_mañana = percentileofscore(arr_min, valor_min)
 texto_percentil = "El percentil indica cómo es la temperatura frente a los registros históricos, un valor cercano a 100 indica un registro extremadamente alto, uno cercano a 0 indica un registro extremadamente bajo"
 
 
-
-
 if hora_día < 9:
 
     col1,col2,col3,col4 = st.columns(4)
@@ -297,7 +295,7 @@ else:
     col3.metric(":thermometer: Máxima mañana (ºC)",valor_max,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
 
 
-
+st.divider()
 
 #########################################################
 
