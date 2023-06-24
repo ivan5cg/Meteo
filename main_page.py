@@ -195,12 +195,13 @@ hora = (datetime.now() + timedelta(hours=2)).hour
 temp_mañana = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].mean(axis=1)[0].round(1)
 desv_temp = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].std(axis=1).round(1)[0]
 
+fiabilidad = 10-np.exp(-0.05*desv_temp**2.5)
 
 col1,col2,col3 = st.columns(3)
 
 col1.metric(":thermometer: actual (ºC)",temp_actual,(temp_actual-temp_ayer).round(1),delta_color="inverse")
 col2.metric(":thermometer: mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
-
+col3.metric("Fiabilidad",desv_temp)
 
 
 ########################################################
