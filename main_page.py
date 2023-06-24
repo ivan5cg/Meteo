@@ -275,18 +275,18 @@ percentil_min_hoy = percentileofscore(arr_min, valor_min)
 
 
 
-
+texto_percentil = "El percentil indica cómo es la temperatura frente a los registros históricos, un valor cercano a 100 indica un registro extremadamente alto, uno cercano a 0 indica un registro extremadamente bajo"
 
 
 col1,col2,col3 = st.columns(3)
 
 if hora_día < 9:
 
-    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,percentil_min_hoy,delta_color="off")
-    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,percentil_max_hoy,delta_color="off")
+    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,percentil_min_hoy.round(0),delta_color="off",help=texto_percentil)
+    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,percentil_max_hoy.round(0),delta_color="off",help=texto_percentil)
 
 else:
-    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,percentil_max_hoy,delta_color="off")
+    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,percentil_max_hoy.round(0),delta_color="off",help=texto_percentil)
 
 
 
