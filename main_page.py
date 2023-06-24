@@ -203,6 +203,8 @@ col1.metric(":thermometer: actual (ºC)",temp_actual,(temp_actual-temp_ayer).rou
 col2.metric(":thermometer: mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
 col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de mañana a esta hora, calculada sobre 10")
 
+st.divider()
+
 
 ########################################################
 
