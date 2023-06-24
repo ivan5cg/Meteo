@@ -257,20 +257,20 @@ percentil_min_hoy = percentileofscore(arr_min, valor_min)
 arr_max = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmax"].sort_values()
 
 # Definir el valor para el cual deseas calcular el percentil
-valor_max = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).max().round(1)
+valor_max_mañana = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).max().round(1)
 
 
 # Definir el array de valores
 arr_min = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmin"].sort_values()
 
 # Definir el valor para el cual deseas calcular el percentil
-valor_min = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).min().round(1)
+valor_min_mañana = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).min().round(1)
 
 # Calcular el percentil
 
-percentil_max_mañana = percentileofscore(arr_max, valor_max)
+percentil_max_mañana = percentileofscore(arr_max, valor_max_mañana)
 
-percentil_min_mañana = percentileofscore(arr_min, valor_min)
+percentil_min_mañana = percentileofscore(arr_min, valor_min_mañana)
 
 
 
@@ -283,16 +283,16 @@ if hora_día < 9:
 
     col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,int(percentil_min_hoy.round(0)),delta_color="off",help=texto_percentil)
     col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
-    col3.metric(":thermometer: Mínima mañana (ºC)",valor_min,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
-    col4.metric(":thermometer: Máxima mañana (ºC)",valor_max,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
+    col3.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
+    col4.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
 
 
 else:
     col1,col2,col3 = st.columns(3)
     
     col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
-    col2.metric(":thermometer: Mínima mañana (ºC)",valor_min,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
-    col3.metric(":thermometer: Máxima mañana (ºC)",valor_max,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
+    col2.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
+    col3.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
 
 
 st.divider()
