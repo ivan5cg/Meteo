@@ -176,7 +176,7 @@ records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 20
 #st.write(aemet_horario.index[0].strftime("%A %d %B %H:%M: "),str(aemet_horario["Temperatura (ºC)"].iloc[0])+"º")
 
 
-st.write("Datos más recientes:",aemet_horario.index[0])
+st.write("Datos más recientes:",str(aemet_horario.index[0].hour)," horas")
 
 temp_data = get_temp_data(valid_run)
 temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
