@@ -177,9 +177,9 @@ records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 20
 
      
 
-st.sidebar.subheader("Previsión más reciente: ",str(valid_run+2)," horas")
+st.sidebar.subheader("Previsión más reciente: "+str(valid_run+2)+" horas")
 
-st.sidebar.subheader("Datos más recientes:",str(aemet_horario.index[0].hour)," horas")
+st.sidebar.subheader("Datos más recientes:"+str(aemet_horario.index[0].hour)+" horas")
 
 
 
