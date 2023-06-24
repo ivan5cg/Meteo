@@ -274,7 +274,7 @@ percentil_min_mañana = percentileofscore(arr_min, valor_min_mañana)
 
 
 
-texto_percentil = "El percentil indica cómo es la temperatura frente a los registros históricos, un valor cercano a 100 indica un registro extremadamente alto, uno cercano a 0 indica un registro extremadamente bajo"
+texto_percentil = "El percentil indica cómo es la temperatura frente a los registros históricos, un valor cercano a 100 indica un registro extremadamente alto, uno cercano a 0 indica un registro extremadamente bajo."
 
 
 if hora_día < 9:
