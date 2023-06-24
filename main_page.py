@@ -173,9 +173,12 @@ records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 20
                         axis=0, subset=pd.IndexSlice[:, ['T. max', 'T. min']])
 
 
-st.write(aemet_horario.index[0].strftime("%A %d %B %H:%M: "),str(aemet_horario["Temperatura (ºC)"].iloc[0])+"º")
+#st.write(aemet_horario.index[0].strftime("%A %d %B %H:%M: "),str(aemet_horario["Temperatura (ºC)"].iloc[0])+"º")
 
-st.metric("Temperatura (ºC",aemet_horario["Temperatura (ºC)"].iloc[0])
+temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
+temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
+
+st.metric("Temperatura (ºC)",temp_actual,temp_actual-temp_ayer)
 
 ########################################################
 
@@ -185,7 +188,7 @@ temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
 
 ##########################################################
 
-temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
+
 
 dia_mañana = (datetime.now() + timedelta(hours=26)).day
 hora = (datetime.now() + timedelta(hours=2)).hour
