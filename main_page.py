@@ -175,26 +175,37 @@ records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 20
 
 #st.write(aemet_horario.index[0].strftime("%A %d %B %H:%M: "),str(aemet_horario["Temperatura (ºC)"].iloc[0])+"º")
 
-temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
-temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
-
-st.metric("Temperatura (ºC)",temp_actual,temp_actual-temp_ayer)
-
-########################################################
-
 
 temp_data = get_temp_data(valid_run)
 temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
 
-##########################################################
-
-
+temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
+temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
 
 dia_mañana = (datetime.now() + timedelta(hours=26)).day
 hora = (datetime.now() + timedelta(hours=2)).hour
 
 temp_mañana = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].mean(axis=1)[0].round(1)
 desv_temp = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].std(axis=1).round(1)[0]
+
+
+col1,col2,col3 = st.columns(3)
+
+col1.metric("Temperatura actual (ºC)",temp_actual,temp_actual-temp_ayer,delta_color="inverse")
+col2.metric("Temperatura mañana (ºC)",temp_mañana,desv_temp,delta_color="off")
+
+st
+
+########################################################
+
+
+
+
+##########################################################
+
+
+
+
 
 st.write("A esta hora ayer hacía",str(temp_ayer), "grados, y mañana se esperan", str(temp_mañana), "+/-",str(desv_temp))
 
