@@ -286,7 +286,7 @@ if hora_día < 9:
     col2.metric(":thermometer: Máxima hoy (ºC)",valor_max)
 
 else:
-    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,"-Extremo")
+    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,"+Extremo")
 
 
 
