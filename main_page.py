@@ -201,7 +201,7 @@ col1,col2,col3 = st.columns(3)
 
 col1.metric(":thermometer: actual (ºC)",temp_actual,(temp_actual-temp_ayer).round(1),delta_color="inverse")
 col2.metric(":thermometer: mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
-col3.metric("Fiabilidad",desv_temp)
+col3.metric("Fiabilidad",desv_temp,help="Calculada sobre 10")
 
 
 ########################################################
