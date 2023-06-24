@@ -197,7 +197,7 @@ desv_temp = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_d
 
 fiabilidad = 10*np.exp(-0.05*desv_temp**2.5)
 
-col1,col2,col3 = st.columns(3)
+col1,col2,col3 = st.columns(3,gap="small")
 
 col1.metric(":thermometer: Actual (ºC)",temp_actual,(temp_actual-temp_ayer).round(1),delta_color="inverse")
 col2.metric(":thermometer: Mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
@@ -279,7 +279,7 @@ texto_percentil = "El percentil indica cómo es la temperatura frente a los regi
 
 if hora_día < 9:
 
-    col1,col2,col3,col4 = st.columns(4)
+    col1,col2,col3,col4 = st.columns(4,gap="small")
 
     col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,int(percentil_min_hoy.round(0)),delta_color="off",help=texto_percentil)
     col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
@@ -288,7 +288,7 @@ if hora_día < 9:
 
 
 else:
-    col1,col2,col3 = st.columns(3)
+    col1,col2,col3 = st.columns(3,gap="small")
     
     col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
     col2.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
