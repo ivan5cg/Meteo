@@ -72,7 +72,7 @@ st.header("Madrid")
 
 valid_run = get_last_arome_run()
 
-st.write("Last valid forecast: ",valid_run)
+st.write("Previsión más reciente: ",str(valid_run+2)," horas")
 
 
 aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_3195_datos-horarios.csv?k=mad&l=3195&datos=det&w=0&f=temperatura&x=h24" ,
