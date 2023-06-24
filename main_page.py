@@ -252,69 +252,6 @@ percentil_max_hoy = percentileofscore(arr_max, valor_max)
 percentil_min_hoy = percentileofscore(arr_min, valor_min)
 
 
-#if percentil_max == 0 or percentil_max == 100:
-
- #   estadistica_max_hoy =""
-
-  #  st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Podría ser un récord\n")
-#elif percentil_max >= 85 or percentil_max <= 15:
- #   st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Será un día extremo\n")
-#else:
-#    st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Será un día normal\n")
-
-#if hora_día < 9:
-
-
-  #  if percentil_min == 0 or percentil_min == 100:
-  ##      st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Podría ser un récord\n")
-  #  elif percentil_min >= 85 or percentil_min <= 15:
-  #      st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Será un día extremo\n")
-  #  else:
-   #     st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Será un día normal\n")
-
-
-
-
-texto_percentil = "El percentil indica cómo es la temperatura frente a los registros históricos, un valor cercano a 100 indica un registro extremadamente alto, uno cercano a 0 indica un registro extremadamente bajo"
-
-
-col1,col2,col3 = st.columns(3)
-
-if hora_día < 9:
-
-    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,percentil_min_hoy.round(0),delta_color="off",help=texto_percentil)
-    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,percentil_max_hoy.round(0),delta_color="off",help=texto_percentil)
-
-else:
-    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,percentil_max_hoy.round(0),delta_color="off",help=texto_percentil)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-############################################
-
-
-
-
-from scipy.stats import percentileofscore
 
 # Definir el array de valores
 arr_max = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmax"].sort_values()
@@ -331,36 +268,33 @@ valor_min = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=
 
 # Calcular el percentil
 
-percentil_max = percentileofscore(arr_max, valor_max)
+percentil_max_mañana = percentileofscore(arr_max, valor_max)
 
-percentil_min = percentileofscore(arr_min, valor_min)
+percentil_min_mañana = percentileofscore(arr_min, valor_min)
 
-#rint("Mañana se espera una temperatura máxima de {}º".format(valor_max))
 
-# Imprimir el resultado
-#print("El valor {} ocupa el percentil {} en el array".format(valor, percentil))
 
-# Imprimir el resultado
-if percentil_max == 0 or percentil_max == 100:
-    st.write("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Podría ser un récord\n")  
-elif percentil_max >= 85 or percentil_max <= 15:
-    st.write("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Será un día extremo\n")
+texto_percentil = "El percentil indica cómo es la temperatura frente a los registros históricos, un valor cercano a 100 indica un registro extremadamente alto, uno cercano a 0 indica un registro extremadamente bajo"
+
+
+
+
+if hora_día < 9:
+
+    col1,col2,col3,col4 = st.columns(4)
+
+    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,int(percentil_min_hoy.round(0)),delta_color="off",help=texto_percentil)
+    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
+    col3.metric(":thermometer: Mínima mañana (ºC)",valor_min,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
+    col4.metric(":thermometer: Máxima mañana (ºC)",valor_max,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
+
+
 else:
-    st.write("Mañana se espera una temperatura máxima de {}º".format(valor_max),"Será un día normal\n")
-
-
-#print("Mañana se espera una temperatura min de {}º".format(valor_min))
-
-# Imprimir el resultado
-#print("El valor {} ocupa el percentil {} en el array".format(valor, percentil))
-
-# Imprimir el resultado
-if percentil_min == 0 or percentil_min == 100:
-    st.write("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Podría ser un récord\n")
-elif percentil_min >= 85 or percentil_min <= 15:
-    st.write("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Será un día extremo\n")
-else:
-    st.write("Mañana se espera una temperatura mínima de {}º".format(valor_min),"Será un día normal\n")
+    col1,col2,col3 = st.columns(3)
+    
+    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
+    col2.metric(":thermometer: Mínima mañana (ºC)",valor_min,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
+    col3.metric(":thermometer: Máxima mañana (ºC)",valor_max,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
 
 
 
