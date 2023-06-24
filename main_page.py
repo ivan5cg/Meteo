@@ -208,7 +208,7 @@ col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de maña
 
 
 
-st.write("A esta hora ayer hacía",str(temp_ayer), "grados, y mañana se esperan", str(temp_mañana), "+/-",str(desv_temp))
+#st.write("A esta hora ayer hacía",str(temp_ayer), "grados, y mañana se esperan", str(temp_mañana), "+/-",str(desv_temp))
 
 
 ##########################################################
@@ -216,7 +216,7 @@ st.write("A esta hora ayer hacía",str(temp_ayer), "grados, y mañana se esperan
 
 
 
-st.write(records_dia)
+st.sidebar.dataframe(records_dia)
 
 
 
