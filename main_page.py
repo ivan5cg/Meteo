@@ -191,10 +191,10 @@ desv_temp = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_d
 
 col1,col2,col3 = st.columns(3)
 
-col1.metric("Temperatura actual (ºC)",temp_actual,temp_actual-temp_ayer,delta_color="inverse")
-col2.metric("Temperatura mañana (ºC)",temp_mañana,desv_temp,delta_color="off")
+col1.metric("Temperatura actual (ºC)",temp_actual,(temp_actual-temp_ayer).round(1),delta_color="inverse")
+col2.metric("Temperatura mañana (ºC)",temp_mañana,(temp_mañana-temp_actual),delta_color="inverse")
 
-st
+
 
 ########################################################
 
