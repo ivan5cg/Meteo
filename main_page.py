@@ -72,7 +72,7 @@ st.header("Madrid")
 
 valid_run = get_last_arome_run()
 
-st.write("Previsión más reciente: ",str(valid_run+2)," horas")
+
 
 
 aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_3195_datos-horarios.csv?k=mad&l=3195&datos=det&w=0&f=temperatura&x=h24" ,
@@ -175,8 +175,14 @@ records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 20
 
 #st.write(aemet_horario.index[0].strftime("%A %d %B %H:%M: "),str(aemet_horario["Temperatura (ºC)"].iloc[0])+"º")
 
+with st.sidebar():
+     
 
-st.write("Datos más recientes:",str(aemet_horario.index[0].hour)," horas")
+    st.write("Previsión más reciente: ",str(valid_run+2)," horas")
+
+    st.write("Datos más recientes:",str(aemet_horario.index[0].hour)," horas")
+
+
 
 temp_data = get_temp_data(valid_run)
 temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
