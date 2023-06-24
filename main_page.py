@@ -282,11 +282,11 @@ col1,col2,col3 = st.columns(3)
 
 if hora_día < 9:
 
-    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,"-Extremo")
+    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min)
     col2.metric(":thermometer: Máxima hoy (ºC)",valor_max)
 
 else:
-    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max)
+    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,"-Extremo")
 
 
 
