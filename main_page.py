@@ -247,30 +247,30 @@ valor_min = temp_data[temp_data.index.day_of_year==día_año_hoy].mean(axis=1).m
 
 # Calcular el percentil
 
-percentil_max = percentileofscore(arr_max, valor_max)
+percentil_max_hoy = percentileofscore(arr_max, valor_max)
 
-percentil_min = percentileofscore(arr_min, valor_min)
-
-
-if percentil_max == 0 or percentil_max == 100:
-
-    estadistica_max_hoy =""
-
-    st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Podría ser un récord\n")
-elif percentil_max >= 85 or percentil_max <= 15:
-    st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Será un día extremo\n")
-else:
-    st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Será un día normal\n")
-
-if hora_día < 9:
+percentil_min_hoy = percentileofscore(arr_min, valor_min)
 
 
-    if percentil_min == 0 or percentil_min == 100:
-        st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Podría ser un récord\n")
-    elif percentil_min >= 85 or percentil_min <= 15:
-        st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Será un día extremo\n")
-    else:
-        st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Será un día normal\n")
+#if percentil_max == 0 or percentil_max == 100:
+
+ #   estadistica_max_hoy =""
+
+  #  st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Podría ser un récord\n")
+#elif percentil_max >= 85 or percentil_max <= 15:
+ #   st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Será un día extremo\n")
+#else:
+#    st.write("Hoy se espera una temperatura máxima de {}º".format(valor_max),"Será un día normal\n")
+
+#if hora_día < 9:
+
+
+  #  if percentil_min == 0 or percentil_min == 100:
+  ##      st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Podría ser un récord\n")
+  #  elif percentil_min >= 85 or percentil_min <= 15:
+  #      st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Será un día extremo\n")
+  #  else:
+   #     st.write("Hoy se espera una temperatura mínima de {}º".format(valor_min),"Será un día normal\n")
 
 
 
@@ -282,11 +282,11 @@ col1,col2,col3 = st.columns(3)
 
 if hora_día < 9:
 
-    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min)
-    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max)
+    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,percentil_min_hoy,delta_color="off")
+    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,percentil_max_hoy,delta_color="off")
 
 else:
-    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,"Extremo",delta_color="inverse")
+    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,percentil_max_hoy,delta_color="off")
 
 
 
