@@ -297,21 +297,21 @@ else:
 
 
 if percentil_max_hoy > 80:     
-     st.warning("Hoy hará mucho calor",icon=":fire:")
+     st.warning("Hoy hará mucho calor :fire:")
 elif percentil_max_hoy < 20:
-    st.info("Hoy hará mucho frío",icon=":cold_face:")
+    st.info("Hoy hará mucho frío :cold_face:")
 
 
 if percentil_max_mañana > 80:     
-     st.warning("Mañana hará mucho calor")
+     st.warning("Mañana hará mucho calor :fire:")
 elif percentil_max_mañana < 20:
-    st.info("Mañana hará mucho frío",icon=":cold_face:")
+    st.info("Mañana hará mucho frío :cold_face:")
 
 
 if (percentil_max_mañana - percentil_max_hoy) > 50:     
-     st.warning("Mañana subirán mucho las temperaturas",icon=":arrow_up_small:")
+     st.warning("Mañana subirán mucho las temperaturas :arrow_up_small:")
 elif (percentil_max_hoy - percentil_max_mañana) > 50 :
-    st.info("Mañana bajarán mucho las temperaturas",icon=":arrow_down_small:")
+    st.info("Mañana bajarán mucho las temperaturas :arrow_down_small:")
 
 
 
