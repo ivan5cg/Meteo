@@ -197,6 +197,38 @@ col1.metric(":thermometer: Actual (ºC)",temp_actual,(temp_actual-temp_ayer).rou
 col2.metric(":thermometer: Mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
 col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de mañana a esta hora, calculada sobre 10")
 
+
+col1aviso,col2aviso = st.columns(2,gap="small")
+
+
+if percentil_max_hoy > 80:     
+     col1aviso.warning("Hoy hará mucho calor :fire:")
+elif percentil_max_hoy < 20:
+    col1aviso.info("Hoy hará mucho frío :cold_face:")
+
+
+if percentil_max_mañana > 80:     
+     col1aviso.warning("Mañana hará mucho calor :fire:")
+elif percentil_max_mañana < 20:
+    col1aviso.info("Mañana hará mucho frío :cold_face:")
+
+
+if (percentil_max_mañana - percentil_max_hoy) > 50:     
+     col1aviso.warning("Mañana subirán mucho las temperaturas :arrow_up_small:")
+elif (percentil_max_hoy - percentil_max_mañana) > 50 :
+    col1aviso.info("Mañana bajarán mucho las temperaturas :arrow_down_small:")
+
+
+
+
+
+
+
+
+
+
+
+
 st.divider()
 
 
