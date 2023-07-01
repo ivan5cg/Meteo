@@ -303,7 +303,7 @@ elif percentil_max_hoy < 20:
 
 
 if percentil_max_mañana > 80:     
-     st.warning("Mañana hará mucho calor",icon="fire")
+     st.warning("Mañana hará mucho calor")
 elif percentil_max_mañana < 20:
     st.info("Mañana hará mucho frío",icon=":cold_face:")
 
