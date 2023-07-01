@@ -295,23 +295,25 @@ else:
     col3.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
 
 
+col1aviso,col2aviso = st.columns(2,gap="small")
+
 
 if percentil_max_hoy > 80:     
-     st.warning("Hoy hará mucho calor :fire:")
+     col1aviso.warning("Hoy hará mucho calor :fire:")
 elif percentil_max_hoy < 20:
-    st.info("Hoy hará mucho frío :cold_face:")
+    col1aviso.info("Hoy hará mucho frío :cold_face:")
 
 
 if percentil_max_mañana > 80:     
-     st.warning("Mañana hará mucho calor :fire:")
+     col1aviso.warning("Mañana hará mucho calor :fire:")
 elif percentil_max_mañana < 20:
-    st.info("Mañana hará mucho frío :cold_face:")
+    col1aviso.info("Mañana hará mucho frío :cold_face:")
 
 
 if (percentil_max_mañana - percentil_max_hoy) > 50:     
-     st.warning("Mañana subirán mucho las temperaturas :arrow_up_small:")
+     col1aviso.warning("Mañana subirán mucho las temperaturas :arrow_up_small:")
 elif (percentil_max_hoy - percentil_max_mañana) > 50 :
-    st.info("Mañana bajarán mucho las temperaturas :arrow_down_small:")
+    col1aviso.info("Mañana bajarán mucho las temperaturas :arrow_down_small:")
 
 
 
