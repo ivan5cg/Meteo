@@ -295,6 +295,19 @@ else:
     col3.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
 
 
+
+if percentil_max_hoy > 80:
+     
+     st.warning("Hoy hará mucho calor")
+
+if percentil_max_mañana > 80:
+     
+     st.warning("Mañana hará mucho calor")
+
+
+
+
+
 st.divider()
 
 #########################################################
