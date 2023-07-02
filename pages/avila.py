@@ -191,43 +191,11 @@ desv_temp = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_d
 
 fiabilidad = 10*np.exp(-0.05*desv_temp**2.5)
 
-col1,col2,col3 = st.columns(3)
+col1,col2,col3 = st.columns(3,gap="small")
 
 col1.metric(":thermometer: Actual (ºC)",temp_actual,(temp_actual-temp_ayer).round(1),delta_color="inverse")
 col2.metric(":thermometer: Mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
 col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de mañana a esta hora, calculada sobre 10")
-
-
-col1aviso,col2aviso = st.columns(2,gap="small")
-
-
-if percentil_max_hoy > 80:     
-     col1aviso.warning("Hoy hará mucho calor :fire:")
-elif percentil_max_hoy < 20:
-    col1aviso.info("Hoy hará mucho frío :cold_face:")
-
-
-if percentil_max_mañana > 80:     
-     col1aviso.warning("Mañana hará mucho calor :fire:")
-elif percentil_max_mañana < 20:
-    col1aviso.info("Mañana hará mucho frío :cold_face:")
-
-
-if (percentil_max_mañana - percentil_max_hoy) > 50:     
-     col1aviso.warning("Mañana subirán mucho las temperaturas :arrow_up_small:")
-elif (percentil_max_hoy - percentil_max_mañana) > 50 :
-    col1aviso.info("Mañana bajarán mucho las temperaturas :arrow_down_small:")
-
-
-
-
-
-
-
-
-
-
-
 
 st.divider()
 
@@ -305,7 +273,7 @@ texto_percentil = "El percentil indica cómo es la temperatura frente a los regi
 
 if hora_día < 9:
 
-    col1,col2,col3,col4 = st.columns(4)
+    col1,col2,col3,col4 = st.columns(4,gap="small")
 
     col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,int(percentil_min_hoy.round(0)),delta_color="off",help=texto_percentil)
     col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
@@ -314,14 +282,37 @@ if hora_día < 9:
 
 
 else:
-    col1,col2,col3 = st.columns(3)
+    col1,col2,col3 = st.columns(3,gap="small")
     
     col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
     col2.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
     col3.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
 
 
+col1aviso,col2aviso = st.columns(2,gap="small")
+
+
+if percentil_max_hoy > 80:     
+     col1aviso.warning("Hoy hará mucho calor :fire:")
+elif percentil_max_hoy < 20:
+    col1aviso.info("Hoy hará mucho frío :cold_face:")
+
+
+if percentil_max_mañana > 80:     
+     col1aviso.warning("Mañana hará mucho calor :fire:")
+elif percentil_max_mañana < 20:
+    col1aviso.info("Mañana hará mucho frío :cold_face:")
+
+
+if (percentil_max_mañana - percentil_max_hoy) > 50:     
+     col1aviso.warning("Mañana subirán mucho las temperaturas :arrow_up_small:")
+elif (percentil_max_hoy - percentil_max_mañana) > 50 :
+    col1aviso.info("Mañana bajarán mucho las temperaturas :arrow_down_small:")
+
+
+
 st.divider()
+
 
 #########################################################
 
