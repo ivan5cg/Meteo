@@ -233,14 +233,14 @@ hora_día = (datetime.now()+timedelta(hours=2)).hour
 
 
 # Definir el array de valores
-arr_max = datos_df_global[datos_df_global["día_del_año"]==día_año_hoy]["tmax"].sort_values()
+arr_max = datos_df_global[datos_df_global["día_del_año"]==día_año_hoy]["tmax"].sort_values().dropna()
 
 # Definir el valor para el cual deseas calcular el percentil
 valor_max = temp_data[temp_data.index.day_of_year==día_año_hoy].mean(axis=1).max().round(1)
 
 
 # Definir el array de valores
-arr_min = datos_df_global[datos_df_global["día_del_año"]==día_año_hoy]["tmin"].sort_values()
+arr_min = datos_df_global[datos_df_global["día_del_año"]==día_año_hoy]["tmin"].sort_values().dropna()
 
 # Definir el valor para el cual deseas calcular el percentil
 valor_min = temp_data[temp_data.index.day_of_year==día_año_hoy].mean(axis=1).min().round(1)
@@ -254,14 +254,14 @@ percentil_min_hoy = percentileofscore(arr_min, valor_min)
 
 
 # Definir el array de valores
-arr_max = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmax"].sort_values()
+arr_max = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmax"].sort_values().dropna()
 
 # Definir el valor para el cual deseas calcular el percentil
 valor_max_mañana = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).max().round(1)
 
 
 # Definir el array de valores
-arr_min = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmin"].sort_values()
+arr_min = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmin"].sort_values().dropna()
 
 # Definir el valor para el cual deseas calcular el percentil
 valor_min_mañana = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).min().round(1)
