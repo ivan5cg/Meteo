@@ -794,3 +794,170 @@ def plot_mucape_data(data):
 
 st.pyplot(plot_mucape_data(mucape_data))
 
+
+
+st.divider()
+
+
+@st.cache_data()
+def get_forecast_data():
+     data = pd.read_json("https://api.open-meteo.com/v1/forecast?latitude=40.41&longitude=-3.659&hourly=temperature_2m,precipitation,pressure_msl,cloudcover,windspeed_10m,windgusts_10m,cape&current_weather=true&timezone=Europe%2FBerlin&past_days=1&models=ecmwf_ifs04,gfs_global,icon_eu,meteofrance_arpege_europe,meteofrance_arome_france_hd")
+     return data
+
+data = get_forecast_data(ttl=60*60)
+
+nombre_cape = "cape_"
+nombre_nubes = "cloudcover_"
+nombre_preci = "precipitation_"
+nombre_presion = "pressure_msl_"
+nombre_temp = "temperature_2m_"
+nombre_rachas = "windgusts_10m_"
+nombre_viento = "windspeed_10m_"
+
+modelo_gfs = "gfs_global"
+modelo_europeo = "ecmwf_ifs04"
+modelo_icon = "icon_eu"
+modelo_arome = "meteofrance_arome_france_hd"
+modelo_arpege = "meteofrance_arpege_europe"
+
+time = data.loc["time"]["hourly"]
+
+
+data_presion_df = pd.DataFrame(index=time)
+data_presion_df["ECMWF"] = data.loc[nombre_presion+modelo_europeo]["hourly"]
+data_presion_df["GFS"] = data.loc[nombre_presion+modelo_gfs]["hourly"]
+data_presion_df["AROME"] = data.loc[nombre_presion+modelo_arome]["hourly"]
+data_presion_df["ARPEGE"] = data.loc[nombre_presion+modelo_arpege]["hourly"]
+data_presion_df["ICON"] = data.loc[nombre_presion+modelo_icon]["hourly"]
+
+
+
+data_cape_df = pd.DataFrame(index=time)
+data_cape_df["GFS"] = data.loc[nombre_cape+modelo_gfs]["hourly"]
+data_cape_df["AROME"] = data.loc[nombre_cape+modelo_arome]["hourly"]
+data_cape_df["ARPEGE"] = data.loc[nombre_cape+modelo_arpege]["hourly"]
+data_cape_df["ICON"] = data.loc[nombre_cape+modelo_icon]["hourly"]
+
+
+data_preci_df = pd.DataFrame(index=time)
+data_preci_df["ECMWF"] = data.loc[nombre_preci+modelo_europeo]["hourly"]
+data_preci_df["GFS"] = data.loc[nombre_preci+modelo_gfs]["hourly"]
+data_preci_df["AROME"] = data.loc[nombre_preci+modelo_arome]["hourly"]
+data_preci_df["ARPEGE"] = data.loc[nombre_preci+modelo_arpege]["hourly"]
+data_preci_df["ICON"] = data.loc[nombre_preci+modelo_icon]["hourly"]
+
+
+
+data_rachas_df = pd.DataFrame(index=time)
+data_rachas_df["GFS"] = data.loc[nombre_rachas+modelo_gfs]["hourly"]
+data_rachas_df["AROME"] = data.loc[nombre_rachas+modelo_arome]["hourly"]
+data_rachas_df["ARPEGE"] = data.loc[nombre_rachas+modelo_arpege]["hourly"]
+data_rachas_df["ICON"] = data.loc[nombre_rachas+modelo_icon]["hourly"]
+
+
+
+data_nubes_df = pd.DataFrame(index=time)
+data_nubes_df["ECMWF"] = data.loc[nombre_nubes+modelo_europeo]["hourly"]
+data_nubes_df["GFS"] = data.loc[nombre_nubes+modelo_gfs]["hourly"]
+data_nubes_df["AROME"] = data.loc[nombre_nubes+modelo_arome]["hourly"]
+data_nubes_df["ARPEGE"] = data.loc[nombre_nubes+modelo_arpege]["hourly"]
+data_nubes_df["ICON"] = data.loc[nombre_nubes+modelo_icon]["hourly"]
+
+
+
+data_temp_df = pd.DataFrame(index=pd.to_datetime(time))
+data_temp_df["ECMWF"] = data.loc[nombre_temp+modelo_europeo]["hourly"]
+data_temp_df["GFS"] = data.loc[nombre_temp+modelo_gfs]["hourly"]
+data_temp_df["AROME"] = data.loc[nombre_temp+modelo_arome]["hourly"]
+data_temp_df["ARPEGE"] = data.loc[nombre_temp+modelo_arpege]["hourly"]
+data_temp_df["ICON"] = data.loc[nombre_temp+modelo_icon]["hourly"]
+
+
+
+def all_hours_have_data(group):
+    return group.notnull().all()
+
+groups = data_temp_df.groupby(data_temp_df.index.date).apply(all_hours_have_data)
+data_temp_max = data_temp_df.groupby(data_temp_df.index.date).max() * groups[groups==True]
+data_temp_min = data_temp_df.groupby(data_temp_df.index.date).min() * groups[groups==True]
+
+
+import matplotlib.pyplot as plt
+
+
+
+def plot_long_forecast():
+     
+    fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
+
+
+
+    day0 = data_temp_min.iloc[0,:].dropna()
+    day1 = data_temp_min.iloc[1,:].dropna()
+    day2 = data_temp_min.iloc[2,:].dropna()
+    day3 = data_temp_min.iloc[3,:].dropna()
+    day4 = data_temp_min.iloc[4,:].dropna()
+    day5 = data_temp_min.iloc[5,:].dropna()
+    day6 = data_temp_min.iloc[6,:].dropna()
+    day7 = data_temp_min.iloc[7,:].dropna()
+
+    data_plotted = [day0,day1,day2,day3,day4,day5,day6,day7]
+
+
+    boxprops =  dict(linewidth=1, color='black', facecolor='lightblue')
+    whiskerprops = dict(linewidth=1, color='black',linestyle='dashed')
+    flierprops = dict(marker='o', markerfacecolor='blue', markersize=4, linestyle='none')
+    medianprops = dict(linewidth=1, color='black')
+
+    ax.boxplot(data_plotted, positions=[0.25,1.25,2.25,3.25,4.25,5.25,6.25,7.25], patch_artist=True,boxprops=boxprops, 
+                whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
+
+
+
+    day0 = data_temp_max.iloc[0,:].dropna()
+    day1 = data_temp_max.iloc[1,:].dropna()
+    day2 = data_temp_max.iloc[2,:].dropna()
+    day3 = data_temp_max.iloc[3,:].dropna()
+    day4 = data_temp_max.iloc[4,:].dropna()
+    day5 = data_temp_max.iloc[5,:].dropna()
+    day6 = data_temp_max.iloc[6,:].dropna()
+    day7 = data_temp_max.iloc[7,:].dropna()
+
+    data_plotted = [day0,day1,day2,day3,day4,day5,day6,day7]
+
+    boxprops =  dict(linewidth=1, color='black', facecolor='lightcoral')
+    whiskerprops = dict(linewidth=1, color='black',linestyle='dashed')
+    flierprops = dict(marker='o', markerfacecolor='red', markersize=4, linestyle='none')
+    medianprops = dict(linewidth=1, color='black')
+
+
+    ax.boxplot(data_plotted, positions=[0.75,1.75,2.75,3.75,4.75,5.75,6.75,7.75], patch_artist=True,boxprops=boxprops, 
+                whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
+
+
+    max_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[0]
+    max_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[1]
+
+    ax.fill_between(data.index,max_usual_temp_upper,max_usual_temp_lower, alpha=0.2, color='red')
+
+    min_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[0]
+    min_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[1]
+
+    ax.fill_between(data.index,min_usual_temp_upper,min_usual_temp_lower, alpha=0.2, color='blue')
+
+
+    ax.set_xlim(0,8)
+
+    ax.axvline((datetime.now().hour / 24 + 1),color="black",linewidth=.4)
+
+
+    ax.set_title("Evolución temperaturas a una semana")
+    ax.set_ylabel("Temperatura")
+
+
+    ax.set_xticks([0,1,2,3,4,5,6,7], data_temp_min.index,ha="center")
+    ax.set_xticklabels(labels=data_temp_min.index, rotation=0, ha='left', fontsize=9)
+
+    ax.grid();
+
+st.pyplot(plot_long_forecast())
