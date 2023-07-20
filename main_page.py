@@ -799,12 +799,12 @@ st.pyplot(plot_mucape_data(mucape_data))
 st.divider()
 
 
-@st.cache_data()
+@st.cache_data(ttl=60*60)
 def get_forecast_data():
      data = pd.read_json("https://api.open-meteo.com/v1/forecast?latitude=40.41&longitude=-3.659&hourly=temperature_2m,precipitation,pressure_msl,cloudcover,windspeed_10m,windgusts_10m,cape&current_weather=true&timezone=Europe%2FBerlin&past_days=1&models=ecmwf_ifs04,gfs_global,icon_eu,meteofrance_arpege_europe,meteofrance_arome_france_hd")
      return data
 
-data = get_forecast_data(ttl=60*60)
+data = get_forecast_data()
 
 nombre_cape = "cape_"
 nombre_nubes = "cloudcover_"
