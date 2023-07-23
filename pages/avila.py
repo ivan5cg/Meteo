@@ -813,7 +813,7 @@ modelo_arpege = "meteofrance_arpege_europe"
 time = data.loc["time"]["hourly"]
 
 
-data_presion_df = pd.DataFrame(index=time)
+data_presion_df = pd.DataFrame(index=pd.to_datetime(time))
 data_presion_df["ECMWF"] = data.loc[nombre_presion+modelo_europeo]["hourly"]
 data_presion_df["GFS"] = data.loc[nombre_presion+modelo_gfs]["hourly"]
 data_presion_df["AROME"] = data.loc[nombre_presion+modelo_arome]["hourly"]
@@ -822,14 +822,14 @@ data_presion_df["ICON"] = data.loc[nombre_presion+modelo_icon]["hourly"]
 
 
 
-data_cape_df = pd.DataFrame(index=time)
+data_cape_df = pd.DataFrame(index=pd.to_datetime(time))
 data_cape_df["GFS"] = data.loc[nombre_cape+modelo_gfs]["hourly"]
 data_cape_df["AROME"] = data.loc[nombre_cape+modelo_arome]["hourly"]
 data_cape_df["ARPEGE"] = data.loc[nombre_cape+modelo_arpege]["hourly"]
 data_cape_df["ICON"] = data.loc[nombre_cape+modelo_icon]["hourly"]
 
 
-data_preci_df = pd.DataFrame(index=time)
+data_preci_df = pd.DataFrame(index=pd.to_datetime(time))
 data_preci_df["ECMWF"] = data.loc[nombre_preci+modelo_europeo]["hourly"]
 data_preci_df["GFS"] = data.loc[nombre_preci+modelo_gfs]["hourly"]
 data_preci_df["AROME"] = data.loc[nombre_preci+modelo_arome]["hourly"]
@@ -838,7 +838,7 @@ data_preci_df["ICON"] = data.loc[nombre_preci+modelo_icon]["hourly"]
 
 
 
-data_rachas_df = pd.DataFrame(index=time)
+data_rachas_df = pd.DataFrame(index=pd.to_datetime(time))
 data_rachas_df["GFS"] = data.loc[nombre_rachas+modelo_gfs]["hourly"]
 data_rachas_df["AROME"] = data.loc[nombre_rachas+modelo_arome]["hourly"]
 data_rachas_df["ARPEGE"] = data.loc[nombre_rachas+modelo_arpege]["hourly"]
@@ -846,7 +846,7 @@ data_rachas_df["ICON"] = data.loc[nombre_rachas+modelo_icon]["hourly"]
 
 
 
-data_nubes_df = pd.DataFrame(index=time)
+data_nubes_df = pd.DataFrame(index=pd.to_datetime(time))
 data_nubes_df["ECMWF"] = data.loc[nombre_nubes+modelo_europeo]["hourly"]
 data_nubes_df["GFS"] = data.loc[nombre_nubes+modelo_gfs]["hourly"]
 data_nubes_df["AROME"] = data.loc[nombre_nubes+modelo_arome]["hourly"]
