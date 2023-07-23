@@ -938,7 +938,7 @@ def plot_long_forecast():
 
     ax.set_xlim(0,8)
 
-    ax.axvline((datetime.now().hour / 24 + 1),color="black",linewidth=.4)
+    ax.axvline(((datetime.now().hour+2) / 24 + 1),color="black",linewidth=.4)
 
 
     ax.set_title("Evolución temperaturas a una semana")

@@ -886,7 +886,7 @@ import matplotlib.pyplot as plt
 
 
 
-def plot_long_forecast():
+def plot_long_temp_forecast():
      
     fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
 
@@ -948,7 +948,7 @@ def plot_long_forecast():
 
     ax.set_xlim(0,8)
 
-    ax.axvline((datetime.now().hour / 24 + 1),color="black",linewidth=.4)
+    ax.axvline(((datetime.now().hour+2) / 24 + 1),color="black",linewidth=.4)
 
 
     ax.set_title("Evolución temperaturas a una semana")
@@ -960,4 +960,75 @@ def plot_long_forecast():
 
     ax.grid();
 
-st.pyplot(plot_long_forecast())
+st.pyplot(plot_long_temp_forecast())
+
+
+
+def plot_long_rain_forecast():
+     
+    fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
+
+    data_plotted = data_preci_df.resample("6H",closed="left",label="left").mean().dropna(axis=1,how="all").T.iloc[:,:-10]
+
+
+    boxprops =  dict(linewidth=1, color='black', facecolor='lightblue')
+    whiskerprops = dict(linewidth=1, color='black',linestyle='dashed')
+    flierprops = dict(marker='o', markerfacecolor='blue', markersize=4, linestyle='none')
+    medianprops = dict(linewidth=1, color='black')
+
+    fig.boxplot(data_plotted, positions=[x+0.5 for x in range(0,len(data_plotted.columns))] , patch_artist=True,boxprops=boxprops, 
+                whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
+
+
+    date_list = []
+    for item in data_plotted.columns.date:
+        if item not in date_list:
+            date_list.append(item)
+
+
+
+    fig.xticks([x for x in range(0,len(data_plotted.columns),4)], date_list,ha="center");
+    fig.xticks(rotation=0, ha='left', fontsize=9);
+    fig.grid()
+    fig.ylim(0)
+
+    fig.title("Evolución precipitación");
+    fig.ylabel("L/m2");
+
+st.pyplot(plot_long_rain_forecast())
+
+
+def plot_long_wind_forecast():
+     
+    fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
+
+
+    data_plotted = data_rachas_df.resample("6H",closed="left",label="left").mean().dropna(axis=1,how="all").T.iloc[:,:-18]
+
+
+    boxprops =  dict(linewidth=1, color='black', facecolor='gold')
+    whiskerprops = dict(linewidth=1, color='black',linestyle='dashed')
+    flierprops = dict(marker='o', markerfacecolor='gold', markersize=4, linestyle='none')
+    medianprops = dict(linewidth=1, color='black')
+
+    fig.boxplot(data_plotted, positions=[x+0.5 for x in range(0,len(data_plotted.columns))] , patch_artist=True,boxprops=boxprops, 
+                whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
+
+
+    date_list = []
+    for item in data_plotted.columns.date:
+        if item not in date_list:
+            date_list.append(item)
+
+
+
+    fig.xticks([x for x in range(0,len(data_plotted.columns),4)], date_list,ha="center");
+    fig.xticks(rotation=0, ha='left', fontsize=9);
+    fig.grid()
+    fig.ylim(0)
+
+    fig.title("Evolución viento");
+    fig.ylabel("Km/h");
+
+st.pyplot(plot_long_wind_forecast())
+
