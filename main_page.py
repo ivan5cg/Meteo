@@ -990,7 +990,7 @@ def plot_long_rain_forecast():
     ax.set_xticks([x for x in range(0,len(data_plotted.columns),4)], date_list,ha="center");
     ax.set_xticklabels(labels=date_list,rotation=0, ha='left', fontsize=9);
     ax.grid()
-    ax.ylim(0)
+    ax.set_ylim(0)
     ax.axvline(((datetime.now().hour+2) / 24 + 1),color="black",linewidth=.4)
 
     ax.set_title("Evolución precipitación");
