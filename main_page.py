@@ -1034,37 +1034,3 @@ def plot_long_wind_forecast():
 st.pyplot(plot_long_wind_forecast())
 
 
-
-def plot_long_storm_forecast():
-     
-    fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
-
-
-    data_plotted = data_cape_df.resample("6H",closed="left",label="left").mean().dropna(axis=1,how="all").T.iloc[:,:-18]
-
-
-    boxprops =  dict(linewidth=1, color='black', facecolor='gold')
-    whiskerprops = dict(linewidth=1, color='black',linestyle='dashed')
-    flierprops = dict(marker='o', markerfacecolor='gold', markersize=4, linestyle='none')
-    medianprops = dict(linewidth=1, color='black')
-
-    ax.boxplot(data_plotted, positions=[x+0.5 for x in range(0,len(data_plotted.columns))] , patch_artist=True,boxprops=boxprops, 
-                whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
-
-
-    date_list = []
-    for item in data_plotted.columns.date:
-        if item not in date_list:
-            date_list.append(item)
-
-
-
-    ax.xticks([x for x in range(0,len(data_plotted.columns),4)], date_list,ha="center");
-    ax.xticks(rotation=0, ha='left', fontsize=9);
-    ax.grid()
-    ax.ylim(0)
-
-    ax.title("Evolución potencial tormentas");
-    ax.ylabel("J/Kg");
-
-st.pyplot(plot_long_storm_forecast())
