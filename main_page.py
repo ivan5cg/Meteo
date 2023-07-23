@@ -1003,8 +1003,7 @@ def plot_long_wind_forecast():
      
     fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
 
-
-    data_plotted = data_rachas_df.resample("6H",closed="left",label="left").mean().dropna(axis=1,how="all").T.iloc[:,:-18]
+    data_plotted = data_rachas_df.resample("6H",closed="left",label="left").mean().dropna(axis=1,how="all").T.iloc[:,:-10]
 
 
     boxprops =  dict(linewidth=1, color='black', facecolor='gold')
@@ -1024,9 +1023,9 @@ def plot_long_wind_forecast():
 
 
     ax.set_xticks([x for x in range(0,len(data_plotted.columns),4)], date_list,ha="center");
-    ax.set_xticklabels(rotation=0, ha='left', fontsize=9);
+    ax.set_xticklabels(labels=date_list,rotation=0, ha='left', fontsize=9);
     ax.grid()
-    ax.ylim(0)
+    ax.set_ylim(0)
     ax.axvline(((datetime.now().hour+2) / 24 + 1),color="black",linewidth=.4)
 
     ax.set_title("Evolución viento");
