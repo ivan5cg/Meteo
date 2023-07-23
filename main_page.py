@@ -886,7 +886,7 @@ import matplotlib.pyplot as plt
 
 
 
-def plot_long_temp_forecast():
+def plot_long_forecast():
      
     fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
 
@@ -960,7 +960,7 @@ def plot_long_temp_forecast():
 
     ax.grid();
 
-st.pyplot(plot_long_temp_forecast())
+st.pyplot(plot_long_forecast())
 
 
 
