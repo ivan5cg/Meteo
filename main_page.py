@@ -80,6 +80,22 @@ aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimo
 aemet_horario.index = aemet_horario.index.tz_localize('Europe/Madrid')
 
 
+
+aemet_horario_acumulado = pd.read_excel("Histórico/Acumulado Madrid.xlsx",index_col=0)
+aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize('Europe/Madrid')
+
+aemet_horario_acumulado = pd.concat([aemet_horario_acumulado,aemet_horario])
+
+aemet_horario_acumulado = aemet_horario_acumulado[~aemet_horario_acumulado.index.duplicated(keep='first')]
+
+aemet_horario_acumulado = aemet_horario_acumulado.sort_index(ascending=False)
+
+aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize(None)
+
+aemet_horario_acumulado.to_excel("Histórico/Acumulado Madrid.xlsx")
+
+
+
 def get_temp_data(valid_run):
 
     url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.659&mode=8&sort=0'
