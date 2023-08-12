@@ -741,7 +741,7 @@ data_presion_df = pd.DataFrame(index=pd.to_datetime(time))
 data_presion_df["ECMWF"] = data.loc[nombre_presion+modelo_europeo]["hourly"]
 data_presion_df["GFS"] = data.loc[nombre_presion+modelo_gfs]["hourly"]
 data_presion_df["AROME"] = data.loc[nombre_presion+modelo_arome]["hourly"]
-data_presion_df["ARPEGE"] = data.loc[nombre_presion+modelo_arpege]["hourly"]
+#data_presion_df["ARPEGE"] = data.loc[nombre_presion+modelo_arpege]["hourly"]
 data_presion_df["ICON"] = data.loc[nombre_presion+modelo_icon]["hourly"]
 
 
