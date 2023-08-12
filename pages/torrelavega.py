@@ -715,7 +715,7 @@ st.divider()
 
 @st.cache_data(ttl=60*60)
 def get_forecast_data():
-     data = pd.read_json("https://api.open-meteo.com/v1/forecast?latitude=43.35&longitude=-4.047&hourly=temperature_2m,precipitation,pressure_msl,cloudcover,windspeed_10m,windgusts_10m,cape&models=ecmwf_ifs04,gfs_global,icon_eu,meteofrance_arome_france,meteofrance_arome_france_hd")
+     data = pd.read_json("https://api.open-meteo.com/v1/forecast?latitude=43.35&longitude=-4.047&hourly=temperature_2m,precipitation,pressure_msl,cloudcover,windspeed_10m,windgusts_10m,cape&models=ecmwf_ifs04,gfs_global,icon_eu,meteofrance_arpege_europe,meteofrance_arome_france_hd")
      return data
 
 data = get_forecast_data()
@@ -741,7 +741,7 @@ data_presion_df = pd.DataFrame(index=pd.to_datetime(time))
 data_presion_df["ECMWF"] = data.loc[nombre_presion+modelo_europeo]["hourly"]
 data_presion_df["GFS"] = data.loc[nombre_presion+modelo_gfs]["hourly"]
 data_presion_df["AROME"] = data.loc[nombre_presion+modelo_arome]["hourly"]
-#data_presion_df["ARPEGE"] = data.loc[nombre_presion+modelo_arpege]["hourly"]
+data_presion_df["ARPEGE"] = data.loc[nombre_presion+modelo_arpege]["hourly"]
 data_presion_df["ICON"] = data.loc[nombre_presion+modelo_icon]["hourly"]
 
 
