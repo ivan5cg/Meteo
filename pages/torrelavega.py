@@ -240,6 +240,7 @@ st.divider()
 #########################
 
 
+
 def plot_temp_data(data):
         
 
@@ -309,6 +310,18 @@ def plot_temp_data(data):
             ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
 
 
+        max_usual_temp_upper = 22
+        max_usual_temp_lower = 26
+
+        ax.fill_between(data.index,max_usual_temp_upper,max_usual_temp_lower, alpha=0.2, color='red')
+
+        min_usual_temp_upper = 14
+        min_usual_temp_lower = 18
+
+        ax.fill_between(data.index,min_usual_temp_upper,min_usual_temp_lower, alpha=0.2, color='blue')
+
+
+
         # Format x-axis ticks
         # Format x-axis ticks
         ticks = []
@@ -327,6 +340,7 @@ def plot_temp_data(data):
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center');
 
         return 
+
 
 st.pyplot(plot_temp_data(temp_data))
 
