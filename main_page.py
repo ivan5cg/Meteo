@@ -51,16 +51,16 @@ def get_arome_data(url):
 def get_last_arome_run():
 
     runs = [3, 9, 15, 21]
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&mode=8&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.35&lon=-4.047&mode=8&sort=0'
 
-    last_index = pd.Timestamp(year=2017, month=1, day=1,tz="UTC")
+    first_index = pd.Timestamp(year=2017, month=1, day=1,tz="UTC")
 
     for run in runs:
         url_run = f'{url}&run={run}'
-        last_index_run = get_arome_data(url_run).index[-1]
+        first_index_run = get_arome_data(url_run).index[0]
 
-        if last_index_run > last_index:
-            last_index = last_index_run
+        if first_index_run > first_index:
+            first_index = first_index_run
             valid_run = run
         else:
             pass
