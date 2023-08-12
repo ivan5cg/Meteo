@@ -156,6 +156,89 @@ col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de maña
 
 st.divider()
 
+##########################
+
+
+día_año_hoy = (datetime.now()+timedelta(hours=2)).timetuple().tm_yday
+
+día_año_mañana = día_año_hoy + 1 #(datetime.now()+timedelta(hours=0)).timetuple().tm_yday
+
+hora_día = (datetime.now()+timedelta(hours=2)).hour
+
+
+
+# Definir el array de valores
+#arr_max = datos_df_global[datos_df_global["día_del_año"]==día_año_hoy]["tmax"].sort_values().dropna()
+
+# Definir el valor para el cual deseas calcular el percentil
+valor_max = temp_data[temp_data.index.day_of_year==día_año_hoy].mean(axis=1).max().round(1)
+
+
+# Definir el array de valores
+#arr_min = datos_df_global[datos_df_global["día_del_año"]==día_año_hoy]["tmin"].sort_values().dropna()
+
+# Definir el valor para el cual deseas calcular el percentil
+valor_min = temp_data[temp_data.index.day_of_year==día_año_hoy].mean(axis=1).min().round(1)
+
+# Calcular el percentil
+
+#percentil_max_hoy = percentileofscore(arr_max, valor_max)
+
+#percentil_min_hoy = percentileofscore(arr_min, valor_min)
+
+
+
+# Definir el array de valores
+#arr_max = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmax"].sort_values().dropna()
+
+# Definir el valor para el cual deseas calcular el percentil
+valor_max_mañana = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).max().round(1)
+
+
+# Definir el array de valores
+#arr_min = datos_df_global[datos_df_global["día_del_año"]==día_año_mañana]["tmin"].sort_values().dropna()
+
+# Definir el valor para el cual deseas calcular el percentil
+valor_min_mañana = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).min().round(1)
+
+# Calcular el percentil
+
+#percentil_max_mañana = percentileofscore(arr_max, valor_max_mañana)
+
+#percentil_min_mañana = percentileofscore(arr_min, valor_min_mañana)
+
+
+
+#texto_percentil = "El percentil indica cómo es la temperatura frente a los registros históricos, un valor cercano a 100 indica un registro extremadamente alto, uno cercano a 0 indica un registro extremadamente bajo."
+
+
+if hora_día < 9:
+
+    col1,col2,col3,col4 = st.columns(4,gap="small")
+
+    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,delta_color="off")
+    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,delta_color="off")
+    col3.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,delta_color="off")
+    col4.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,delta_color="off")
+
+
+else:
+    col1,col2,col3 = st.columns(3,gap="small")
+    
+    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,delta_color="off")
+    col2.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,delta_color="off")
+    col3.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,delta_color="off")
+
+
+
+
+
+st.divider()
+
+
+
+#########################
+
 
 def plot_temp_data(data):
         
