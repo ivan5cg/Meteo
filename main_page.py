@@ -971,8 +971,8 @@ def plot_long_forecast():
     ax.set_ylabel("Temperatura")
 
 
-    ax.set_xticks([0,1,2,3,4,5,6,7], data_temp_min.index.strftime('%A %d %B'),ha="center")
-    ax.set_xticklabels(labels=data_temp_min.index.strftime('%A %d %B'), rotation=0, ha='left', fontsize=9)
+    ax.set_xticks([0,1,2,3,4,5,6,7], pd.to_datetime(data_temp_min.index).strftime('%A %d'),ha="center")
+    ax.set_xticklabels(labels=pd.to_datetime(data_temp_min.index).strftime('%A %d'), rotation=0, ha='left', fontsize=9)
 
     ax.grid();
 
