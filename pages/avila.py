@@ -902,7 +902,6 @@ data_temp_min = data_temp_df.groupby(data_temp_df.index.date).min() * groups[gro
 import matplotlib.pyplot as plt
 
 
-
 def plot_long_forecast():
      
     fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
@@ -972,13 +971,12 @@ def plot_long_forecast():
     ax.set_ylabel("Temperatura")
 
 
-    ax.set_xticks([0,1,2,3,4,5,6,7], data_temp_min.index,ha="center")
-    ax.set_xticklabels(labels=data_temp_min.index, rotation=0, ha='left', fontsize=9)
+    ax.set_xticks([0,1,2,3,4,5,6,7], pd.to_datetime(data_temp_min.index).strftime('%A %d'),ha="center")
+    ax.set_xticklabels(labels=pd.to_datetime(data_temp_min.index).strftime('%A %d'), rotation=0, ha='left', fontsize=9)
 
     ax.grid();
 
 st.pyplot(plot_long_forecast())
-
 
 
 
@@ -1006,10 +1004,10 @@ def plot_long_rain_forecast():
 
 
     ax.set_xticks([x for x in range(0,len(data_plotted.columns),4)], date_list,ha="center");
-    ax.set_xticklabels(labels=date_list,rotation=0, ha='left', fontsize=9);
+    ax.set_xticklabels(labels=pd.to_datetime(date_list).strftime('%A %d'),rotation=0, ha='left', fontsize=9);
     ax.grid()
     ax.set_ylim(0)
-    ax.axvline(((datetime.now().hour+2) / 24 + 1),color="black",linewidth=.4)
+    #ax.axvline(((datetime.now().hour+2) ),color="black",linewidth=.4)
 
     ax.set_title("Evolución precipitación");
     ax.set_ylabel("L/m2");
@@ -1041,14 +1039,12 @@ def plot_long_wind_forecast():
 
 
     ax.set_xticks([x for x in range(0,len(data_plotted.columns),4)], date_list,ha="center");
-    ax.set_xticklabels(labels=date_list,rotation=0, ha='left', fontsize=9);
+    ax.set_xticklabels(labels=pd.to_datetime(date_list).strftime('%A %d'),rotation=0, ha='left', fontsize=9);
     ax.grid()
     ax.set_ylim(0)
-    ax.axvline(((datetime.now().hour+2) / 24 + 1),color="black",linewidth=.4)
+    #ax.axvline(((datetime.now().hour+2)  + 1),color="black",linewidth=.4)
 
     ax.set_title("Evolución viento");
     ax.set_ylabel("Km/h");
 
 st.pyplot(plot_long_wind_forecast())
-
-

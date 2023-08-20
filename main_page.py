@@ -1007,7 +1007,7 @@ def plot_long_rain_forecast():
     ax.set_xticklabels(labels=pd.to_datetime(date_list).strftime('%A %d'),rotation=0, ha='left', fontsize=9);
     ax.grid()
     ax.set_ylim(0)
-    ax.axvline(((datetime.now().hour+2) ),color="black",linewidth=.4)
+    #ax.axvline(((datetime.now().hour+2) ),color="black",linewidth=.4)
 
     ax.set_title("Evolución precipitación");
     ax.set_ylabel("L/m2");
@@ -1042,7 +1042,7 @@ def plot_long_wind_forecast():
     ax.set_xticklabels(labels=pd.to_datetime(date_list).strftime('%A %d'),rotation=0, ha='left', fontsize=9);
     ax.grid()
     ax.set_ylim(0)
-    ax.axvline(((datetime.now().hour+2)  + 1),color="black",linewidth=.4)
+    #ax.axvline(((datetime.now().hour+2)  + 1),color="black",linewidth=.4)
 
     ax.set_title("Evolución viento");
     ax.set_ylabel("Km/h");
