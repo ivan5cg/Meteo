@@ -425,7 +425,7 @@ def plot_temp_data(data):
         tick_labels = []
         for date in data.index:
                 if date.hour == 0:
-                    tick_labels.append(date.strftime('%a %b %d'))
+                    tick_labels.append(date.strftime('%A %d %B'))
                     ticks.append(date)
                     ax.axvline(date,0,1,color="black",linewidth=2)
                 if date.hour % 6 == 0:
