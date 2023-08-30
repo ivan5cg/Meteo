@@ -984,7 +984,7 @@ def plot_long_rain_forecast():
      
     fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
 
-    data_plotted = data_preci_df.resample("6H",closed="left",label="left").mean().dropna(axis=1,how="all").T.iloc[:,:-10]
+    data_plotted = data_preci_df.resample("6H",closed="left",label="left").sum().mean().dropna(axis=1,how="all").T.iloc[:,:-10]
 
 
     boxprops =  dict(linewidth=1, color='black', facecolor='lightblue')
