@@ -69,7 +69,7 @@ def get_last_arome_run():
 valid_run = get_last_arome_run()
 
 
-st.header("Dublin")
+st.header("Cork")
 
 
 #aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_1154H_datos-horarios.csv?k=can&l=1154H&datos=det&w=0&f=temperatura&x=" ,
