@@ -131,14 +131,14 @@ def get_prec_data(valid_run):
 
 st.sidebar.subheader("Previsión más reciente: "+str(valid_run+2)+" horas")
 
-st.sidebar.subheader("Datos más recientes: "+str(aemet_horario.index[0].hour)+" horas")
+#st.sidebar.subheader("Datos más recientes: "+str(aemet_horario.index[0].hour)+" horas")
 
 
 temp_data = get_temp_data(valid_run)
-temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
+#temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
 
 temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
-temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
+#temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
 
 dia_mañana = (datetime.now() + timedelta(hours=26)).day
 hora = (datetime.now() + timedelta(hours=2)).hour
@@ -347,7 +347,7 @@ st.pyplot(plot_temp_data(temp_data))
 ##############################################
 
 prec_data = get_prec_data(valid_run)
-prec_data["Actual data"] = aemet_horario["Precipitación (mm)"]
+#prec_data["Actual data"] = aemet_horario["Precipitación (mm)"]
 
 def plot_prec_data(data):
 
@@ -364,7 +364,7 @@ def plot_prec_data(data):
             ax.plot(data.index, data[column], alpha=0.9)
             ax.plot(data.index,data[column].cumsum(),alpha=0.5,linestyle="--")
 
-        ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
+        #ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
 
         # Add title and labels
 
@@ -446,7 +446,7 @@ st.pyplot(plot_prec_data(prec_data))
 
 #######################################################
 wind_data = get_wind_gust_data(valid_run)
-wind_data["Actual data"] = aemet_horario["Racha (km/h)"]
+#wind_data["Actual data"] = aemet_horario["Racha (km/h)"]
 
 def plot_wind_data(data):
 
@@ -462,7 +462,7 @@ def plot_wind_data(data):
         for column in data.columns[:-1]:
             ax.plot(data.index, data[column], alpha=0.9)
 
-        ax.plot(data["Actual data"], alpha=1,linewidth=5,color="black")
+        #ax.plot(data["Actual data"], alpha=1,linewidth=5,color="black")
 
         # Add title and labels
 
