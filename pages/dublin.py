@@ -137,7 +137,7 @@ st.sidebar.subheader("Previsión más reciente: "+str(valid_run+2)+" horas")
 temp_data = get_temp_data(valid_run)
 #temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
 
-temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
+#temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
 #temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
 
 dia_mañana = (datetime.now() + timedelta(hours=26)).day
