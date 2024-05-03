@@ -69,7 +69,7 @@ def get_last_arome_run():
 valid_run = get_last_arome_run()
 
 
-st.header("Torrelavega")
+st.header("Dublin")
 
 
 #aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_1154H_datos-horarios.csv?k=can&l=1154H&datos=det&w=0&f=temperatura&x=" ,
@@ -150,9 +150,9 @@ fiabilidad = 10*np.exp(-0.05*desv_temp**2.5)
 
 col1,col2,col3 = st.columns(3,gap="small")
 
-col1.metric(":thermometer: Actual (ºC)",temp_actual,(temp_actual-temp_ayer).round(1),delta_color="inverse")
-col2.metric(":thermometer: Mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
-col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de mañana a esta hora, calculada sobre 10")
+#col1.metric(":thermometer: Actual (ºC)",temp_actual,(temp_actual-temp_ayer).round(1),delta_color="inverse")
+#col2.metric(":thermometer: Mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
+col1.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de mañana a esta hora, calculada sobre 10")
 
 st.divider()
 
