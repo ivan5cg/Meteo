@@ -349,100 +349,74 @@ st.pyplot(plot_temp_data(temp_data))
 prec_data = get_prec_data(valid_run)
 #prec_data["Actual data"] = aemet_horario["Precipitación (mm)"]
 
-def plot_prec_data(data):
 
-        data = data
+chance_prec = 100 * pd.DataFrame((prec_data.apply(lambda row: sum(row != 0), axis=1) / len(prec_data.columns)) )
 
-        # Set figure size and resolution
-        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
+avg_prec = []
+for i in range(len(prec_data)):
 
-        # Set plot style
-        plt.style.use('default')
+    try:
+        avg_prec.append(sum(prec_data.iloc[i][prec_data.iloc[i]!=0])/len(prec_data.iloc[i][prec_data.iloc[i]!=0]))
 
-        # Iterate over the columns and plot each one
-        for column in data.columns[:-1]:
-            ax.plot(data.index, data[column], alpha=0.9)
-            ax.plot(data.index,data[column].cumsum(),alpha=0.5,linestyle="--")
+    except:
+        avg_prec.append(0)
 
-        #ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
+avg_prec = pd.DataFrame(avg_prec)
+avg_prec = avg_prec.round(1)
+avg_prec.index = prec_data.index
 
-        # Add title and labels
+def plot_rain_chance(chance_prec,avg_prec):
 
+    chance_prec = chance_prec 
+    avg_prec = avg_prec 
+    
+    fig, axs = plt.subplots(2,gridspec_kw={'height_ratios': [0.5,0.5]},figsize=(10, 10),sharex=True) 
 
-        plt.title('Rain Forecast for the next 2 days', fontsize=16)
-        plt.xlabel('Date', fontsize=12)
-        plt.ylabel('L/m2', fontsize=12)
-
-       
-
-        # Remove top and right spines
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-
-        # Set x-axis tick parameters
-        plt.xticks(fontsize=10, rotation=0, ha='right')
-
-        # Set y-axis tick parameters
-        plt.yticks(fontsize=10)
-
-        # Add vertical lines for each hour
-        for hour in data.index:
-            ax.axvline(hour, linestyle='--', color='black', alpha=0.1)
-
-        # Remove gridlines
-        plt.grid(True)
-
-        # Compute the minimum and maximum temperature for each day and their respective indexes
-        dates = list(set(data.index.date))
-        min_temps = []
-        max_temps = []
-        min_idx = []
-        max_idx = []
-
-        for date in dates:
-            df = data.loc[data.index.date == date]
-            min_temp = df.min().min()
-            max_temp = df.max().max()
-            min_idx.append(data.loc[data.index.date == date].idxmin().min())
-            max_idx.append(data.loc[data.index.date == date].idxmax().min())
-            min_temps.append(min_temp)
-            max_temps.append(max_temp)
-
-        # Add the minimum temperature text to the plot
-        #for i, temp in enumerate(min_temps):
-         #   min_temp = "{:.1f}".format(temp)
-         #   ax.text(min_idx[i], temp, min_temp, ha='left', va='top', color='blue',fontweight="bold")
-
-        # Add the maximum temperature text to the plot
-        for i, temp in enumerate(max_temps):
-            max_temp = "{:.1f}".format(temp)
-            ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
+    axs[1].bar(chance_prec.index, chance_prec.iloc[:,0],width=0.025)
+    axs[1].set_ylim(bottom=0,top=100)
 
 
-        # Format x-axis ticks
-        # Format x-axis ticks
-        ticks = []
-        tick_labels = []
-        for date in data.index:
-                if date.hour == 0:
-                    tick_labels.append(date.strftime('%a, %b %d'))
-                    ax.axvline(date,0,1,color="black",linewidth=2)
-                    ticks.append(date)
-                if date.hour % 6 == 0:
-                    tick_labels.append(date.strftime('%H'))
-                    ticks.append(date)
-                    pass
+    axs[0].bar(avg_prec.index, avg_prec.iloc[:,0],width=0.025)
 
-        ax.set_xticks(ticks)
-        ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
+    ticks = []
+    tick_labels = []
+    for date in avg_prec.index:
+            if date.hour == 0:
+                tick_labels.append(date.strftime('%a, %b %d'))
+                ticks.append(date)
+                axs[0].axvline(date,0,1,color="black",linewidth=2)
+                axs[1].axvline(date,0,1,color="black",linewidth=2)
+            if date.hour % 6 == 0:
+                tick_labels.append(date.strftime('%H'))
+                ticks.append(date)
+                pass
 
-        ax.set_ylim(bottom=0)
+    for hour in avg_prec.index:
+        axs[0].axvline(hour, linestyle='--', color='black', alpha=0.1)
+        axs[1].axvline(hour, linestyle='--', color='black', alpha=0.1)
 
-        return 
+    axs[0].set_xticks(ticks)
+    axs[0].set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
 
+    axs[1].set_xticks(ticks)
+    axs[1].set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
+
+    axs[0].grid(True)
+    axs[1].grid(True)
+
+    plt.suptitle("Rain forecast",y=0.91)
+
+    axs[0].set_ylabel('Average L/m2 in case of rain')
+    axs[1].set_ylabel('Chance of rain')
 #st.write(prec_data)
 
-st.pyplot(plot_prec_data(prec_data))
+
+#st.pyplot(plot_prec_data(prec_data))
+
+st.pyplot(plot_rain_chance(chance_prec,avg_prec))
+
+
+
 
 #######################################################
 wind_data = get_wind_gust_data(valid_run)
