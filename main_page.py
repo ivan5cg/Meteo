@@ -1226,5 +1226,5 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     plt.show()
 
 #
-st.pyplot(plot_sun_elevation(20.41167, -23.67753, 'Europe/Madrid'))
+st.pyplot(plot_sun_elevation(40.41144776110279, -3.6787949052050672, 'Europe/Madrid'))
 
