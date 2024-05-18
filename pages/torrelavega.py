@@ -442,7 +442,74 @@ def plot_prec_data(data):
 
 #st.write(prec_data)
 
-st.pyplot(plot_prec_data(prec_data))
+
+chance_prec = 100 * pd.DataFrame((prec_data.apply(lambda row: sum(row != 0), axis=1) / len(prec_data.columns)) )
+
+avg_prec = []
+for i in range(len(prec_data)):
+
+    try:
+        avg_prec.append(sum(prec_data.iloc[i][prec_data.iloc[i]!=0])/len(prec_data.iloc[i][prec_data.iloc[i]!=0]))
+
+    except:
+        avg_prec.append(0)
+
+avg_prec = pd.DataFrame(avg_prec)
+avg_prec = avg_prec.round(1)
+avg_prec.index = prec_data.index
+
+def plot_rain_chance(chance_prec,avg_prec):
+
+    chance_prec = chance_prec 
+    avg_prec = avg_prec 
+    
+    fig, axs = plt.subplots(2,gridspec_kw={'height_ratios': [0.5,0.5]},figsize=(10, 10),sharex=True) 
+
+    axs[1].bar(chance_prec.index, chance_prec.iloc[:,0],width=0.025)
+    axs[1].set_ylim(bottom=0,top=100)
+
+
+    axs[0].bar(avg_prec.index, avg_prec.iloc[:,0],width=0.025)
+
+    ticks = []
+    tick_labels = []
+    for date in avg_prec.index:
+            if date.hour == 0:
+                tick_labels.append(date.strftime('%a, %b %d'))
+                ticks.append(date)
+                axs[0].axvline(date,0,1,color="black",linewidth=2)
+                axs[1].axvline(date,0,1,color="black",linewidth=2)
+            if date.hour % 6 == 0:
+                tick_labels.append(date.strftime('%H'))
+                ticks.append(date)
+                pass
+
+    for hour in avg_prec.index:
+        axs[0].axvline(hour, linestyle='--', color='black', alpha=0.1)
+        axs[1].axvline(hour, linestyle='--', color='black', alpha=0.1)
+
+    axs[0].set_xticks(ticks)
+    axs[0].set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
+
+    axs[1].set_xticks(ticks)
+    axs[1].set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
+
+    axs[0].grid(True)
+    axs[1].grid(True)
+
+    plt.suptitle("Rain forecast",y=0.91)
+
+    axs[0].set_ylabel('Average L/m2 in case of rain')
+    axs[1].set_ylabel('Chance of rain')
+#st.write(prec_data)
+
+
+#st.pyplot(plot_prec_data(prec_data))
+
+st.pyplot(plot_rain_chance(chance_prec,avg_prec))
+
+
+
 
 #######################################################
 wind_data = get_wind_gust_data(valid_run)
