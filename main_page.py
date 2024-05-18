@@ -1168,7 +1168,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     day_length_minutes = int((day_length_seconds % 3600) / 60)  # Extract remaining minutes
 
     # Set up the plot
-    fig, ax = plt.subplots(figsize=(10, 7), facecolor='white')
+    fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
 
     # Plot the sun elevation profile
     ax.fill_between(np.arange(len(elevaciones)), elevaciones_array, where=elevaciones_array > 0, 
