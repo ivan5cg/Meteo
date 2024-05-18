@@ -1225,5 +1225,5 @@ ax.legend(loc='upper left', frameon=False, fontsize=10)
 plt.tight_layout()
 sunplot = plt.show()
 #
-st.plotly_chart(fig)
+st.pyplot(fig)
 
