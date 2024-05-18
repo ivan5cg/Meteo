@@ -1111,3 +1111,119 @@ def plot_long_wind_forecast():
 st.pyplot(plot_long_wind_forecast())
 
 
+
+
+
+
+
+import datetime
+import pytz
+from astral import LocationInfo
+from astral.sun import sun, elevation
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Define Madrid location
+madrid = LocationInfo("Madrid", "Spain", "Europe/Madrid", 40.41167, -3.67753)
+
+# Get current date and time in Madrid timezone
+timezone = pytz.timezone('Europe/Madrid')
+today = datetime.datetime.now(tz=timezone)
+year, month, day = today.year, today.month, today.day
+
+# Calculate exact sunrise and sunset times in Madrid timezone
+s = sun(madrid.observer, date=today)
+
+# Convert sunrise and sunset times to local timezone
+sunrise_local = s['sunrise'].astimezone(timezone)
+sunset_local = s['sunset'].astimezone(timezone)
+
+# Convert sunrise and sunset times to indices
+sunrise_index = sunrise_local.hour * 60 + sunrise_local.minute
+sunset_index = sunset_local.hour * 60 + sunset_local.minute
+
+# Generate datetime objects for every minute of the day in Madrid timezone
+listahoras = [timezone.localize(datetime.datetime(year, month, day, hour, minute))
+              for hour in range(24) for minute in range(60)]
+
+# Calculate sun elevation for each minute
+elevaciones = [elevation(madrid.observer, dt) for dt in listahoras]
+
+# Find the index of the maximum elevation
+max_elevation_index = np.argmax(elevaciones)
+
+# Convert the maximum elevation index to a corresponding time
+max_elevation_time = listahoras[max_elevation_index].strftime('%H:%M')
+
+# Current time index
+current_time_index = today.hour * 60 + today.minute
+
+# Convert to numpy array for efficient plotting
+elevaciones_array = np.array(elevaciones)
+
+# Compute length of the day
+day_length_seconds = (sunset_local - sunrise_local).total_seconds()
+day_length_hours = int(day_length_seconds // 3600)  # Convert seconds to hours
+day_length_minutes = int((day_length_seconds % 3600) / 60)  # Extract remaining minutes
+
+# Set up the plot
+fig, ax = plt.subplots(figsize=(10, 5), facecolor='white')
+
+# Plot the sun elevation profile
+ax.fill_between(np.arange(len(elevaciones)), elevaciones_array, where=elevaciones_array > 0, 
+                color='peachpuff', alpha=0.5)
+ax.fill_between(np.arange(len(elevaciones)), elevaciones_array, where=elevaciones_array < 0, 
+                color='lightblue', alpha=0.5)
+
+# Mark the current time
+current_elevation = elevaciones_array[current_time_index]
+ax.plot(current_time_index, current_elevation, 'o', color='darkblue', markersize=8, label='Current Position')
+
+# Format sunrise, sunset, and max elevation times as hh:mm
+sunrise_time = f"{sunrise_local.hour:02d}:{sunrise_local.minute:02d}"
+sunset_time = f"{sunset_local.hour:02d}:{sunset_local.minute:02d}"
+max_elevation_time = listahoras[max_elevation_index].strftime('%H:%M')
+
+# Mark sunrise, sunset, and max elevation with labels
+ax.plot(sunrise_index, 0, marker='o', color='gold', markersize=10)
+ax.text(sunrise_index, -10, sunrise_time, ha='center', fontsize=10, color='orange')
+
+ax.plot(sunset_index, 0, marker='o', color='darkorange', markersize=10)
+ax.text(sunset_index, -10, sunset_time, ha='center', fontsize=10, color='darkorange')
+
+ax.plot(max_elevation_index, elevaciones_array[max_elevation_index], 'o', color='red', markersize=8)
+ax.text(max_elevation_index, elevaciones_array[max_elevation_index] - 7.5, max_elevation_time, ha='center', fontsize=10, color='red')
+
+# Add labels and title
+ax.set_xlabel('Time of Day (hours)', fontsize=12, fontweight='light')
+ax.set_ylabel('Sun Elevation (degrees)', fontsize=12, fontweight='light')
+ax.set_title(f'Sun Elevation Profile in Madrid | Date: {today.strftime("%Y-%m-%d")} | Day Length: {day_length_hours}h {day_length_minutes}m', 
+             fontsize=14, fontweight='bold')
+
+# Customize the x-axis labels to show hours
+hours = np.arange(0, len(elevaciones), 60)
+ax.set_xticks(hours)
+ax.set_xticklabels([str(i // 60) for i in hours], fontsize=10, fontweight='light')
+
+# Customize the y-axis labels
+ax.yaxis.set_tick_params(labelsize=10, labelcolor='grey', width=0.5)
+
+# Make the grid lines more subtle
+ax.grid(True, linestyle=':', linewidth=0.5, color='grey', alpha=0.7)
+
+# Remove unnecessary spines
+for spine in ['top', 'right']:
+    ax.spines[spine].set_visible(False)
+for spine in ['left', 'bottom']:
+    ax.spines[spine].set_color('grey')
+    ax.spines[spine].set_linewidth(0.5)
+
+# Minimalist legend
+ax.legend(loc='upper left', frameon=False, fontsize=10)
+
+# Display the plot
+plt.tight_layout()
+sunplot = plt.show()
+#
+st.plotly_chart(fig)
+

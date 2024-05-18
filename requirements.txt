@@ -5,3 +5,5 @@ numpy
 matplotlib
 scipy
 openpyxl
+pytz
+astral
