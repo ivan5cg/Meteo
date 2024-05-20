@@ -1236,7 +1236,8 @@ image_urls = [
     "https://informo.madrid.es/cameras/Camara14303.jpg?rand=1716226713266",
     "https://informo.madrid.es/cameras/Camara01304.jpg?rand=1716226729161",
     "https://informo.madrid.es/cameras/Camara07306.jpg?rand=1716227117756",
-    "https://informo.madrid.es/cameras/Camara04301.jpg?rand=1716227208671"
+    "https://informo.madrid.es/cameras/Camara04301.jpg?rand=1716227208671",
+    "https://informo.madrid.es/cameras/Camara12305.jpg?rand=1716227304969"
 ]
 
 # Function to create a 2x2 grid
