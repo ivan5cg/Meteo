@@ -9,6 +9,7 @@ from scipy.stats import percentileofscore
 
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
+st.set_page_config(layout="wide")
 #st.write(datetime.now()+ timedelta(hours=2))
 
 def get_arome_data(url):
