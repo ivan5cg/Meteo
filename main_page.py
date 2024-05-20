@@ -1230,23 +1230,25 @@ st.pyplot(plot_sun_elevation(40.41144776110279, -3.6787949052050672, 'Europe/Mad
 
 
 
-# URLs of the images and data source
+# URLs of the images
 image_urls = [
-    "https://informo.madrid.es/cameras/Camara14307.jpg",
-    "https://meteosierra.com/cams/cara/webcam.jpg",
-    "https://meteosierra.com/cams/vista/webcam.jpg"
+    "https://informo.madrid.es/cameras/Camara03310.jpg?rand=1716226504287",
+    "https://informo.madrid.es/cameras/Camara14303.jpg?rand=1716226713266",
+    "https://informo.madrid.es/cameras/Camara01304.jpg?rand=1716226729161",
+    "https://informo.madrid.es/cameras/Camara09305.jpg?rand=1716226750159"
 ]
-data_source_url = "https://meteosierra.com"
 
-# Display images in columns
-cols = st.columns(3)
-for col, url in zip(cols, image_urls):
-    col.image(url, use_column_width=True)
+# Function to create a 2x2 grid
+def display_images_in_grid(image_urls):
+    # Create two rows with two columns each
+    cols = [st.columns(2) for _ in range(2)]
 
-# Cite the data source
-st.markdown(
-    """
-    Data and images are sourced from [MeteoSierra](https://meteosierra.com). 
-    Visit [https://meteosierra.com](https://meteosierra.com) for more information.
-    """
-)
+    # Flatten the list of columns
+    cols = [col for sublist in cols for col in sublist]
+
+    # Iterate over images and display them
+    for col, img_url in zip(cols, image_urls):
+        col.image(img_url, use_column_width=True)
+
+# Display the images
+display_images_in_grid(image_urls)
