@@ -1259,3 +1259,25 @@ def display_images_in_grid(image_urls):
 
 # Display the images
 display_images_in_grid(image_urls)
+
+
+with st.sidebar:
+    st.markdown("### Controls")
+    if st.button('Refresh Page'):
+        st.rerun()
+
+
+st.sidebar.markdown("""
+    <style>
+        .sidebar .sidebar-content {
+            background-color: #f0f0f5;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .sidebar .btn-primary {
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
