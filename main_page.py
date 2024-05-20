@@ -1232,7 +1232,7 @@ st.pyplot(plot_sun_elevation(40.41144776110279, -3.6787949052050672, 'Europe/Mad
 
 # URLs of the images and data source
 image_urls = [
-    "https://meteosierra.com/cams/madrid/webcam.jpg",
+    "https://phantom-marca.unidadeditorial.es/5ce6a68d87333a2e02411c7379940c61/resize/660/f/webp/assets/multimedia/imagenes/2024/05/19/17161485518909.jpg",
     "https://meteosierra.com/cams/cara/webcam.jpg",
     "https://meteosierra.com/cams/vista/webcam.jpg"
 ]
