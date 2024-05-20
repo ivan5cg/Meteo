@@ -9,7 +9,6 @@ from scipy.stats import percentileofscore
 
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
-st.set_page_config(layout="wide")
 #st.write(datetime.now()+ timedelta(hours=2))
 
 def get_arome_data(url):
@@ -1236,20 +1235,24 @@ image_urls = [
     "https://informo.madrid.es/cameras/Camara03310.jpg?rand=1716226504287",
     "https://informo.madrid.es/cameras/Camara14303.jpg?rand=1716226713266",
     "https://informo.madrid.es/cameras/Camara01304.jpg?rand=1716226729161",
-    "https://informo.madrid.es/cameras/Camara09305.jpg?rand=1716226750159"
+    "https://informo.madrid.es/cameras/Camara07306.jpg?rand=1716227117756",
+    "https://informo.madrid.es/cameras/Camara04301.jpg?rand=1716227208671"
 ]
 
 # Function to create a 2x2 grid
 def display_images_in_grid(image_urls):
-    # Create two rows with two columns each
-    cols = [st.columns(2) for _ in range(2)]
+    # Calculate the number of rows needed (each row has 2 columns)
+    num_images = len(image_urls)
+    num_rows = (num_images + 1) // 2  # Ensure correct number of rows for odd/even number of images
 
-    # Flatten the list of columns
-    cols = [col for sublist in cols for col in sublist]
-
-    # Iterate over images and display them
-    for col, img_url in zip(cols, image_urls):
-        col.image(img_url, use_column_width=True)
+    # Display images in a 2xN grid
+    image_idx = 0
+    for _ in range(num_rows):
+        cols = st.columns(2)
+        for col in cols:
+            if image_idx < num_images:
+                col.image(image_urls[image_idx], use_column_width=True)
+                image_idx += 1
 
 # Display the images
 display_images_in_grid(image_urls)
