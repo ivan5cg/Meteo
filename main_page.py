@@ -1228,3 +1228,25 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 #
 st.pyplot(plot_sun_elevation(40.41144776110279, -3.6787949052050672, 'Europe/Madrid'))
 
+
+
+# URLs of the images and data source
+image_urls = [
+    "https://meteosierra.com/cams/madrid/webcam.jpg",
+    "https://meteosierra.com/cams/cara/webcam.jpg",
+    "https://meteosierra.com/cams/vista/webcam.jpg"
+]
+data_source_url = "https://meteosierra.com"
+
+# Display images in columns
+cols = st.columns(3)
+for col, url in zip(cols, image_urls):
+    col.image(url, use_column_width=True)
+
+# Cite the data source
+st.markdown(
+    """
+    Data and images are sourced from [MeteoSierra](https://meteosierra.com). 
+    Visit [https://meteosierra.com](https://meteosierra.com) for more information.
+    """
+)
