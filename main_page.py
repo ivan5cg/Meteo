@@ -1264,6 +1264,7 @@ display_images_in_grid(image_urls)
 with st.sidebar:
     st.markdown("### Controls")
     if st.button('Refresh Page'):
+        st.cache_data.clear()
         st.rerun()
 
 
