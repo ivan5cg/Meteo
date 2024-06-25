@@ -18,8 +18,8 @@ import telegram
 
 
 
-TELEGRAM_BOT_TOKEN = st.secrets["5953594067:AAGM4CWWKAkYkrtAGPkhHQvPZo2zt2xMA-U"]
-TELEGRAM_CHAT_ID = st.secrets["15421899"]
+TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
+TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
 bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
 
