@@ -31,7 +31,7 @@ def send_telegram_message_sync(message):
     asyncio.run(send_telegram_message(message))
 
 
-#send_telegram_message_sync("test1")
+send_telegram_message_sync("test1")
 
 
 st.write(TELEGRAM_CHAT_ID)
