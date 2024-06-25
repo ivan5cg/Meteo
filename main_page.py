@@ -17,13 +17,14 @@ import telegram
 
 
 
-
 TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
 bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
+st.write(TELEGRAM_CHAT_ID)
 
-bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="test")
+bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="test2")
+
 
 def get_arome_data(url):
 
