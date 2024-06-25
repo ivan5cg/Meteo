@@ -7,4 +7,4 @@ scipy
 openpyxl
 pytz
 astral
-telegram
+python-telegram-bot
