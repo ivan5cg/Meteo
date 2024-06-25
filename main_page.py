@@ -6,6 +6,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from datetime import datetime,timedelta
 from scipy.stats import percentileofscore
+import asyncio
 
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
@@ -21,9 +22,21 @@ TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
 bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
+
+async def send_telegram_message(message):
+    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+
+
+def send_telegram_message_sync(message):
+    asyncio.run(send_telegram_message(message))
+
+
+send_telegram_message_sync("test1")
+
+
 st.write(TELEGRAM_CHAT_ID)
 
-bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="test2")
+
 
 
 def get_arome_data(url):
