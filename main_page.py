@@ -379,7 +379,7 @@ rain_chance = rain_chance[rain_chance > 20].dropna().index.hour
 if len(rain_chance) > 0:
     hours_list = list(map(str, rain_chance))
     if len(hours_list) > 1:
-        hours_str = ", ".join(hours_list[:-1]) + " and " + hours_list[-1]
+        hours_str = ", ".join(hours_list[:-1]) + " y " + hours_list[-1]
     else:
         hours_str = hours_list[0]
     output_str = f"Las horas de mayor probabilidad de lluvia son {hours_str}."
@@ -417,7 +417,7 @@ percentile_80 = percentile_80[percentile_80 > 500].index.hour
 if len(percentile_80) > 0:
     hours_list = list(map(str, percentile_80))
     if len(hours_list) > 1:
-        hours_str = ", ".join(hours_list[:-1]) + " and " + hours_list[-1]
+        hours_str = ", ".join(hours_list[:-1]) + " y " + hours_list[-1]
     else:
         hours_str = hours_list[0]
     output_str = f"Puede haber tormentas a las {hours_str}."
