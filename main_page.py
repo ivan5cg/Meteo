@@ -383,7 +383,7 @@ if len(rain_chance) > 0:
     else:
         hours_str = hours_list[0]
     output_str = f"Las horas de mayor probabilidad de lluvia son {hours_str}."
-    send_telegram_message_sync(output_str)
+    #send_telegram_message_sync(output_str)
 
 
 else:
