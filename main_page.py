@@ -381,7 +381,7 @@ if len(rain_chance) > 0:
         hours_str = ", ".join(hours_list[:-1]) + " and " + hours_list[-1]
     else:
         hours_str = hours_list[0]
-    output_str = f"The hours with risk are {hours_str}."
+    output_str = f"Las horas de mayor probabilidad de lluvia son {hours_str}."
     send_telegram_message_sync(output_str)
 
 
@@ -404,7 +404,7 @@ if len(percentile_80) > 0:
         hours_str = ", ".join(hours_list[:-1]) + " and " + hours_list[-1]
     else:
         hours_str = hours_list[0]
-    output_str = f"The hours with risk are {hours_str}."
+    output_str = f"Puede haber tormentas a las {hours_str}."
     send_telegram_message_sync(output_str)
 else:
     pass
