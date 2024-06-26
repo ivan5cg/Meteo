@@ -31,7 +31,8 @@ def send_telegram_message_sync(message):
     asyncio.run(send_telegram_message(message))
 
 
-
+async def main():
+    await send_telegram_message(output_str)
 
 
 
@@ -387,6 +388,21 @@ if len(rain_chance) > 0:
 
 else:
     pass
+
+
+
+try:
+    loop = asyncio.get_running_loop()
+except RuntimeError:
+    loop = None
+
+if loop and loop.is_running():
+    asyncio.ensure_future(main())
+else:
+    asyncio.run(main())
+    
+
+
 
 
 storm_chance = get_mucape_data(valid_run)
