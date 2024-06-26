@@ -31,10 +31,6 @@ def send_telegram_message_sync(message):
     asyncio.run(send_telegram_message(message))
 
 
-send_telegram_message_sync("test1")
-
-
-st.write(TELEGRAM_CHAT_ID)
 
 
 
@@ -362,6 +358,58 @@ elif (percentil_max_hoy - percentil_max_mañana) > 50 :
 
 
 st.divider()
+
+#########################################################
+
+
+string = "Datos de las " + str(valid_run+2)  +  " horas"
+
+send_telegram_message_sync(string)
+
+
+rain_chance = get_prec_data(valid_run)
+
+rain_chance = rain_chance.loc[rain_chance.index.dayofyear==día_año_hoy]
+
+rain_chance = 100 * pd.DataFrame((rain_chance.apply(lambda row: sum(row != 0), axis=1) / len(rain_chance.columns)) )
+
+rain_chance = rain_chance[rain_chance > 20].dropna().index.hour
+
+if len(rain_chance) > 0:
+    hours_list = list(map(str, rain_chance))
+    if len(hours_list) > 1:
+        hours_str = ", ".join(hours_list[:-1]) + " and " + hours_list[-1]
+    else:
+        hours_str = hours_list[0]
+    output_str = f"The hours with risk are {hours_str}."
+    send_telegram_message_sync(output_str)
+
+
+else:
+    pass
+
+
+storm_chance = get_mucape_data(valid_run)
+
+storm_chance = storm_chance.loc[storm_chance.index.dayofyear==día_año_hoy]
+
+percentile_80 = storm_chance.apply(lambda x: x.quantile(0.8), axis=1) 
+
+percentile_80 = percentile_80[percentile_80 > 500].index.hour
+
+
+if len(percentile_80) > 0:
+    hours_list = list(map(str, percentile_80))
+    if len(hours_list) > 1:
+        hours_str = ", ".join(hours_list[:-1]) + " and " + hours_list[-1]
+    else:
+        hours_str = hours_list[0]
+    output_str = f"The hours with risk are {hours_str}."
+    send_telegram_message_sync(output_str)
+else:
+    pass
+
+
 
 #########################################################
 
