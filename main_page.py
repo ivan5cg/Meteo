@@ -98,7 +98,7 @@ st.header("Madrid")
 valid_run = get_last_arome_run()
 
 
-
+###############
 
 aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_3195_datos-horarios.csv?k=mad&l=3195&datos=det&w=0&f=temperatura&x=h24" ,
                             encoding="latin-1",skiprows=2,parse_dates=True,index_col=0,dayfirst=True)
@@ -119,7 +119,7 @@ aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize(None)
 
 aemet_horario_acumulado.to_excel("Histórico/Acumulado Madrid.xlsx")
 
-
+#####################################################
 
 def get_temp_data(valid_run):
 
@@ -165,6 +165,13 @@ def get_prec_data(valid_run):
     prec_data = get_arome_data(url_run)
 
     return prec_data
+
+temp_data = get_temp_data(valid_run)
+wind_gust_data = get_wind_gust_data(valid_run)
+pressure_data = get_pressure_data(valid_run)
+mucape_data = get_mucape_data(valid_run)
+prec_data = get_prec_data(valid_run)
+
 
 
 #####################################################
@@ -526,7 +533,7 @@ st.pyplot(plot_temp_data(temp_data))
 
 ##############################################
 
-prec_data = get_prec_data(valid_run)
+#prec_data = get_prec_data(valid_run)
 #prec_data["Actual data"] = aemet_horario["Precipitación (mm)"]
 
 chance_prec = 100 * pd.DataFrame((prec_data.apply(lambda row: sum(row != 0), axis=1) / len(prec_data.columns)) )
@@ -595,8 +602,8 @@ def plot_rain_chance(chance_prec,avg_prec):
 st.pyplot(plot_rain_chance(chance_prec,avg_prec))
 
 #######################################################
-wind_data = get_wind_gust_data(valid_run)
-wind_data["Actual data"] = aemet_horario["Racha (km/h)"]
+#wind_data = get_wind_gust_data(valid_run)
+wind_gust_data["Actual data"] = aemet_horario["Racha (km/h)"]
 
 def plot_wind_data(data):
 
@@ -687,11 +694,11 @@ def plot_wind_data(data):
 
         return 
 
-st.pyplot(plot_wind_data(wind_data))
+st.pyplot(plot_wind_data(wind_gust_data))
 
 #@#############################################
 
-pressure_data = get_pressure_data(valid_run)
+#pressure_data = get_pressure_data(valid_run)
 
 def plot_pressure_data(data):
 
@@ -788,7 +795,7 @@ st.pyplot(plot_pressure_data(pressure_data))
 
 ################################################
 
-mucape_data = get_mucape_data(valid_run)
+#mucape_data = get_mucape_data(valid_run)
 
 def plot_mucape_data(data):
 
