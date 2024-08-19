@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime,timedelta
 from scipy.stats import percentileofscore
 
-st.set_option('deprecation.showPyplotGlobalUse', False)
+
 
 def get_arome_data(url):
 
