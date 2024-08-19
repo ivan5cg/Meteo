@@ -346,102 +346,10 @@ st.pyplot(plot_temp_data(temp_data))
 
 ##############################################
 
+
 prec_data = get_prec_data(valid_run)
-prec_data["Actual data"] = aemet_horario["Precipitación (mm)"]
 
-def plot_prec_data(data):
-
-        data = data
-
-        # Set figure size and resolution
-        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
-
-        # Set plot style
-        plt.style.use('default')
-
-        # Iterate over the columns and plot each one
-        for column in data.columns[:-1]:
-            ax.plot(data.index, data[column], alpha=0.9)
-            ax.plot(data.index,data[column].cumsum(),alpha=0.5,linestyle="--")
-
-        ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
-
-        # Add title and labels
-
-
-        plt.title('Rain Forecast for the next 2 days', fontsize=16)
-        plt.xlabel('Date', fontsize=12)
-        plt.ylabel('L/m2', fontsize=12)
-
-       
-
-        # Remove top and right spines
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-
-        # Set x-axis tick parameters
-        plt.xticks(fontsize=10, rotation=0, ha='right')
-
-        # Set y-axis tick parameters
-        plt.yticks(fontsize=10)
-
-        # Add vertical lines for each hour
-        for hour in data.index:
-            ax.axvline(hour, linestyle='--', color='black', alpha=0.1)
-
-        # Remove gridlines
-        plt.grid(True)
-
-        # Compute the minimum and maximum temperature for each day and their respective indexes
-        dates = list(set(data.index.date))
-        min_temps = []
-        max_temps = []
-        min_idx = []
-        max_idx = []
-
-        for date in dates:
-            df = data.loc[data.index.date == date]
-            min_temp = df.min().min()
-            max_temp = df.max().max()
-            min_idx.append(data.loc[data.index.date == date].idxmin().min())
-            max_idx.append(data.loc[data.index.date == date].idxmax().min())
-            min_temps.append(min_temp)
-            max_temps.append(max_temp)
-
-        # Add the minimum temperature text to the plot
-        #for i, temp in enumerate(min_temps):
-         #   min_temp = "{:.1f}".format(temp)
-         #   ax.text(min_idx[i], temp, min_temp, ha='left', va='top', color='blue',fontweight="bold")
-
-        # Add the maximum temperature text to the plot
-        for i, temp in enumerate(max_temps):
-            max_temp = "{:.1f}".format(temp)
-            ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
-
-
-        # Format x-axis ticks
-        # Format x-axis ticks
-        ticks = []
-        tick_labels = []
-        for date in data.index:
-                if date.hour == 0:
-                    tick_labels.append(date.strftime('%a, %b %d'))
-                    ax.axvline(date,0,1,color="black",linewidth=2)
-                    ticks.append(date)
-                if date.hour % 6 == 0:
-                    tick_labels.append(date.strftime('%H'))
-                    ticks.append(date)
-                    pass
-
-        ax.set_xticks(ticks)
-        ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
-
-        ax.set_ylim(bottom=0)
-
-        return 
-
-#st.write(prec_data)
-
+#prec_data["Actual data"] = aemet_horario["Precipitación (mm)"]
 
 chance_prec = 100 * pd.DataFrame((prec_data.apply(lambda row: sum(row != 0), axis=1) / len(prec_data.columns)) )
 
@@ -507,8 +415,6 @@ def plot_rain_chance(chance_prec,avg_prec):
 #st.pyplot(plot_prec_data(prec_data))
 
 st.pyplot(plot_rain_chance(chance_prec,avg_prec))
-
-
 
 
 #######################################################
