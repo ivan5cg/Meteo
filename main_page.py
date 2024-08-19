@@ -8,7 +8,7 @@ from datetime import datetime,timedelta
 from scipy.stats import percentileofscore
 import asyncio
 
-st.set_option('deprecation.showPyplotGlobalUse', False)
+#st.set_option('deprecation.showPyplotGlobalUse', False)
 
 #st.write(datetime.now()+ timedelta(hours=2))
 
