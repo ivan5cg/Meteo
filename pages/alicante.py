@@ -1045,7 +1045,7 @@ st.divider()
 # URLs of the images
 image_urls = [
     "https://images-webcams.windy.com/public/57/1643583057/current/full/1643583057.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3ZWJjYW1faWQiOjE2NDM1ODMwNTcsInVzZXJfdHlwZSI6MSwiYXZhaWxhYmxlX3NpemVzIjoidGVhc2VyYmcsaWNvbix0aHVtYm5haWwscHJldmlldyxub3JtYWwsZnVsbCxwYW5vcmFtYSIsImlhdCI6MTcyNDA5MTk0MCwiZXhwIjoxNzI0MTc4MzQwfQ.iWQmzFZDkYyyLgeVTkMJAQGVKhSoHUul3W_KKkuo2Dw",
-    "https://informo.madrid.es/cameras/Camara14303.jpg?rand=1716226713266",
+    "https://www.alicante.city/webcam/cam2.php",
     "https://informo.madrid.es/cameras/Camara01304.jpg?rand=1716226729161",
     "https://informo.madrid.es/cameras/Camara07306.jpg?rand=1716227117756",
     "https://informo.madrid.es/cameras/Camara04301.jpg?rand=1716227208671",
