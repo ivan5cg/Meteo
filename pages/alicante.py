@@ -822,13 +822,13 @@ def plot_long_forecast():
                 whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
 
 
-    max_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[0]
-    max_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[1]
+    max_usual_temp_upper = 30
+    max_usual_temp_lower = 27
 
     ax.fill_between(data.index,max_usual_temp_upper,max_usual_temp_lower, alpha=0.2, color='red')
 
-    min_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[0]
-    min_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[1]
+    min_usual_temp_upper = 20
+    min_usual_temp_lower = 17
 
     ax.fill_between(data.index,min_usual_temp_upper,min_usual_temp_lower, alpha=0.2, color='blue')
 
