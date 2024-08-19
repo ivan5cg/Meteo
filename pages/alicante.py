@@ -310,13 +310,13 @@ def plot_temp_data(data):
             ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
 
 
-        max_usual_temp_upper = 22.5
-        max_usual_temp_lower = 25.5
+        max_usual_temp_upper = 30
+        max_usual_temp_lower = 27
 
         ax.fill_between(data.index,max_usual_temp_upper,max_usual_temp_lower, alpha=0.2, color='red')
 
-        min_usual_temp_upper = 15
-        min_usual_temp_lower = 18
+        min_usual_temp_upper = 20
+        min_usual_temp_lower = 17
 
         ax.fill_between(data.index,min_usual_temp_upper,min_usual_temp_lower, alpha=0.2, color='blue')
 
