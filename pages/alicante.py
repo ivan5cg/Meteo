@@ -1039,33 +1039,3 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 st.pyplot(plot_sun_elevation(38.343761,-0.486027, 'Europe/Madrid'))
 
 
-st.divider()
-
-
-# URLs of the images
-image_urls = [
-    "https://images-webcams.windy.com/public/57/1643583057/current/full/1643583057.jpg?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ3ZWJjYW1faWQiOjE2NDM1ODMwNTcsInVzZXJfdHlwZSI6MSwiYXZhaWxhYmxlX3NpemVzIjoidGVhc2VyYmcsaWNvbix0aHVtYm5haWwscHJldmlldyxub3JtYWwsZnVsbCxwYW5vcmFtYSIsImlhdCI6MTcyNDA5MTk0MCwiZXhwIjoxNzI0MTc4MzQwfQ.iWQmzFZDkYyyLgeVTkMJAQGVKhSoHUul3W_KKkuo2Dw",
-    "https://www.alicante.city/webcam/cam2.php",
-    "https://informo.madrid.es/cameras/Camara01304.jpg?rand=1716226729161",
-    "https://informo.madrid.es/cameras/Camara07306.jpg?rand=1716227117756",
-    "https://informo.madrid.es/cameras/Camara04301.jpg?rand=1716227208671",
-    "https://informo.madrid.es/cameras/Camara12305.jpg?rand=1716227304969"
-]
-
-# Function to create a 2x2 grid
-def display_images_in_grid(image_urls):
-    # Calculate the number of rows needed (each row has 2 columns)
-    num_images = len(image_urls)
-    num_rows = (num_images + 1) // 2  # Ensure correct number of rows for odd/even number of images
-
-    # Display images in a 2xN grid
-    image_idx = 0
-    for _ in range(num_rows):
-        cols = st.columns(2)
-        for col in cols:
-            if image_idx < num_images:
-                col.image(image_urls[image_idx], use_column_width=True)
-                image_idx += 1
-
-# Display the images
-display_images_in_grid(image_urls)
