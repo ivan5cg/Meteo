@@ -15,11 +15,17 @@ import asyncio
 
 import requests
 import telegram
+import google.generativeai as genai
+
 
 
 
 TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
+GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
+
+
+genai.configure(api_key=GOOGLE_KEY)
 
 bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
 
@@ -177,193 +183,6 @@ prec_data = get_prec_data(valid_run)
 
 #########################################################
 
-
-string_update = "Datos de las " + str(valid_run+2)  +  " horas \n"
-
-def generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data):
-    today = pd.Timestamp.now(tz='Europe/Madrid').floor('D')
-    tomorrow = today + timedelta(days=1)
-    
-    def get_day_data(df, day):
-        return df[df.index.date == day.date()]
-    
-    def describe_temperature_pattern(temp_df):
-        ctrl_temp = temp_df['Ctrl']
-        ensemble_temps = temp_df.iloc[:, 1:]
-        
-        max_temp = ctrl_temp.max()
-        min_temp = ctrl_temp.min()
-        max_temp_time = ctrl_temp.idxmax().strftime('%H:%M')
-        
-        ensemble_max = ensemble_temps.max().max()
-        ensemble_min = ensemble_temps.min().min()
-        
-        temp_range = max_temp - min_temp
-        ensemble_range = ensemble_max - ensemble_min
-        
-        story = f"The control forecast suggests temperatures will range from {min_temp:.1f}°C to {max_temp:.1f}°C, peaking around {max_temp_time}. "
-        
-        if ensemble_range > temp_range + 5:
-            story += f"However, some models show a wider range of {ensemble_min:.1f}°C to {ensemble_max:.1f}°C, indicating uncertainty in the forecast. "
-        
-        if temp_range < 5:
-            story += "Overall, we're looking at a day of stable temperatures. "
-        elif temp_range < 10:
-            story += "Expect a mild day with noticeable but not extreme temperature changes. "
-        else:
-            story += "Prepare for significant temperature swings throughout the day. "
-        
-        return story
-
-    def describe_wind_conditions(wind_df):
-        ctrl_wind = wind_df['Ctrl']
-        ensemble_winds = wind_df.iloc[:, 1:]
-        
-        max_wind = ctrl_wind.max()
-        avg_wind = ctrl_wind.mean()
-        max_wind_time = ctrl_wind.idxmax().strftime('%H:%M')
-        
-        ensemble_max = ensemble_winds.max().max()
-        
-        story = f"The primary forecast shows wind gusts peaking at {max_wind:.1f} km/h around {max_wind_time}. "
-        
-        if ensemble_max > max_wind + 10:
-            story += f"Some models suggest gusts could reach as high as {ensemble_max:.1f} km/h. "
-        
-        if max_wind < 20:
-            story += "Overall, expect gentle breezes throughout most of the day. "
-        elif max_wind < 40:
-            story += "Be prepared for some lively winds that might rustle leaves and affect loose objects. "
-        else:
-            story += "It's going to be a blustery day! Secure any loose items outdoors. "
-        
-        return story
-
-    def describe_pressure_trend(pressure_df):
-        ctrl_pressure = pressure_df['Ctrl']
-        ensemble_pressures = pressure_df.iloc[:, 1:]
-        
-        start_pressure = ctrl_pressure.iloc[0]
-        end_pressure = ctrl_pressure.iloc[-1]
-        pressure_change = end_pressure - start_pressure
-        
-        ensemble_change = ensemble_pressures.iloc[-1] - ensemble_pressures.iloc[0]
-        max_change = ensemble_change.max()
-        min_change = ensemble_change.min()
-        
-        story = f"Barometric pressure is expected to {'rise' if pressure_change > 0 else 'fall'} by about {abs(pressure_change):.1f} hPa over the day."
-        
-        if abs(max_change - min_change) > 2:
-            story += "However, there's some disagreement between models on the extent of this change. "
-        
-        if abs(pressure_change) < 2:
-            story += "This suggests relatively stable weather conditions. "
-        elif pressure_change > 0:
-            story += "Rising pressure often indicates improving weather. "
-        else:
-            story += "Falling pressure might bring some changes, possibly unsettled conditions. "
-        
-        return story
-
-    def describe_thunderstorm_potential(mucape_df):
-        ctrl_mucape = mucape_df['Ctrl']
-        ensemble_mucape = mucape_df.iloc[:, 1:]
-        
-        max_mucape = ctrl_mucape.max()
-        max_mucape_time = ctrl_mucape.idxmax().strftime('%H:%M')
-        
-        ensemble_max = ensemble_mucape.max().max()
-        
-        story = f"The control forecast shows a peak MUCAPE value of {max_mucape:.0f} J/kg around {max_mucape_time}. "
-        
-        if ensemble_max > max_mucape + 500:
-            story += f"Some models suggest it could reach as high as {ensemble_max:.0f} J/kg. "
-        
-        if max_mucape < 500:
-            story += "The atmosphere appears stable, with clear skies likely to dominate. "
-        elif max_mucape < 1000:
-            story += "There's a slight chance of some dramatic clouds forming, but thunderstorms are unlikely. "
-        elif max_mucape < 2000:
-            story += "Keep an ear out for thunder - there's potential for some storms to develop. "
-        else:
-            story += "The ingredients are there for some impressive thunderstorms. Keep an eye on the sky! "
-        
-        return story
-
-    def describe_precipitation(prec_df):
-        ctrl_prec = prec_df['Ctrl']
-        ensemble_prec = prec_df.iloc[:, 1:]
-        
-        total_prec = ctrl_prec.sum()
-        max_hourly_prec = ctrl_prec.max()
-        max_prec_time = ctrl_prec.idxmax().strftime('%H:%M')
-        
-        ensemble_total = ensemble_prec.sum()
-        max_ensemble_total = ensemble_total.max()
-        
-        story = f"The main forecast predicts a total of {total_prec:.1f}mm of rain, with the heaviest period around {max_prec_time}. "
-        
-        if max_ensemble_total > total_prec + 5:
-            story += f"However, some models suggest we could see up to {max_ensemble_total:.1f}mm. "
-        
-        if total_prec == 0:
-            story += "It looks like it's going to be a dry day in Madrid. "
-        elif total_prec < 5:
-            story += "You might want to pack a light umbrella - we could see some sprinkles throughout the day. "
-        elif max_hourly_prec > 10:
-            story += f"Prepare for a good soaking! Heavy rain is expected, particularly around {max_prec_time}. "
-        else:
-            story += "Expect some wet weather spread throughout the day. "
-        
-        prob_rain = (ensemble_prec.sum() > 0.1).mean() * 100
-        story += f"The probability of measurable rain is about {prob_rain:.0f}%. "
-        
-        return story
-
-    story = []
-    for day, day_name in [(today, "Today"), (tomorrow, "Tomorrow")]:
-        day_temp = get_day_data(temp_data, day)
-        day_wind = get_day_data(wind_gust_data, day)
-        day_pressure = get_day_data(pressure_data, day)
-        day_mucape = get_day_data(mucape_data, day)
-        day_prec = get_day_data(prec_data, day)
-        
-        day_story = f"Weather Story for Madrid - {day_name}, {day.strftime('%B %d')}:\n\n"
-        day_story += describe_temperature_pattern(day_temp) + "\n\n"
-        day_story += describe_wind_conditions(day_wind) + "\n\n"
-        day_story += describe_pressure_trend(day_pressure) + "\n\n"
-        day_story += describe_thunderstorm_potential(day_mucape) + "\n\n"
-        day_story += describe_precipitation(day_prec) + "\n\n"
-        
-        # Add a summary of the day's weather
-        day_story += "In summary: "
-        if day_prec['Ctrl'].sum() > 5:
-            day_story += "A wet day with periods of rain. "
-        elif day_wind['Ctrl'].max() > 40:
-            day_story += "A windy day with strong gusts. "
-        elif day_temp['Ctrl'].max() - day_temp['Ctrl'].min() > 15:
-            day_story += "A day of significant temperature changes. "
-        else:
-            day_story += "A relatively stable day weather-wise. "
-        
-        if day_mucape['Ctrl'].max() > 1500:
-            day_story += "Keep an eye out for potential thunderstorms."
-        
-        story.append(day_story)
-    
-    return "\n\n".join(story)
-
-
-temp_data = get_temp_data(valid_run)
-wind_gust_data = get_wind_gust_data(valid_run)
-pressure_data = get_pressure_data(valid_run)
-mucape_data = get_mucape_data(valid_run)
-prec_data = get_prec_data(valid_run)
-
-commentary = generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data)
-
-
-send_telegram_message_sync(string_update + commentary)
 
 #####################################################
 
@@ -1410,3 +1229,274 @@ st.sidebar.markdown("""
         }
     </style>
     """, unsafe_allow_html=True)
+
+
+
+
+string_update = "Datos de las " + str(valid_run+2)  +  " horas \n"
+
+def generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data):
+    today = pd.Timestamp.now(tz='Europe/Madrid').floor('D')
+    tomorrow = today + timedelta(days=1)
+    
+    def get_day_data(df, day):
+        return df[df.index.date == day.date()]
+    
+    def describe_temperature_pattern(temp_df):
+        ctrl_temp = temp_df['Ctrl']
+        ensemble_temps = temp_df.iloc[:, 1:]
+        
+        max_temp = ctrl_temp.max()
+        min_temp = ctrl_temp.min()
+        max_temp_time = ctrl_temp.idxmax().strftime('%H:%M')
+        
+        ensemble_max = ensemble_temps.max().max()
+        ensemble_min = ensemble_temps.min().min()
+        
+        temp_range = max_temp - min_temp
+        ensemble_range = ensemble_max - ensemble_min
+        
+        story = f"The control forecast suggests temperatures will range from {min_temp:.1f}°C to {max_temp:.1f}°C, peaking around {max_temp_time}. "
+        
+        if ensemble_range > temp_range + 5:
+            story += f"However, some models show a wider range of {ensemble_min:.1f}°C to {ensemble_max:.1f}°C, indicating uncertainty in the forecast. "
+        
+        if temp_range < 5:
+            story += "Overall, we're looking at a day of stable temperatures. "
+        elif temp_range < 10:
+            story += "Expect a mild day with noticeable but not extreme temperature changes. "
+        else:
+            story += "Prepare for significant temperature swings throughout the day. "
+        
+        return story
+
+    def describe_wind_conditions(wind_df):
+        ctrl_wind = wind_df['Ctrl']
+        ensemble_winds = wind_df.iloc[:, 1:]
+        
+        max_wind = ctrl_wind.max()
+        avg_wind = ctrl_wind.mean()
+        max_wind_time = ctrl_wind.idxmax().strftime('%H:%M')
+        
+        ensemble_max = ensemble_winds.max().max()
+        
+        story = f"The primary forecast shows wind gusts peaking at {max_wind:.1f} km/h around {max_wind_time}. "
+        
+        if ensemble_max > max_wind + 10:
+            story += f"Some models suggest gusts could reach as high as {ensemble_max:.1f} km/h. "
+        
+        if max_wind < 20:
+            story += "Overall, expect gentle breezes throughout most of the day. "
+        elif max_wind < 40:
+            story += "Be prepared for some lively winds that might rustle leaves and affect loose objects. "
+        else:
+            story += "It's going to be a blustery day! Secure any loose items outdoors. "
+        
+        return story
+
+    def describe_pressure_trend(pressure_df):
+        ctrl_pressure = pressure_df['Ctrl']
+        ensemble_pressures = pressure_df.iloc[:, 1:]
+        
+        start_pressure = ctrl_pressure.iloc[0]
+        end_pressure = ctrl_pressure.iloc[-1]
+        pressure_change = end_pressure - start_pressure
+        
+        ensemble_change = ensemble_pressures.iloc[-1] - ensemble_pressures.iloc[0]
+        max_change = ensemble_change.max()
+        min_change = ensemble_change.min()
+        
+        story = f"Barometric pressure is expected to {'rise' if pressure_change > 0 else 'fall'} by about {abs(pressure_change):.1f} hPa over the day."
+        
+        if abs(max_change - min_change) > 2:
+            story += "However, there's some disagreement between models on the extent of this change. "
+        
+        if abs(pressure_change) < 2:
+            story += "This suggests relatively stable weather conditions. "
+        elif pressure_change > 0:
+            story += "Rising pressure often indicates improving weather. "
+        else:
+            story += "Falling pressure might bring some changes, possibly unsettled conditions. "
+        
+        return story
+
+    def describe_thunderstorm_potential(mucape_df):
+        ctrl_mucape = mucape_df['Ctrl']
+        ensemble_mucape = mucape_df.iloc[:, 1:]
+        
+        max_mucape = ctrl_mucape.max()
+        max_mucape_time = ctrl_mucape.idxmax().strftime('%H:%M')
+        
+        ensemble_max = ensemble_mucape.max().max()
+        
+        story = f"The control forecast shows a peak MUCAPE value of {max_mucape:.0f} J/kg around {max_mucape_time}. "
+        
+        if ensemble_max > max_mucape + 500:
+            story += f"Some models suggest it could reach as high as {ensemble_max:.0f} J/kg. "
+        
+        if max_mucape < 500:
+            story += "The atmosphere appears stable, with clear skies likely to dominate. "
+        elif max_mucape < 1000:
+            story += "There's a slight chance of some dramatic clouds forming, but thunderstorms are unlikely. "
+        elif max_mucape < 2000:
+            story += "Keep an ear out for thunder - there's potential for some storms to develop. "
+        else:
+            story += "The ingredients are there for some impressive thunderstorms. Keep an eye on the sky! "
+        
+        return story
+
+    def describe_precipitation(prec_df):
+        ctrl_prec = prec_df['Ctrl']
+        ensemble_prec = prec_df.iloc[:, 1:]
+        
+        total_prec = ctrl_prec.sum()
+        max_hourly_prec = ctrl_prec.max()
+        max_prec_time = ctrl_prec.idxmax().strftime('%H:%M')
+        
+        ensemble_total = ensemble_prec.sum()
+        max_ensemble_total = ensemble_total.max()
+        
+        story = f"The main forecast predicts a total of {total_prec:.1f}mm of rain, with the heaviest period around {max_prec_time}. "
+        
+        if max_ensemble_total > total_prec + 5:
+            story += f"However, some models suggest we could see up to {max_ensemble_total:.1f}mm. "
+        
+        if total_prec == 0:
+            story += "It looks like it's going to be a dry day in Madrid. "
+        elif total_prec < 5:
+            story += "You might want to pack a light umbrella - we could see some sprinkles throughout the day. "
+        elif max_hourly_prec > 10:
+            story += f"Prepare for a good soaking! Heavy rain is expected, particularly around {max_prec_time}. "
+        else:
+            story += "Expect some wet weather spread throughout the day. "
+        
+        prob_rain = (ensemble_prec.sum() > 0.1).mean() * 100
+        story += f"The probability of measurable rain is about {prob_rain:.0f}%. "
+        
+        return story
+
+    story = []
+    for day, day_name in [(today, "Today"), (tomorrow, "Tomorrow")]:
+        day_temp = get_day_data(temp_data, day)
+        day_wind = get_day_data(wind_gust_data, day)
+        day_pressure = get_day_data(pressure_data, day)
+        day_mucape = get_day_data(mucape_data, day)
+        day_prec = get_day_data(prec_data, day)
+        
+        day_story = f"Weather Story for Madrid - {day_name}, {day.strftime('%B %d')}:\n\n"
+        day_story += describe_temperature_pattern(day_temp) + "\n\n"
+        day_story += describe_wind_conditions(day_wind) + "\n\n"
+        day_story += describe_pressure_trend(day_pressure) + "\n\n"
+        day_story += describe_thunderstorm_potential(day_mucape) + "\n\n"
+        day_story += describe_precipitation(day_prec) + "\n\n"
+        
+        # Add a summary of the day's weather
+        day_story += "In summary: "
+        if day_prec['Ctrl'].sum() > 5:
+            day_story += "A wet day with periods of rain. "
+        elif day_wind['Ctrl'].max() > 40:
+            day_story += "A windy day with strong gusts. "
+        elif day_temp['Ctrl'].max() - day_temp['Ctrl'].min() > 15:
+            day_story += "A day of significant temperature changes. "
+        else:
+            day_story += "A relatively stable day weather-wise. "
+        
+        if day_mucape['Ctrl'].max() > 1500:
+            day_story += "Keep an eye out for potential thunderstorms."
+        
+        story.append(day_story)
+    
+    return "\n\n".join(story)
+
+
+#temp_data = get_temp_data(valid_run)
+#wind_gust_data = get_wind_gust_data(valid_run)
+#pressure_data = get_pressure_data(valid_run)
+#mucape_data = get_mucape_data(valid_run)
+#prec_data = get_prec_data(valid_run)
+
+#commentary = generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data)
+
+model = genai.GenerativeModel(('gemini-1.5-flash-exp-0827'))
+import json
+
+def process_multi_model_dataframe(df):
+    """Process a dataframe with timestamp index and 17 forecast columns."""
+    processed_data = []
+    for timestamp, row in df.iterrows():
+        forecasts = row.tolist()
+        processed_data.append({
+            'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S'),  # Convert timestamp to string
+            'forecasts': forecasts
+        })
+    return processed_data
+
+
+weather_data = {
+    'temperature': process_multi_model_dataframe(temp_data),
+    'wind': process_multi_model_dataframe(wind_gust_data),
+    'precipitation': process_multi_model_dataframe(prec_data),
+    'pressure': process_multi_model_dataframe(prec_data),
+    'mucape': process_multi_model_dataframe(mucape_data)
+}
+
+weather_json = json.dumps(weather_data)
+
+def generate_llm_input(weather_json):
+    # Load the meteorological data
+    meteo_data = weather_json
+
+    # Define the prompt
+    prompt = """# Meteorological Data Analysis Prompt
+
+You are a professional meteorologist tasked with analyzing and commenting on weather forecast data for the next 48 hours. The data provided includes hourly information on temperature, wind, precipitation, pressure, and MUCAPE (Most Unstable Convective Available Potential Energy).
+
+## Data Analysis Tasks:
+
+1. Summarize the overall weather pattern for the 48-hour period.
+
+2. Identify and report on key data points:
+   - Temperature: Highlight daily highs and lows, and any significant temperature changes.
+   - Wind: Report on average wind speeds, signalling hazardous values.
+   - Precipitation: Summarize total expected precipitation and identify periods of heaviest rainfall.
+   - Pressure: Note any significant pressure changes that might indicate approaching weather systems.
+   - MUCAPE: Interpret MUCAPE values to assess the potential for thunderstorm development.
+
+3. Model Alignment:
+   - Analyze the consistency of the data across different weather models.
+   - Highlight any significant discrepancies between models and explain their potential implications.
+
+4. Risk Assessment:
+   - Identify any potential weather risks or hazards, such as:
+     - Extreme temperatures (heat waves or cold snaps)
+     - Strong winds or wind gusts
+     - Heavy precipitation leading to flooding risks
+     - Severe thunderstorm potential based on MUCAPE values and other factors
+   - Provide a severity rating for each identified risk (e.g., low, moderate, high, extreme).
+
+5. Special Weather Phenomena:
+   - Note any unusual or noteworthy weather patterns or events that may occur during this period.
+
+## Output Format:
+
+1. Executive Summary (2-3 sentences overview)
+2. Detailed Analysis (broken down by weather component)
+3. Model Comparison and Uncertainty Discussion
+4. Risk Assessment and Warnings
+5. Concluding Remarks and Forecast Confidence
+
+Please provide your analysis in clear, concise language suitable for both meteorological professionals and informed members of the public. Use meteorological terminology where appropriate, but explain complex concepts when necessary.
+
+## Meteorological Data:
+"""
+
+    # Combine the prompt and the data
+    combined_input = f"{prompt}\n\n{json.dumps(meteo_data, indent=2)}"
+
+    return combined_input
+
+
+prompt = generate_llm_input(weather_json)
+response = model.generate_content(prompt)
+
+send_telegram_message_sync(string_update + response.text)
