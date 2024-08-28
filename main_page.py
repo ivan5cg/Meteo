@@ -1480,9 +1480,9 @@ You are a professional meteorologist tasked with analyzing and commenting on wea
 ## Output Format:
 
 1. Executive Summary (2-3 sentences overview)
-2. Detailed Analysis (broken down by weather component)
+2. Detailed Analysis (broken down by weather component). Include emojis identifying every field.
 3. Model Comparison and Uncertainty Discussion
-4. Risk Assessment and Warnings
+4. Risk Assessment and Warnings. Include emojis identifying every field.
 5. Concluding Remarks and Forecast Confidence
 
 Please provide your analysis in clear, concise language suitable for both meteorological professionals and informed members of the public. Use meteorological terminology where appropriate, but explain complex concepts when necessary.
