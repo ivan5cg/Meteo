@@ -1499,4 +1499,7 @@ Please provide your analysis in clear, concise language suitable for both meteor
 prompt = generate_llm_input(weather_json)
 response = model.generate_content(prompt)
 
+st.write(response.text)
+
 send_telegram_message_sync(string_update + response.text)
+
