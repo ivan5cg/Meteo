@@ -1059,10 +1059,6 @@ st.pyplot(plot_long_wind_forecast())
 
 
 
-
-
-
-
 import datetime
 import pytz
 from astral import LocationInfo
@@ -1079,16 +1075,30 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     today = datetime.datetime.now(tz=timezone)
     year, month, day = today.year, today.month, today.day
 
-    # Calculate exact sunrise and sunset times
-    s = sun(location.observer, date=today)
+    # Calculate sunrise and sunset times for today
+    s_today = sun(location.observer, date=today)
 
-    # Convert sunrise and sunset times to local timezone
-    sunrise_local = s['sunrise'].astimezone(timezone)
-    sunset_local = s['sunset'].astimezone(timezone)
+    # Convert sunrise and sunset times to local timezone for today
+    sunrise_today_local = s_today['sunrise'].astimezone(timezone)
+    sunset_today_local = s_today['sunset'].astimezone(timezone)
 
-    # Convert sunrise and sunset times to indices
-    sunrise_index = sunrise_local.hour * 60 + sunrise_local.minute
-    sunset_index = sunset_local.hour * 60 + sunset_local.minute
+    # Calculate day length for today
+    day_length_today_seconds = (sunset_today_local - sunrise_today_local).total_seconds()
+
+    # Calculate sunrise and sunset times for the previous day
+    yesterday = today - datetime.timedelta(days=1)
+    s_yesterday = sun(location.observer, date=yesterday)
+
+    # Convert sunrise and sunset times to local timezone for the previous day
+    sunrise_yesterday_local = s_yesterday['sunrise'].astimezone(timezone)
+    sunset_yesterday_local = s_yesterday['sunset'].astimezone(timezone)
+
+    # Calculate day length for the previous day
+    day_length_yesterday_seconds = (sunset_yesterday_local - sunrise_yesterday_local).total_seconds()
+
+    # Calculate the difference in daylight between today and the previous day
+    daylight_difference_seconds = day_length_today_seconds - day_length_yesterday_seconds
+    daylight_difference_minutes = daylight_difference_seconds / 60
 
     # Generate datetime objects for every minute of the day
     listahoras = [timezone.localize(datetime.datetime(year, month, day, hour, minute))
@@ -1110,9 +1120,8 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     elevaciones_array = np.array(elevaciones)
 
     # Compute length of the day
-    day_length_seconds = (sunset_local - sunrise_local).total_seconds()
-    day_length_hours = int(day_length_seconds // 3600)  # Convert seconds to hours
-    day_length_minutes = int((day_length_seconds % 3600) / 60)  # Extract remaining minutes
+    day_length_hours = int(day_length_today_seconds // 3600)  # Convert seconds to hours
+    day_length_minutes = int((day_length_today_seconds % 3600) / 60)  # Extract remaining minutes
 
     # Set up the plot
     fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
@@ -1128,15 +1137,15 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     ax.plot(current_time_index, current_elevation, 'o', color='darkblue', markersize=8, label='Current Position')
 
     # Format sunrise, sunset, and max elevation times as hh:mm
-    sunrise_time = f"{sunrise_local.hour:02d}:{sunrise_local.minute:02d}"
-    sunset_time = f"{sunset_local.hour:02d}:{sunset_local.minute:02d}"
+    sunrise_time = f"{sunrise_today_local.hour:02d}:{sunrise_today_local.minute:02d}"
+    sunset_time = f"{sunset_today_local.hour:02d}:{sunset_today_local.minute:02d}"
 
     # Mark sunrise, sunset, and max elevation with labels
-    ax.plot(sunrise_index, 0, marker='o', color='gold', markersize=10)
-    ax.text(sunrise_index, -10, sunrise_time, ha='center', fontsize=10, color='orange')
+    ax.plot(sunrise_today_local.hour * 60 + sunrise_today_local.minute, 0, marker='o', color='gold', markersize=10)
+    ax.text(sunrise_today_local.hour * 60 + sunrise_today_local.minute, -10, sunrise_time, ha='center', fontsize=10, color='orange')
 
-    ax.plot(sunset_index, 0, marker='o', color='darkorange', markersize=10)
-    ax.text(sunset_index, -10, sunset_time, ha='center', fontsize=10, color='darkorange')
+    ax.plot(sunset_today_local.hour * 60 + sunset_today_local.minute, 0, marker='o', color='darkorange', markersize=10)
+    ax.text(sunset_today_local.hour * 60 + sunset_today_local.minute, -10, sunset_time, ha='center', fontsize=10, color='darkorange')
 
     ax.plot(max_elevation_index, elevaciones_array[max_elevation_index], 'o', color='red', markersize=8)
     ax.text(max_elevation_index, elevaciones_array[max_elevation_index] + 2, max_elevation_time, ha='center', fontsize=10, color='red')
@@ -1168,12 +1177,16 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     # Minimalist legend
     ax.legend(loc='upper left', frameon=False, fontsize=10)
 
+    # Add widget to display daylight gain/loss
+    daylight_difference_text = f"Daylight change: {'+' if daylight_difference_minutes > 0 else ''}{daylight_difference_minutes:.2f} minutes"
+    plt.figtext(0.5, 0.01, daylight_difference_text, ha="center", fontsize=12, bbox={"facecolor":"lightgray", "alpha":0.5, "pad":5})
+
     # Display the plot
     plt.tight_layout()
     plt.show()
 
 #
-st.pyplot(plot_sun_elevation(40.41144776110279, -3.6787949052050672, 'Europe/Madrid'))
+plot_sun_elevation(40.41144776110279, -3.6787949052050672, 'Europe/Madrid')
 
 
 st.divider()
