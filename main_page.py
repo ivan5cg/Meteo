@@ -1512,5 +1512,5 @@ response = model.generate_content(prompt)
 
 st.write(response.text)
 
-send_telegram_message_sync(string_update + response.text)
+#send_telegram_message_sync(string_update + response.text)
 
