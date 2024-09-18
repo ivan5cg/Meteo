@@ -940,14 +940,25 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     # Get current date and time in the specified timezone
     timezone = pytz.timezone(timezone_str)
     today = datetime.datetime.now(tz=timezone)
+    yesterday = today - datetime.timedelta(days=1)
     year, month, day = today.year, today.month, today.day
 
-    # Calculate exact sunrise and sunset times
-    s = sun(location.observer, date=today)
+    # Calculate exact sunrise and sunset times for today and yesterday
+    s_today = sun(location.observer, date=today)
+    s_yesterday = sun(location.observer, date=yesterday)
 
     # Convert sunrise and sunset times to local timezone
-    sunrise_local = s['sunrise'].astimezone(timezone)
-    sunset_local = s['sunset'].astimezone(timezone)
+    sunrise_local = s_today['sunrise'].astimezone(timezone)
+    sunset_local = s_today['sunset'].astimezone(timezone)
+
+    # Calculate day length for today and yesterday
+    day_length_today = (s_today['sunset'] - s_today['sunrise']).total_seconds()
+    day_length_yesterday = (s_yesterday['sunset'] - s_yesterday['sunrise']).total_seconds()
+
+    # Calculate the difference in day length
+    day_length_diff = day_length_today - day_length_yesterday
+    diff_minutes, diff_seconds = divmod(abs(int(day_length_diff)), 60)
+    daylight_change = f"{diff_minutes} min {diff_seconds} seg {'ganados' if day_length_diff > 0 else 'perdidos'}"
 
     # Convert sunrise and sunset times to indices
     sunrise_index = sunrise_local.hour * 60 + sunrise_local.minute
@@ -1030,6 +1041,11 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 
     # Minimalist legend
     ax.legend(loc='upper left', frameon=False, fontsize=10)
+
+    # Add a text box with daylight change information
+    daylight_change_text = f"Cambio tiempo de luz: {daylight_change}"
+    plt.text(0.02, 0.88, daylight_change_text, transform=ax.transAxes, fontsize=10,
+             verticalalignment='top', bbox=dict(boxstyle='round,pad=0.5', fc='white', ec='grey', alpha=0.7))
 
     # Display the plot
     plt.tight_layout()
