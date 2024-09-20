@@ -1070,7 +1070,7 @@ def process_multi_model_dataframe(df):
 
 weather_data = {
     'temperature': process_multi_model_dataframe(temp_data),
-    'wind': process_multi_model_dataframe(wind_gust_data),
+    'wind': process_multi_model_dataframe(wind_data),
     'precipitation': process_multi_model_dataframe(prec_data),
     'pressure': process_multi_model_dataframe(prec_data),
     'mucape': process_multi_model_dataframe(mucape_data)
