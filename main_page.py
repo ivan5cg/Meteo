@@ -1428,7 +1428,7 @@ def generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mu
 
 #commentary = generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data)
 
-model = genai.GenerativeModel(('gemini-1.5-pro-exp-0827'))
+model = genai.GenerativeModel(('gemini-1.5-flash-exp-0827'))
 import json
 
 def process_multi_model_dataframe(df):
