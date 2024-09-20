@@ -1428,7 +1428,7 @@ def generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mu
 
 #commentary = generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data)
 
-model = genai.GenerativeModel(('gemini-1.5-flash-exp-0827'))
+model = genai.GenerativeModel(('gemini-1.5-pro-exp-0827'))
 import json
 
 def process_multi_model_dataframe(df):
@@ -1458,7 +1458,7 @@ def generate_llm_input(weather_json):
     meteo_data = weather_json
 
     # Define the prompt
-    prompt = """ PROVIDE THE WHOLE RESPONSE IN SPANISH FROM SPAIN
+    prompt = """ PROVIDE THE WHOLE RESPONSE IN SPANISH FROM SPAIN. TAKE SPAIN AS A CONTEXT FOR YOUR ANSWERS
 
 You are a professional meteorologist tasked with analyzing and commenting on weather forecast data for the next 48 hours. The data provided includes hourly information on temperature, wind, precipitation, pressure, and MUCAPE (Most Unstable Convective Available Potential Energy).
 

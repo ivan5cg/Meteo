@@ -1239,3 +1239,86 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 #
 st.pyplot(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'))
 
+model = genai.GenerativeModel(('gemini-1.5-pro-exp-0827'))
+import json
+
+def process_multi_model_dataframe(df):
+    """Process a dataframe with timestamp index and 17 forecast columns."""
+    processed_data = []
+    for timestamp, row in df.iterrows():
+        forecasts = row.tolist()
+        processed_data.append({
+            'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S'),  # Convert timestamp to string
+            'forecasts': forecasts
+        })
+    return processed_data
+
+
+weather_data = {
+    'temperature': process_multi_model_dataframe(temp_data),
+    'wind': process_multi_model_dataframe(wind_gust_data),
+    'precipitation': process_multi_model_dataframe(prec_data),
+    'pressure': process_multi_model_dataframe(prec_data),
+    'mucape': process_multi_model_dataframe(mucape_data)
+}
+
+weather_json = json.dumps(weather_data)
+
+def generate_llm_input(weather_json):
+    # Load the meteorological data
+    meteo_data = weather_json
+
+    # Define the prompt
+    prompt = """ PROVIDE THE WHOLE RESPONSE IN SPANISH FROM SPAIN. TAKE SPAIN AS A CONTEXT FOR YOUR ANSWERS
+
+You are a professional meteorologist tasked with analyzing and commenting on weather forecast data for the next 48 hours. The data provided includes hourly information on temperature, wind, precipitation, pressure, and MUCAPE (Most Unstable Convective Available Potential Energy).
+
+## Data Analysis Tasks:
+
+1. Summarize the overall weather pattern for the 48-hour period.
+
+2. Identify and report on key data points:
+   - Temperature: Highlight daily highs and lows, and any significant temperature changes.
+   - Wind: Report on average wind speeds, signalling hazardous values.
+   - Precipitation: Summarize total expected precipitation and identify periods of heaviest rainfall.
+   - Pressure: Note any significant pressure changes that might indicate approaching weather systems.
+   - MUCAPE: Interpret MUCAPE values to assess the potential for thunderstorm development.
+
+3. Model Alignment:
+   - Analyze the consistency of the data across different weather models.
+   - Highlight any significant discrepancies between models and explain their potential implications.
+
+4. Risk Assessment:
+   - Identify any potential weather risks or hazards, such as:
+     - Extreme temperatures (heat waves or cold snaps)
+     - Strong winds or wind gusts
+     - Heavy precipitation leading to flooding risks
+     - Severe thunderstorm potential based on MUCAPE values and other factors
+   - Provide a severity rating for each identified risk (e.g., low, moderate, high, extreme).
+
+5. Special Weather Phenomena:
+   - Note any unusual or noteworthy weather patterns or events that may occur during this period.
+
+## Output Format:
+
+1. Executive Summary (2-3 sentences overview)
+2. Detailed Analysis (broken down by weather component). Include emojis identifying every field.
+3. Model Comparison and Uncertainty Discussion
+4. Risk Assessment and Warnings. Include emojis identifying every field.
+5. Concluding Remarks and Forecast Confidence
+
+Please provide your analysis in clear, concise language suitable for both meteorological professionals and informed members of the public. Use meteorological terminology where appropriate, but explain complex concepts when necessary.
+
+## Meteorological Data:
+"""
+
+    # Combine the prompt and the data
+    combined_input = f"{prompt}\n\n{json.dumps(meteo_data, indent=2)}"
+
+    return combined_input
+
+
+prompt = generate_llm_input(weather_json)
+response = model.generate_content(prompt)
+
+st.write(response.text)
