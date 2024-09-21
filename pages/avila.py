@@ -1271,7 +1271,7 @@ def generate_llm_input(weather_json):
     meteo_data = weather_json
 
     # Define the prompt
-    prompt = """ PROVIDE THE WHOLE RESPONSE IN SPANISH FROM SPAIN. TAKE SPAIN AS A CONTEXT FOR YOUR ANSWERS
+    prompt = """ PROVIDE THE WHOLE RESPONSE IN SPANISH FROM SPAIN. THE FORECAST IS FOR ÁVILA, SPAIN. USE THIS AS CLIMATE CONTEXT FOR YOUR ANSWERS.
 
 You are a professional meteorologist tasked with analyzing and commenting on weather forecast data for the next 48 hours. The data provided includes hourly information on temperature, wind, precipitation, pressure, and MUCAPE (Most Unstable Convective Available Potential Energy).
 
