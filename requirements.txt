@@ -1,5 +1,5 @@
-requests==2.31.0
-bs4==4.12.2
+requests
+bs4
 pandas==2.0.3
 numpy
 matplotlib
