@@ -123,7 +123,10 @@ aemet_horario_acumulado = aemet_horario_acumulado.sort_index(ascending=False)
 
 aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize(None)
 
-aemet_horario_acumulado.to_excel("Histórico/Acumulado Madrid.xlsx")
+#aemet_horario_acumulado.to_excel("Histórico/Acumulado Madrid.xlsx")
+
+st.write(aemet_horario)
+
 
 #####################################################
 
