@@ -241,8 +241,12 @@ st.sidebar.subheader("Datos más recientes: "+str(aemet_horario.index[0].hour)+"
 
 
 
+
 temp_data = get_temp_data(valid_run)
 temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
+
+st.write(temp_data)
+
 
 temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
 temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
