@@ -1,7 +1,7 @@
 requests
 bs4
 pandas==2.0.3
-numpy
+numpy==1.25.1
 matplotlib
 scipy
 openpyxl
