@@ -125,8 +125,6 @@ aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize(None)
 
 #aemet_horario_acumulado.to_excel("Histórico/Acumulado Madrid.xlsx")
 
-st.write(aemet_horario)
-
 
 #####################################################
 
@@ -247,9 +245,6 @@ st.sidebar.subheader("Datos más recientes: "+str(aemet_horario.index[0].hour)+"
 
 temp_data = get_temp_data(valid_run)
 temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
-
-st.write(temp_data)
-
 
 temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
 temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
