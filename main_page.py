@@ -19,7 +19,6 @@ import google.generativeai as genai
 
 
 
-
 TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
