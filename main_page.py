@@ -1495,7 +1495,7 @@ You are a professional meteorologist tasked with analyzing and commenting on wea
 2. Detailed Analysis (broken down by weather component). Include emojis identifying every field.
 3. Model Comparison and Uncertainty Discussion
 4. Risk Assessment and Warnings. Include emojis identifying every field. Organize this information in a table.
-5. Concluding Remarks and Forecast Confidence
+
 
 Please provide your analysis in clear, concise language suitable for both meteorological professionals and informed members of the public. Use meteorological terminology where appropriate, but explain complex concepts when necessary.
 
