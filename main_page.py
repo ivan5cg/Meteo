@@ -1478,7 +1478,7 @@ You are a professional meteorologist tasked with analyzing and commenting on wea
    - Analyze the consistency of the data across different weather models.
    - Highlight any significant discrepancies between models and explain their potential implications.
 
-4. Risk Assessment ():
+4. Risk Assessmen:
    - Identify any potential weather risks or hazards, such as:
      - Extreme temperatures (heat waves or cold snaps)
      - Strong winds or wind gusts
