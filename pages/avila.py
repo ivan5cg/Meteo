@@ -1241,7 +1241,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 #
 st.pyplot(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'))
 
-model = genai.GenerativeModel(('gemini-1.5-flash-exp-0827'))
+model = genai.GenerativeModel(('gemini-2.0-flash-exp'))
 import json
 
 def process_multi_model_dataframe(df):

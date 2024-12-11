@@ -1429,7 +1429,7 @@ def generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mu
 
 #commentary = generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data)
 
-model = genai.GenerativeModel(('gemini-1.5-flash-002'))
+model = genai.GenerativeModel(('gemini-2.0-flash-exp'))
 import json
 
 def process_multi_model_dataframe(df):
@@ -1478,7 +1478,7 @@ You are a professional meteorologist tasked with analyzing and commenting on wea
    - Analyze the consistency of the data across different weather models.
    - Highlight any significant discrepancies between models and explain their potential implications.
 
-4. Risk Assessmen:
+4. Risk Assessment:
    - Identify any potential weather risks or hazards, such as:
      - Extreme temperatures (heat waves or cold snaps)
      - Strong winds or wind gusts
