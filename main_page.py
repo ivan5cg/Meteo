@@ -484,7 +484,7 @@ def plot_temp_data(data):
 
 fig = plot_temp_data(temp_data)
 
-st.pyplot(fig)
+st.pyplot(fig=fig)
 
 ##############################################
 
@@ -556,7 +556,7 @@ def plot_rain_chance(chance_prec,avg_prec):
 
 fig = plot_rain_chance(chance_prec,avg_prec)
 
-st.pyplot(fig)
+st.pyplot(fig=fig)
 
 #######################################################
 #wind_data = get_wind_gust_data(valid_run)
@@ -653,7 +653,7 @@ def plot_wind_data(data):
 
 fig = plot_wind_data(wind_gust_data)
 
-st.pyplot(fig)
+st.pyplot(fig=fig)
 
 #@#############################################
 
@@ -752,7 +752,7 @@ def plot_pressure_data(data):
 
 fig = plot_pressure_data(pressure_data)
 
-st.pyplot(fig)
+st.pyplot(fig=fig)
 
 ################################################
 
@@ -829,7 +829,7 @@ def plot_mucape_data(data):
 
 fig = plot_mucape_data(mucape_data)
 
-st.pyplot(fig)
+st.pyplot(fig=fig)
 
 
 
@@ -1000,7 +1000,7 @@ def plot_long_forecast():
 
 fig = plot_long_forecast()
 
-st.pyplot(fig)
+st.pyplot(fig=fig)
 
 
 
@@ -1038,7 +1038,7 @@ def plot_long_rain_forecast():
 
 fig = plot_long_rain_forecast()
 
-st.pyplot(fig)
+st.pyplot(fig=fig)
 
 
 def plot_long_wind_forecast():
@@ -1075,7 +1075,7 @@ def plot_long_wind_forecast():
 
 fig = plot_long_wind_forecast()
 
-st.pyplot(fig)
+st.pyplot(fig=fig)
 
 
 import datetime
@@ -1206,8 +1206,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 #
 fig = plot_sun_elevation(40.41144776110279, -3.6787949052050672, 'Europe/Madrid')
 
-st.pyplot(fig)
-
+st.pyplot(fig=fig)
 
 st.divider()
 
@@ -1234,7 +1233,7 @@ def display_images_in_grid(image_urls):
         cols = st.columns(2)
         for col in cols:
             if image_idx < num_images:
-                col.image(image_urls[image_idx], use_column_width=True)
+                col.image(image_urls[image_idx], use_container_width=True)
                 image_idx += 1
 
 # Display the images
