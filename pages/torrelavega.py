@@ -407,6 +407,8 @@ def plot_rain_chance(chance_prec,avg_prec):
 
     axs[0].set_ylabel('Average L/m2 in case of rain')
     axs[1].set_ylabel('Chance of rain')
+
+    return fig
 #st.write(prec_data)
 
 
@@ -884,6 +886,7 @@ def plot_long_rain_forecast():
 
     ax.set_title("Evolución precipitación");
     ax.set_ylabel("L/m2");
+    return fig
 
 st.pyplot(plot_long_rain_forecast())
 
