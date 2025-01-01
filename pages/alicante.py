@@ -339,7 +339,7 @@ def plot_temp_data(data):
         ax.set_xticks(ticks);
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center');
 
-        return 
+        return fig
 
 
 st.pyplot(plot_temp_data(temp_data))
@@ -508,7 +508,7 @@ def plot_wind_data(data):
         ax.set_xticks(ticks)
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
 
-        return 
+        return fig
 
 st.pyplot(plot_wind_data(wind_data))
 
@@ -604,7 +604,7 @@ def plot_pressure_data(data):
         ax.set_xticks(ticks)
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
 
-        return 
+        return fig
 
 st.pyplot(plot_pressure_data(pressure_data))
 
@@ -677,7 +677,7 @@ def plot_mucape_data(data):
         ax.axhspan(300,1000,facecolor='yellow', alpha=0.17)
         ax.axhspan(1000,2000,facecolor='red', alpha=0.17)
 
-        return 
+        return fig
 
 st.pyplot(plot_mucape_data(mucape_data))
 
@@ -847,6 +847,8 @@ def plot_long_forecast():
 
     ax.grid();
 
+    return fig
+
 st.pyplot(plot_long_forecast())
 
 
@@ -883,6 +885,8 @@ def plot_long_rain_forecast():
     ax.set_title("Evolución precipitación");
     ax.set_ylabel("L/m2");
 
+    return fig
+
 st.pyplot(plot_long_rain_forecast())
 
 
@@ -917,6 +921,8 @@ def plot_long_wind_forecast():
 
     ax.set_title("Evolución viento");
     ax.set_ylabel("Km/h");
+
+    return fig
 
 st.pyplot(plot_long_wind_forecast())
 
@@ -1050,6 +1056,8 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     # Display the plot
     plt.tight_layout()
     plt.show()
+
+    return fig
 
 #
 st.pyplot(plot_sun_elevation(38.343761,-0.486027, 'Europe/Madrid'))
