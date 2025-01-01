@@ -339,7 +339,7 @@ def plot_temp_data(data):
         ax.set_xticks(ticks);
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center');
 
-        return 
+        return fig
 
 
 st.pyplot(plot_temp_data(temp_data))
@@ -408,6 +408,8 @@ def plot_rain_chance(chance_prec,avg_prec):
 
     axs[0].set_ylabel('Average L/m2 in case of rain')
     axs[1].set_ylabel('Chance of rain')
+
+    return fig
 #st.write(prec_data)
 
 
@@ -509,7 +511,7 @@ def plot_wind_data(data):
         ax.set_xticks(ticks)
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
 
-        return 
+        return fig 
 
 st.pyplot(plot_wind_data(wind_data))
 
@@ -605,7 +607,7 @@ def plot_pressure_data(data):
         ax.set_xticks(ticks)
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
 
-
+        return fig
 
 import datetime
 import pytz
@@ -732,5 +734,6 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     plt.tight_layout()
     plt.show()
 
+    return fig
 #
 st.pyplot(plot_sun_elevation(53.34035472693258, -6.271568680463857, 'Europe/London'))
