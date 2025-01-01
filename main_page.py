@@ -481,7 +481,10 @@ def plot_temp_data(data):
 
         return 
 
-st.pyplot(plot_temp_data(temp_data))
+
+fig = plot_temp_data(temp_data)
+
+st.pyplot(fig)
 
 ##############################################
 
@@ -551,7 +554,9 @@ def plot_rain_chance(chance_prec,avg_prec):
 
 #st.pyplot(plot_prec_data(prec_data))
 
-st.pyplot(plot_rain_chance(chance_prec,avg_prec))
+fig = plot_rain_chance(chance_prec,avg_prec)
+
+st.pyplot(fig)
 
 #######################################################
 #wind_data = get_wind_gust_data(valid_run)
@@ -646,7 +651,9 @@ def plot_wind_data(data):
 
         return 
 
-st.pyplot(plot_wind_data(wind_gust_data))
+fig = plot_wind_data(wind_gust_data)
+
+st.pyplot(fig)
 
 #@#############################################
 
@@ -743,7 +750,9 @@ def plot_pressure_data(data):
 
         return 
 
-st.pyplot(plot_pressure_data(pressure_data))
+fig = plot_pressure_data(pressure_data)
+
+st.pyplot(fig)
 
 ################################################
 
@@ -817,7 +826,10 @@ def plot_mucape_data(data):
 
         return 
 
-st.pyplot(plot_mucape_data(mucape_data))
+
+fig = plot_mucape_data(mucape_data)
+
+st.pyplot(fig)
 
 
 
@@ -985,7 +997,10 @@ def plot_long_forecast():
 
     ax.grid();
 
-st.pyplot(plot_long_forecast())
+
+fig = plot_long_forecast()
+
+st.pyplot(fig)
 
 
 
@@ -1021,7 +1036,9 @@ def plot_long_rain_forecast():
     ax.set_title("Evolución precipitación");
     ax.set_ylabel("L/m2");
 
-st.pyplot(plot_long_rain_forecast())
+fig = plot_long_rain_forecast()
+
+st.pyplot(fig)
 
 
 def plot_long_wind_forecast():
@@ -1056,7 +1073,9 @@ def plot_long_wind_forecast():
     ax.set_title("Evolución viento");
     ax.set_ylabel("Km/h");
 
-st.pyplot(plot_long_wind_forecast())
+fig = plot_long_wind_forecast()
+
+st.pyplot(fig)
 
 
 import datetime
@@ -1185,7 +1204,9 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     plt.show()
 
 #
-st.pyplot(plot_sun_elevation(40.41144776110279, -3.6787949052050672, 'Europe/Madrid'))
+fig = plot_sun_elevation(40.41144776110279, -3.6787949052050672, 'Europe/Madrid')
+
+st.pyplot(fig)
 
 
 st.divider()
