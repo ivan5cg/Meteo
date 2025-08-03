@@ -1501,7 +1501,6 @@ You are a professional meteorologist tasked with analyzing and commenting on wea
    - Temperature: Highlight daily highs and lows, and any significant temperature changes.
    - Wind: Report on average wind speeds, signalling hazardous values.
    - Precipitation: Summarize total expected precipitation and identify periods of heaviest rainfall.
-   - Pressure: Note any significant pressure changes that might indicate approaching weather systems.
    - MUCAPE: Interpret MUCAPE values to assess the potential for thunderstorm development. For your analysis, take into account only those values higher than 250. Consider that severe thunderstorm only develop when MUCAPE is at least 1000.
 
 3. Model Alignment:
