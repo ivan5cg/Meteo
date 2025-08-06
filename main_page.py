@@ -1221,6 +1221,143 @@ st.pyplot(fig=fig)
 st.divider()
 
 
+def get_gfs_data(url):
+
+#url = 'https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=40.4165&lon=-3.70256&run=12&ext=1&mode=7&sort=2'  # Replace this with the URL containing the table
+
+    url = url
+
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    # Find the table element with class "gefs"
+    table = soup.find('table', {'class': 'gefs'})
+
+    # Get table rows
+    rows = table.find_all('tr')
+
+    # Extract headers from the first row
+    headers = [header.get_text(strip=True) for header in rows[0].find_all('td')]
+
+    # Extract data from the remaining rows
+    data = []
+    for row in rows[1:]:
+        columns = row.find_all('td')
+        row_data = [column.get_text(strip=True) for column in columns]
+        data.append(row_data)
+
+    # Create a DataFrame from the data
+    df = pd.DataFrame(data, columns=headers)
+    df.index = pd.to_datetime(df["Date"])
+
+    df.index = df.index.tz_convert('Europe/Madrid')
+    df = df.drop("Date",axis=1)
+    df = df.drop("Ech.",axis=1)
+    df = df.astype("float")
+
+    return df
+
+def get_last_gfs_run():
+
+    runs = [0, 6, 12, 18]  # GFS runs at 00, 06, 12, and 18 UTC
+    url ='https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=40.4165&lon=-3.70256&ext=1&mode=7&sort=2'
+
+    first_index = pd.Timestamp(year=2017, month=1, day=1,tz="UTC")
+
+    for run in runs:
+        url_run = f'{url}&run={run}'
+        first_index_run = get_gfs_data(url_run).index[0]
+
+        if first_index_run > first_index:
+            first_index = first_index_run
+            valid_run = run
+        else:
+            pass
+
+    return valid_run
+
+
+valid_run_gfs = get_last_gfs_run()
+
+
+def get_temp_data_gfs(valid_run_gfs):
+
+
+
+    url ='https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=40.4165&lon=-3.70256&ext=1&mode=7&sort=0'
+    url_run = f'{url}&run={valid_run_gfs}'
+
+    temp_data = get_gfs_data(url_run)
+
+    return temp_data
+
+temp_data_gfs = get_temp_data_gfs(valid_run_gfs)
+
+
+# Resample to get daily forecasts for maximum and minimum temperatures separately
+daily_data_max = temp_data_gfs.resample('D').max()
+daily_data_min = temp_data_gfs.resample('D').min()
+
+# Exclude the current day
+today = pd.Timestamp.now(tz=daily_data_max.index.tz).normalize()
+daily_data_max = daily_data_max[daily_data_max.index > today]
+daily_data_min = daily_data_min[daily_data_min.index > today]
+
+# Use the same daily index for the x-axis
+x = daily_data_max.index
+
+# For the ensemble forecasts, exclude the "GFS" column
+ensemble_cols_max = [col for col in daily_data_max.columns if col != "GFS"]
+ensemble_cols_min = [col for col in daily_data_min.columns if col != "GFS"]
+
+# Compute the envelope bounds for the maximum forecasts
+lower_bound_max = daily_data_max[ensemble_cols_max].min(axis=1)
+upper_bound_max = daily_data_max[ensemble_cols_max].max(axis=1)
+
+# Compute the envelope bounds for the minimum forecasts
+lower_bound_min = daily_data_min[ensemble_cols_min].min(axis=1)
+upper_bound_min = daily_data_min[ensemble_cols_min].max(axis=1)
+
+fig, ax = plt.subplots(figsize=(12, 6))
+
+# Plot ensemble envelope for daily maximum temperatures
+ax.fill_between(x, lower_bound_max, upper_bound_max,
+                color="red", alpha=0.1, label="Ensemble Range (daily max)")
+# Plot ensemble envelope for daily minimum temperatures
+ax.fill_between(x, lower_bound_min, upper_bound_min,
+                color="lightblue", alpha=0.4, label="Ensemble Range (daily min)")
+
+# Plot GFS forecast for maximum temperatures
+ax.plot(x, daily_data_max["GFS"], color="red", linewidth=2.5,
+        label="GFS Forecast (daily max)")
+# Plot GFS forecast for minimum temperatures
+ax.plot(x, daily_data_min["GFS"], color="lightskyblue", linewidth=2.5,
+        label="GFS Forecast (daily min)")
+
+# Add vertical gridlines for each day
+for day in x:
+    ax.axvline(x=day, color="gray", linestyle="--", alpha=0.5)
+
+# Add small datalabels showing the GFS temperature for each day.
+for day, temp in zip(x, daily_data_max["GFS"]):
+    ax.text(day, temp + 1, f"{temp:.1f}", ha="center", va="bottom", fontsize=8.9, color="red")
+for day, temp in zip(x, daily_data_min["GFS"]):
+    ax.text(day, temp - 1, f"{temp:.1f}", ha="center", va="top", fontsize=8.9, color="steelblue")
+
+ax.set_xlabel("Date")
+ax.set_ylabel("Temperature (°C)")
+ax.set_title("Daily Temperature Forecast with Ensemble Envelopes")
+ax.legend()
+ax.grid(True)
+fig.tight_layout()
+
+st.pyplot(fig)
+
+
+
+
+st.divider()
+
 # URLs of the images
 image_urls = [
     "https://informo.madrid.es/cameras/Camara03310.jpg?rand=1716226504287",
