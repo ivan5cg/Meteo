@@ -608,23 +608,15 @@ st.divider()
 
 
 # --- LÓGICA DE AVISOS Y GENERACIÓN HTML ---
-# Creamos una lista para ir acumulando el HTML de las alertas
 alerts_html = ""
 
-# Definimos una pequeña función auxiliar para crear el HTML de cada aviso
-# type: "warm" (calor/subida) o "cold" (frío/bajada)
+# Función corregida: HTML compactado sin espacios a la izquierda
 def create_alert(type_alert, icon, text):
-    # Colores definidos para coincidir con el tema (Rojo/Naranja vs Azul/Cian)
-    # Usamos clases CSS definidas más abajo
     c_class = "alert-warm" if type_alert == "warm" else "alert-cold"
-    return f"""
-    <div class="alert-item {c_class}">
-        <span class="alert-icon">{icon}</span>
-        <span class="alert-text">{text}</span>
-    </div>
-    """
+    # Todo en una línea o pegado al margen para evitar error de renderizado
+    return f'<div class="alert-item {c_class}"><span class="alert-icon">{icon}</span><span class="alert-text">{text}</span></div>'
 
-# --- CONDICIONALES (Tu lógica original con Emojis actualizados) ---
+# --- TUS CONDICIONALES (Sin tocar lógica) ---
 
 # 1. Hoy
 if percentil_max_hoy > 80:     
@@ -645,67 +637,23 @@ elif (percentil_max_hoy - percentil_max_mañana) > 50 :
     alerts_html += create_alert("cold", "📉", "Mañana bajarán mucho las temperaturas")
 
 
-# --- RENDERIZADO SI HAY ALERTAS ---
+# --- RENDERIZADO ---
 if alerts_html:
+    # IMPORTANTE: Todo el bloque style y div pegado a la izquierda
     st.markdown(f"""
 <style>
-/* Contenedor Flex para que los avisos se pongan uno al lado del otro */
-.alerts-container {{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 25px;
-    font-family: 'Inter', sans-serif;
-}}
-
-/* Estilo base de la píldora */
-.alert-item {{
-    display: flex;
-    align-items: center;
-    padding: 12px 16px;
-    border-radius: 12px;
-    border: 1px solid;
-    backdrop-filter: blur(8px);
-    transition: transform 0.2s ease;
-    flex: 1 1 auto; /* Se adaptan al ancho */
-    min-width: 200px;
-    max-width: fit-content;
-}}
-
-.alert-item:hover {{
-    transform: translateY(-2px);
-}}
-
-/* Variantes de Color (Glassmorphism Tintado) */
-.alert-warm {{
-    background: rgba(255, 107, 107, 0.1);
-    border-color: rgba(255, 107, 107, 0.3);
-    color: #ffcccc;
-}}
-
-.alert-cold {{
-    background: rgba(77, 171, 247, 0.1);
-    border-color: rgba(77, 171, 247, 0.3);
-    color: #ccedff;
-}}
-
-.alert-icon {{
-    font-size: 1.2rem;
-    margin-right: 10px;
-}}
-
-.alert-text {{
-    font-size: 0.9rem;
-    font-weight: 500;
-    letter-spacing: 0.3px;
-}}
+.alerts-container {{ display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 25px; font-family: 'Inter', sans-serif; }}
+.alert-item {{ display: flex; align-items: center; padding: 12px 16px; border-radius: 12px; border: 1px solid; backdrop-filter: blur(8px); transition: transform 0.2s ease; flex: 1 1 auto; min-width: 200px; max-width: fit-content; }}
+.alert-item:hover {{ transform: translateY(-2px); }}
+.alert-warm {{ background: rgba(255, 107, 107, 0.1); border-color: rgba(255, 107, 107, 0.3); color: #ffcccc; }}
+.alert-cold {{ background: rgba(77, 171, 247, 0.1); border-color: rgba(77, 171, 247, 0.3); color: #ccedff; }}
+.alert-icon {{ font-size: 1.2rem; margin-right: 10px; }}
+.alert-text {{ font-size: 0.9rem; font-weight: 500; letter-spacing: 0.3px; }}
 </style>
-
 <div class="alerts-container">
 {alerts_html}
 </div>
 """, unsafe_allow_html=True)
-
 
 st.divider()
 
