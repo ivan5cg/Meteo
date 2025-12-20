@@ -1557,7 +1557,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 #
 st.pyplot(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'))
 
-model = genai.GenerativeModel(('gemini-2.5-flash'))
+model = genai.GenerativeModel(('gemini-3-flash-preview'))
 import json
 
 def process_multi_model_dataframe(df):
@@ -1576,7 +1576,7 @@ weather_data = {
     'temperature': process_multi_model_dataframe(temp_data),
     'wind': process_multi_model_dataframe(wind_data),
     'precipitation': process_multi_model_dataframe(prec_data),
-    'pressure': process_multi_model_dataframe(prec_data),
+    'pressure': process_multi_model_dataframe(pressure_data),
     'mucape': process_multi_model_dataframe(mucape_data)
 }
 
