@@ -521,8 +521,12 @@ for card in cards_data:
     hue = get_temp_hue(card['temp'])
     perc_val = int(card['perc'].round(0))
     
-    # Creamos la estructura: Label -> Valor -> Fila (Numero Percentil + Barra)
-    # Todo pegado a la izquierda para evitar errores de sangría en Streamlit
+    # TRUCO DEL DEGRADADO:
+    # Para que el degradado no se comprima, calculamos el 'background-size' inverso.
+    # Ejemplo: Si el ancho es 50%, el fondo debe ser 200% para que parezca que solo vemos la mitad.
+    safe_perc = max(1, perc_val) # Evitamos división por cero
+    bg_size_percent = (100 / safe_perc) * 100
+    
     html_content += f"""
 <div class="metric-card temp-card" style="--card-hue: {hue};" title="{texto_percentil}">
 <div class="metric-label">{card['label']}</div>
@@ -530,7 +534,7 @@ for card in cards_data:
 <div class="perc-row">
 <div class="perc-text">{perc_val}<span style="font-size:0.7em; font-weight:400; opacity:0.6; margin-left:2px">perc</span></div>
 <div class="perc-track">
-<div class="perc-fill" style="width: {perc_val}%;"></div>
+<div class="perc-fill" style="width: {perc_val}%; background-size: {bg_size_percent:.0f}% 100%;"></div>
 </div>
 </div>
 </div>
@@ -585,11 +589,10 @@ st.markdown(f"""
     line-height: 1;
 }}
 
-/* Estilos de la fila del percentil */
 .perc-row {{
     display: flex;
     align-items: center;
-    gap: 10px; /* Espacio entre el numero y la barra */
+    gap: 10px;
     margin-top: 12px;
 }}
 
@@ -598,21 +601,25 @@ st.markdown(f"""
     font-weight: 700;
     color: rgba(255,255,255,0.9);
     white-space: nowrap;
+    width: 45px; /* Ancho fijo para alinear las barras verticalmente */
 }}
 
 .perc-track {{
-    flex-grow: 1; /* La barra ocupa todo el espacio restante */
-    height: 6px;
+    flex-grow: 1;
+    height: 8px; /* Un poco más gruesa para que se aprecie mejor */
     background: rgba(255,255,255,0.1);
-    border-radius: 3px;
+    border-radius: 4px;
     overflow: hidden;
 }}
 
 .perc-fill {{
     height: 100%;
-    /* Degradado de Azul (frío/bajo) a Rojo (calor/alto) */
-    background: linear-gradient(90deg, #4facfe 0%, #ff6b6b 100%);
-    border-radius: 3px;
+    /* Degradado fijo: Azul -> Cian -> Naranja -> Rojo */
+    background-image: linear-gradient(90deg, #4facfe 0%, #00f2fe 30%, #ff9f43 70%, #ff6b6b 100%);
+    background-repeat: no-repeat;
+    /* La posición es clave: anclada a la izquierda */
+    background-position: left center;
+    border-radius: 4px;
     transition: width 0.5s ease-out;
 }}
 </style>
