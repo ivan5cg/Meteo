@@ -263,145 +263,111 @@ fiabilidad = 10*np.exp(-0.05*desv_temp**2.5)
 #col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de mañana a esta hora, calculada sobre 10")
 
 
-# --- CÁLCULOS LÓGICOS (Tus variables se mantienen intactas) ---
+# --- CÁLCULOS LÓGICOS (Sin tocar tus variables) ---
 delta_hoy = (temp_actual - temp_ayer).round(1)
 delta_manana = (temp_mañana - temp_actual).round(1)
 fiab_val = fiabilidad.round(1)
 
-# Lógica de colores 'inverse' (Rojo pastel si sube, Verde pastel si baja para modo oscuro)
-# Usamos colores más luminosos para que destaquen sobre fondo oscuro
-c_up = "#ff6b6b"   # Rojo suave
-c_down = "#51cf66" # Verde suave
+# Colores y flechas
+c_up = "#ff6b6b"   # Rojo suave (pastel)
+c_down = "#51cf66" # Verde suave (pastel)
 color_hoy = c_up if delta_hoy > 0 else c_down
 color_manana = c_up if delta_manana > 0 else c_down
 arrow_hoy = "▲" if delta_hoy > 0 else "▼"
 arrow_manana = "▲" if delta_manana > 0 else "▼"
 
 # --- RENDERIZADO HTML ---
+# NOTA: El HTML dentro de las comillas está pegado a la izquierda 
+# intencionadamente para evitar que Streamlit lo detecte como código.
+
 st.markdown(f"""
 <style>
-    /* Contenedor principal Grid */
-    .weather-grid {{
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin-bottom: 30px;
-        font-family: 'Source Sans Pro', sans-serif;
-    }}
-    
-    /* Estilo de tarjeta 'Glass' para modo oscuro */
-    .metric-card {{
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        padding: 24px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        backdrop-filter: blur(5px);
-        transition: all 0.3s ease;
-    }}
-    
-    .metric-card:hover {{
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.2);
-        transform: translateY(-2px);
-    }}
-
-    /* Tipografía */
-    .metric-label {{
-        font-size: 0.85rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: rgba(255, 255, 255, 0.6);
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }}
-    
-    .metric-value {{
-        font-size: 2.2rem;
-        font-weight: 600;
-        color: #ffffff;
-        margin: 0;
-        line-height: 1.1;
-    }}
-    
-    .metric-delta {{
-        font-size: 0.9rem;
-        font-weight: 500;
-        margin-top: 8px;
-        display: inline-flex;
-        align-items: center;
-        padding: 2px 8px;
-        border-radius: 4px;
-        background: rgba(0,0,0,0.2);
-    }}
-
-    /* Barra de Fiabilidad Minimalista */
-    .progress-track {{
-        width: 100%;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 2px;
-        margin-top: 15px;
-        overflow: hidden;
-    }}
-    
-    .progress-fill {{
-        height: 100%;
-        background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
-        width: {fiab_val * 10}%;
-        border-radius: 2px;
-    }}
+.weather-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+    font-family: sans-serif;
+}}
+.metric-card {{
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+    transition: transform 0.2s ease;
+    color: white;
+}}
+.metric-card:hover {{
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-3px);
+}}
+.metric-label {{
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 5px;
+}}
+.metric-value {{
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    line-height: 1;
+}}
+.metric-delta {{
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+}}
+.progress-bg {{
+    background: rgba(255,255,255,0.1);
+    height: 4px;
+    border-radius: 2px;
+    width: 100%;
+    margin-top: 15px;
+}}
+.progress-fill {{
+    background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+    height: 100%;
+    border-radius: 2px;
+    width: {fiab_val * 10}%;
+}}
 </style>
 
 <div class="weather-grid">
-
-    <!-- CARD 1: ACTUAL -->
+    <!-- CARD 1 -->
     <div class="metric-card">
-        <div>
-            <div class="metric-label">
-                <span>🌡️</span> Actual
-            </div>
-            <div class="metric-value">{temp_actual}º</div>
-        </div>
-        <div class="metric-delta" style="color: {color_hoy}; border-left: 2px solid {color_hoy};">
-            {arrow_hoy} {abs(delta_hoy)}º vs ayer
+        <div class="metric-label">Actual</div>
+        <div class="metric-value">{temp_actual}ºC</div>
+        <div class="metric-delta" style="color: {color_hoy}">
+            <span>{arrow_hoy} {abs(delta_hoy)}</span>
+            <span style="color: rgba(255,255,255,0.4); font-size: 0.8rem; margin-left: 5px;">vs ayer</span>
         </div>
     </div>
 
-    <!-- CARD 2: MAÑANA -->
+    <!-- CARD 2 -->
     <div class="metric-card">
-        <div>
-            <div class="metric-label">
-                <span>📅</span> Mañana
-            </div>
-            <div class="metric-value">{temp_mañana}º</div>
-        </div>
-        <div class="metric-delta" style="color: {color_manana}; border-left: 2px solid {color_manana};">
-            {arrow_manana} {abs(delta_manana)}º prev
+        <div class="metric-label">Mañana</div>
+        <div class="metric-value">{temp_mañana}ºC</div>
+        <div class="metric-delta" style="color: {color_manana}">
+            <span>{arrow_manana} {abs(delta_manana)}</span>
+            <span style="color: rgba(255,255,255,0.4); font-size: 0.8rem; margin-left: 5px;">previsto</span>
         </div>
     </div>
 
-    <!-- CARD 3: FIABILIDAD -->
+    <!-- CARD 3 -->
     <div class="metric-card">
-        <div>
-            <div class="metric-label">
-                <span>🎯</span> Fiabilidad
-            </div>
-            <div class="metric-value">{fiab_val}<span style="font-size:1.2rem; color:rgba(255,255,255,0.4)">/10</span></div>
-        </div>
-        <div class="progress-track">
+        <div class="metric-label">Fiabilidad</div>
+        <div class="metric-value">{fiab_val} <span style="font-size: 1rem; color: rgba(255,255,255,0.3)">/10</span></div>
+        <div class="progress-bg">
             <div class="progress-fill"></div>
         </div>
     </div>
-
 </div>
 """, unsafe_allow_html=True)
-
-
 
 
 st.divider()
