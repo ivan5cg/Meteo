@@ -438,48 +438,216 @@ percentil_min_mañana = percentileofscore(arr_min, valor_min_mañana)
 texto_percentil = "El percentil indica cómo es la temperatura frente a los registros históricos, un valor cercano a 100 indica un registro extremadamente alto, uno cercano a 0 indica un registro extremadamente bajo."
 
 
-if hora_día < 9:
+#if hora_día < 9:
 
-    col1,col2,col3,col4 = st.columns(4,gap="small")
+#    col1,col2,col3,col4 = st.columns(4,gap="small")
 
-    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,int(percentil_min_hoy.round(0)),delta_color="off",help=texto_percentil)
-    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
-    col3.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
-    col4.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
+#    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,int(percentil_min_hoy.round(0)),delta_color="off",help=texto_percentil)
+#    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
+#    col3.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
+#    col4.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
 
 
-else:
-    col1,col2,col3 = st.columns(3,gap="small")
+#else:
+#    col1,col2,col3 = st.columns(3,gap="small")
     
-    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
-    col2.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
-    col3.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
+#    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
+#    col2.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
+#    col3.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
 
 
-col1aviso,col2aviso = st.columns(2,gap="small")
 
+# --- FUNCIÓN DE COLOR DINÁMICO ---
+def get_temp_hue(t):
+    norm = max(0, min(1, (t + 10) / 55))
+    return int(240 * (1 - norm))
 
-if percentil_max_hoy > 80:     
-     col1aviso.warning("Hoy hará mucho calor :fire:")
-elif percentil_max_hoy < 20:
-    col1aviso.info("Hoy hará mucho frío :cold_face:")
+# --- PREPARACIÓN DE DATOS SEGÚN HORA ---
+cards_data = []
 
+if hora_día < 9:
+    cards_data = [
+        {"label": "Mínima Hoy", "temp": valor_min, "perc": percentil_min_hoy},
+        {"label": "Máxima Hoy", "temp": valor_max, "perc": percentil_max_hoy},
+        {"label": "Mínima Mañana", "temp": valor_min_mañana, "perc": percentil_min_mañana},
+        {"label": "Máxima Mañana", "temp": valor_max_mañana, "perc": percentil_max_mañana}
+    ]
+else:
+    cards_data = [
+        {"label": "Máxima Hoy", "temp": valor_max, "perc": percentil_max_hoy},
+        {"label": "Mínima Mañana", "temp": valor_min_mañana, "perc": percentil_min_mañana},
+        {"label": "Máxima Mañana", "temp": valor_max_mañana, "perc": percentil_max_mañana}
+    ]
 
-if percentil_max_mañana > 80:     
-     col1aviso.warning("Mañana hará mucho calor :fire:")
-elif percentil_max_mañana < 20:
-    col1aviso.info("Mañana hará mucho frío :cold_face:")
+# --- GENERACIÓN DEL HTML ---
+html_content = ""
 
+for card in cards_data:
+    hue = get_temp_hue(card['temp'])
+    perc_val = int(card['perc'].round(0))
+    
+    # TRUCO DEL DEGRADADO:
+    # Para que el degradado no se comprima, calculamos el 'background-size' inverso.
+    # Ejemplo: Si el ancho es 50%, el fondo debe ser 200% para que parezca que solo vemos la mitad.
+    safe_perc = max(1, perc_val) # Evitamos división por cero
+    bg_size_percent = (100 / safe_perc) * 100
+    
+    html_content += f"""
+<div class="metric-card temp-card" style="--card-hue: {hue};" title="{texto_percentil}">
+<div class="metric-label">{card['label']}</div>
+<div class="metric-value">{card['temp']}º</div>
+<div class="perc-row">
+<div class="perc-text">{perc_val}<span style="font-size:0.7em; font-weight:400; opacity:0.6; margin-left:2px">perc</span></div>
+<div class="perc-track">
+<div class="perc-fill" style="width: {perc_val}%; background-size: {bg_size_percent:.0f}% 100%;"></div>
+</div>
+</div>
+</div>
+"""
 
-if (percentil_max_mañana - percentil_max_hoy) > 50:     
-     col1aviso.warning("Mañana subirán mucho las temperaturas :arrow_up_small:")
-elif (percentil_max_hoy - percentil_max_mañana) > 50 :
-    col1aviso.info("Mañana bajarán mucho las temperaturas :arrow_down_small:")
+# --- RENDERIZADO FINAL ---
+st.markdown(f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
+.weather-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+    font-family: 'Inter', sans-serif;
+}}
 
+.metric-card {{
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    position: relative;
+    --card-hue: 220; 
+    cursor: help;
+}}
+
+.metric-card.temp-card:hover {{
+    border-color: hsla(var(--card-hue), 85%, 60%, 0.8);
+    box-shadow: 0 0 20px -5px hsla(var(--card-hue), 80%, 50%, 0.3);
+    transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.06);
+}}
+
+.metric-label {{
+    font-size: 0.7rem;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 8px;
+    font-weight: 600;
+}}
+
+.metric-value {{
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+    line-height: 1;
+}}
+
+.perc-row {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}}
+
+.perc-text {{
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    white-space: nowrap;
+    width: 45px; /* Ancho fijo para alinear las barras verticalmente */
+}}
+
+.perc-track {{
+    flex-grow: 1;
+    height: 8px; /* Un poco más gruesa para que se aprecie mejor */
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+}}
+
+.perc-fill {{
+    height: 100%;
+    /* Degradado fijo: Azul -> Cian -> Naranja -> Rojo */
+    background-image: linear-gradient(90deg, #4facfe 0%, #00f2fe 30%, #ff9f43 70%, #ff6b6b 100%);
+    background-repeat: no-repeat;
+    /* La posición es clave: anclada a la izquierda */
+    background-position: left center;
+    border-radius: 4px;
+    transition: width 0.5s ease-out;
+}}
+</style>
+
+<div class="weather-grid">
+{html_content}
+</div>
+""", unsafe_allow_html=True)
 
 st.divider()
 
+
+
+
+# --- LÓGICA DE AVISOS Y GENERACIÓN HTML ---
+alerts_html = ""
+
+# Función corregida: HTML compactado sin espacios a la izquierda
+def create_alert(type_alert, icon, text):
+    c_class = "alert-warm" if type_alert == "warm" else "alert-cold"
+    # Todo en una línea o pegado al margen para evitar error de renderizado
+    return f'<div class="alert-item {c_class}"><span class="alert-icon">{icon}</span><span class="alert-text">{text}</span></div>'
+
+# --- TUS CONDICIONALES (Sin tocar lógica) ---
+
+# 1. Hoy
+if percentil_max_hoy > 80:     
+     alerts_html += create_alert("warm", "🔥", "Hoy hará mucho calor")
+elif percentil_max_hoy < 20:
+    alerts_html += create_alert("cold", "🥶", "Hoy hará mucho frío")
+
+# 2. Mañana
+if percentil_max_mañana > 80:     
+     alerts_html += create_alert("warm", "🔥", "Mañana hará mucho calor")
+elif percentil_max_mañana < 20:
+    alerts_html += create_alert("cold", "🥶", "Mañana hará mucho frío")
+
+# 3. Diferencia
+if (percentil_max_mañana - percentil_max_hoy) > 50:     
+     alerts_html += create_alert("warm", "📈", "Mañana subirán mucho las temperaturas")
+elif (percentil_max_hoy - percentil_max_mañana) > 50 :
+    alerts_html += create_alert("cold", "📉", "Mañana bajarán mucho las temperaturas")
+
+
+# --- RENDERIZADO ---
+if alerts_html:
+    # IMPORTANTE: Todo el bloque style y div pegado a la izquierda
+    st.markdown(f"""
+<style>
+.alerts-container {{ display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 25px; font-family: 'Inter', sans-serif; }}
+.alert-item {{ display: flex; align-items: center; padding: 12px 16px; border-radius: 12px; border: 1px solid; backdrop-filter: blur(8px); transition: transform 0.2s ease; flex: 1 1 auto; min-width: 200px; max-width: fit-content; }}
+.alert-item:hover {{ transform: translateY(-2px); }}
+.alert-warm {{ background: rgba(255, 107, 107, 0.1); border-color: rgba(255, 107, 107, 0.3); color: #ffcccc; }}
+.alert-cold {{ background: rgba(77, 171, 247, 0.1); border-color: rgba(77, 171, 247, 0.3); color: #ccedff; }}
+.alert-icon {{ font-size: 1.2rem; margin-right: 10px; }}
+.alert-text {{ font-size: 0.9rem; font-weight: 500; letter-spacing: 0.3px; }}
+</style>
+<div class="alerts-container">
+{alerts_html}
+</div>
+""", unsafe_allow_html=True)
+
+st.divider()
 
 #########################################################
 
