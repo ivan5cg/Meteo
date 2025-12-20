@@ -263,112 +263,143 @@ fiabilidad = 10*np.exp(-0.05*desv_temp**2.5)
 #col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de mañana a esta hora, calculada sobre 10")
 
 
-# --- CÁLCULOS PREVIOS PARA ESTILO (Sin modificar tus variables base) ---
+# --- CÁLCULOS LÓGICOS (Tus variables se mantienen intactas) ---
 delta_hoy = (temp_actual - temp_ayer).round(1)
 delta_manana = (temp_mañana - temp_actual).round(1)
 fiab_val = fiabilidad.round(1)
 
-# Lógica de colores 'inverse' (Rojo si sube, Verde si baja)
-color_hoy = "#ff4b4b" if delta_hoy > 0 else "#09ab3b"
-color_manana = "#ff4b4b" if delta_manana > 0 else "#09ab3b"
+# Lógica de colores 'inverse' (Rojo pastel si sube, Verde pastel si baja para modo oscuro)
+# Usamos colores más luminosos para que destaquen sobre fondo oscuro
+c_up = "#ff6b6b"   # Rojo suave
+c_down = "#51cf66" # Verde suave
+color_hoy = c_up if delta_hoy > 0 else c_down
+color_manana = c_up if delta_manana > 0 else c_down
 arrow_hoy = "▲" if delta_hoy > 0 else "▼"
 arrow_manana = "▲" if delta_manana > 0 else "▼"
 
 # --- RENDERIZADO HTML ---
 st.markdown(f"""
 <style>
-    .weather-container {{
+    /* Contenedor principal Grid */
+    .weather-grid {{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+        font-family: 'Source Sans Pro', sans-serif;
+    }}
+    
+    /* Estilo de tarjeta 'Glass' para modo oscuro */
+    .metric-card {{
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 24px;
         display: flex;
-        gap: 15px;
-        flex-wrap: wrap;
-        justify-content: center;
-        margin-bottom: 20px;
+        flex-direction: column;
+        justify-content: space-between;
+        backdrop-filter: blur(5px);
+        transition: all 0.3s ease;
     }}
-    .weather-card {{
-        background-color: #ffffff;
-        border: 1px solid #e6e6ea;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        flex: 1;
-        min-width: 150px;
-        text-align: center;
-        transition: transform 0.2s;
-    }}
-    .weather-card:hover {{
+    
+    .metric-card:hover {{
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
         transform: translateY(-2px);
-        box-shadow: 0 8px 12px rgba(0,0,0,0.1);
     }}
-    .weather-title {{
-        font-size: 0.9rem;
-        color: #6c757d;
-        font-weight: 600;
-        margin-bottom: 5px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 5px;
-    }}
-    .weather-value {{
-        font-size: 2rem;
-        font-weight: 700;
-        color: #212529;
-        margin: 0;
-    }}
-    .weather-delta {{
+
+    /* Tipografía */
+    .metric-label {{
         font-size: 0.85rem;
-        font-weight: 500;
-        margin-top: 5px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 8px;
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: 3px;
+        gap: 6px;
     }}
-    .fiabilidad-bar {{
-        height: 6px;
+    
+    .metric-value {{
+        font-size: 2.2rem;
+        font-weight: 600;
+        color: #ffffff;
+        margin: 0;
+        line-height: 1.1;
+    }}
+    
+    .metric-delta {{
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin-top: 8px;
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: rgba(0,0,0,0.2);
+    }}
+
+    /* Barra de Fiabilidad Minimalista */
+    .progress-track {{
         width: 100%;
-        background: #e9ecef;
-        border-radius: 3px;
-        margin-top: 10px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        margin-top: 15px;
         overflow: hidden;
     }}
-    .fiabilidad-fill {{
+    
+    .progress-fill {{
         height: 100%;
-        background: linear-gradient(90deg, #4b6cb7 0%, #182848 100%);
+        background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
         width: {fiab_val * 10}%;
+        border-radius: 2px;
     }}
 </style>
 
-<div class="weather-container">
-    <!-- TARJETA 1: ACTUAL -->
-    <div class="weather-card">
-        <div class="weather-title">🌡️ Actual</div>
-        <div class="weather-value">{temp_actual}ºC</div>
-        <div class="weather-delta" style="color: {color_hoy};">
-            {arrow_hoy} {abs(delta_hoy)}ºC
+<div class="weather-grid">
+
+    <!-- CARD 1: ACTUAL -->
+    <div class="metric-card">
+        <div>
+            <div class="metric-label">
+                <span>🌡️</span> Actual
+            </div>
+            <div class="metric-value">{temp_actual}º</div>
+        </div>
+        <div class="metric-delta" style="color: {color_hoy}; border-left: 2px solid {color_hoy};">
+            {arrow_hoy} {abs(delta_hoy)}º vs ayer
         </div>
     </div>
 
-    <!-- TARJETA 2: MAÑANA -->
-    <div class="weather-card">
-        <div class="weather-title">📅 Mañana</div>
-        <div class="weather-value">{temp_mañana}ºC</div>
-        <div class="weather-delta" style="color: {color_manana};">
-            {arrow_manana} {abs(delta_manana)}ºC
+    <!-- CARD 2: MAÑANA -->
+    <div class="metric-card">
+        <div>
+            <div class="metric-label">
+                <span>📅</span> Mañana
+            </div>
+            <div class="metric-value">{temp_mañana}º</div>
+        </div>
+        <div class="metric-delta" style="color: {color_manana}; border-left: 2px solid {color_manana};">
+            {arrow_manana} {abs(delta_manana)}º prev
         </div>
     </div>
 
-    <!-- TARJETA 3: FIABILIDAD -->
-    <div class="weather-card" title="Sobre la temperatura de mañana a esta hora, calculada sobre 10">
-        <div class="weather-title">🎯 Fiabilidad</div>
-        <div class="weather-value">{fiab_val}<span style="font-size: 1rem; color:#888;">/10</span></div>
-        <div class="fiabilidad-bar">
-            <div class="fiabilidad-fill"></div>
+    <!-- CARD 3: FIABILIDAD -->
+    <div class="metric-card">
+        <div>
+            <div class="metric-label">
+                <span>🎯</span> Fiabilidad
+            </div>
+            <div class="metric-value">{fiab_val}<span style="font-size:1.2rem; color:rgba(255,255,255,0.4)">/10</span></div>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill"></div>
         </div>
     </div>
+
 </div>
 """, unsafe_allow_html=True)
-
 
 
 
