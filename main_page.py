@@ -268,7 +268,7 @@ delta_hoy = (temp_actual - temp_ayer).round(1)
 delta_manana = (temp_mañana - temp_actual).round(1)
 fiab_val = fiabilidad.round(1)
 
-# Lógica de colores y flechas
+# Lógica de Delta (Colores e Iconos)
 c_up = "#ff6b6b"
 c_down = "#51cf66"
 color_hoy = c_up if delta_hoy > 0 else c_down
@@ -276,45 +276,135 @@ color_manana = c_up if delta_manana > 0 else c_down
 arrow_hoy = "▲" if delta_hoy > 0 else "▼"
 arrow_manana = "▲" if delta_manana > 0 else "▼"
 
+# --- LÓGICA DE COLOR TEMPERATURA (Dinámico) ---
+# Mapeamos rango -10ºC (Azul) a 45ºC (Rojo) usando modelo de color HSL.
+# Hue: 240 es Azul puro, 0 es Rojo puro.
+def get_temp_hue(t):
+    # Normalizamos la temperatura entre 0 y 1 (clamped)
+    norm = max(0, min(1, (t + 10) / 55)) 
+    # Invertimos para que frío sea alto (azul 240) y calor bajo (rojo 0)
+    return int(240 * (1 - norm))
+
+hue_actual = get_temp_hue(temp_actual)
+hue_manana = get_temp_hue(temp_mañana)
+
 # --- RENDERIZADO HTML ---
-# IMPORTANTE: Todo el HTML está pegado a la izquierda para evitar 
-# que Streamlit lo confunda con bloques de código.
 st.markdown(f"""
 <style>
-.weather-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 20px; font-family: sans-serif; }}
-.metric-card {{ background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 12px; backdrop-filter: blur(5px); transition: transform 0.2s; }}
-.metric-card:hover {{ transform: translateY(-2px); background: rgba(255, 255, 255, 0.06); }}
-.metric-label {{ font-size: 0.8rem; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 5px; font-weight: 600; }}
-.metric-value {{ font-size: 2.2rem; font-weight: 700; color: white; margin: 0; line-height: 1.1; }}
-.metric-delta {{ font-size: 0.9rem; margin-top: 8px; font-weight: 500; display: flex; align-items: center; gap: 4px; }}
-.progress-bg {{ background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; width: 100%; margin-top: 15px; }}
-.progress-fill {{ background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%); height: 100%; border-radius: 2px; width: {fiab_val * 10}%; }}
+/* Importamos fuente minimalista Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+.weather-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+    font-family: 'Inter', sans-serif;
+}}
+
+.metric-card {{
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 24px;
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    position: relative;
+    /* Variable por defecto si no se define inline */
+    --card-hue: 220; 
+}}
+
+/* Efecto Hover Dinámico */
+.metric-card.temp-card:hover {{
+    /* Usamos el Hue calculado en Python */
+    border-color: hsla(var(--card-hue), 85%, 60%, 0.8);
+    box-shadow: 0 0 25px -5px hsla(var(--card-hue), 80%, 50%, 0.4);
+    transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.06);
+}}
+
+/* Hover simple para tarjeta de fiabilidad (sin color temperatura) */
+.metric-card.static-card:hover {{
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.06);
+}}
+
+.metric-label {{
+    font-size: 0.75rem;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 10px;
+    font-weight: 600;
+}}
+
+.metric-value {{
+    font-size: 2.5rem;
+    font-weight: 700; /* Extra bold minimalista */
+    color: #ffffff;
+    margin: 0;
+    line-height: 1;
+    letter-spacing: -1px;
+}}
+
+.metric-delta {{
+    font-size: 0.95rem;
+    margin-top: 12px;
+    font-weight: 700; /* Petición: Delta en Bold */
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}}
+
+/* Barra de progreso */
+.progress-bg {{
+    background: rgba(255,255,255,0.08);
+    height: 6px;
+    border-radius: 3px;
+    width: 100%;
+    margin-top: 20px;
+    overflow: hidden;
+}}
+.progress-fill {{
+    background: linear-gradient(90deg, #a1c4fd 0%, #c2e9fb 100%);
+    height: 100%;
+    width: {fiab_val * 10}%;
+    transition: width 1s ease-out;
+}}
 </style>
+
 <div class="weather-grid">
-<div class="metric-card">
+
+<!-- CARD 1: ACTUAL (Con variable de color dinámica) -->
+<div class="metric-card temp-card" style="--card-hue: {hue_actual};">
 <div class="metric-label">Actual</div>
-<div class="metric-value">{temp_actual}ºC</div>
+<div class="metric-value">{temp_actual}º</div>
 <div class="metric-delta" style="color: {color_hoy}">
-{arrow_hoy} {abs(delta_hoy)}ºC <span style="color: rgba(255,255,255,0.4); font-size: 0.8em; margin-left:2px;">vs ayer</span>
+{arrow_hoy} {abs(delta_hoy)}º <span style="font-weight: 400; opacity: 0.6; font-size: 0.85em;">vs ayer</span>
 </div>
 </div>
-<div class="metric-card">
+
+<!-- CARD 2: MAÑANA (Con variable de color dinámica) -->
+<div class="metric-card temp-card" style="--card-hue: {hue_manana};">
 <div class="metric-label">Mañana</div>
-<div class="metric-value">{temp_mañana}ºC</div>
+<div class="metric-value">{temp_mañana}º</div>
 <div class="metric-delta" style="color: {color_manana}">
-{arrow_manana} {abs(delta_manana)}ºC <span style="color: rgba(255,255,255,0.4); font-size: 0.8em; margin-left:2px;">previsto</span>
+{arrow_manana} {abs(delta_manana)}º <span style="font-weight: 400; opacity: 0.6; font-size: 0.85em;">previsto</span>
 </div>
 </div>
-<div class="metric-card">
+
+<!-- CARD 3: FIABILIDAD (Estática) -->
+<div class="metric-card static-card">
 <div class="metric-label">Fiabilidad</div>
-<div class="metric-value">{fiab_val}<span style="font-size: 1rem; color: rgba(255,255,255,0.4);">/10</span></div>
+<div class="metric-value">{fiab_val}<span style="font-size: 1.2rem; opacity: 0.4; font-weight: 400;">/10</span></div>
 <div class="progress-bg">
 <div class="progress-fill"></div>
 </div>
 </div>
+
 </div>
 """, unsafe_allow_html=True)
-
 
 st.divider()
 
