@@ -473,22 +473,143 @@ percentil_min_mañana = percentileofscore(arr_min, valor_min_mañana)
 texto_percentil = "El percentil indica cómo es la temperatura frente a los registros históricos, un valor cercano a 100 indica un registro extremadamente alto, uno cercano a 0 indica un registro extremadamente bajo."
 
 
-if hora_día < 9:
+#if hora_día < 9:
 
-    col1,col2,col3,col4 = st.columns(4,gap="small")
+#    col1,col2,col3,col4 = st.columns(4,gap="small")
 
-    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,int(percentil_min_hoy.round(0)),delta_color="off",help=texto_percentil)
-    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
-    col3.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
-    col4.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
+#    col1.metric(":thermometer: Mínima hoy (ºC)",valor_min,int(percentil_min_hoy.round(0)),delta_color="off",help=texto_percentil)
+#    col2.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
+#    col3.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
+#    col4.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
 
 
-else:
-    col1,col2,col3 = st.columns(3,gap="small")
+#else:
+#    col1,col2,col3 = st.columns(3,gap="small")
     
-    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
-    col2.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
-    col3.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
+#    col1.metric(":thermometer: Máxima hoy (ºC)",valor_max,int(percentil_max_hoy.round(0)),delta_color="off",help=texto_percentil)
+#    col2.metric(":thermometer: Mínima mañana (ºC)",valor_min_mañana,int(percentil_min_mañana.round(0)),delta_color="off",help=texto_percentil)
+#    col3.metric(":thermometer: Máxima mañana (ºC)",valor_max_mañana,int(percentil_max_mañana.round(0)),delta_color="off",help=texto_percentil)
+
+
+
+# --- FUNCIÓN DE COLOR DINÁMICO ---
+# Calcula el tono (Hue) basado en la temperatura (-10 a 45 ºC)
+def get_temp_hue(t):
+    norm = max(0, min(1, (t + 10) / 55))
+    return int(240 * (1 - norm))
+
+# --- PREPARACIÓN DE DATOS SEGÚN HORA ---
+# Creamos una lista de diccionarios con los datos que vamos a renderizar
+cards_data = []
+
+if hora_día < 9:
+    # 4 Tarjetas
+    cards_data = [
+        {"label": "Mínima Hoy", "temp": valor_min, "perc": percentil_min_hoy},
+        {"label": "Máxima Hoy", "temp": valor_max, "perc": percentil_max_hoy},
+        {"label": "Mínima Mañana", "temp": valor_min_mañana, "perc": percentil_min_mañana},
+        {"label": "Máxima Mañana", "temp": valor_max_mañana, "perc": percentil_max_mañana}
+    ]
+else:
+    # 3 Tarjetas
+    cards_data = [
+        {"label": "Máxima Hoy", "temp": valor_max, "perc": percentil_max_hoy},
+        {"label": "Mínima Mañana", "temp": valor_min_mañana, "perc": percentil_min_mañana},
+        {"label": "Máxima Mañana", "temp": valor_max_mañana, "perc": percentil_max_mañana}
+    ]
+
+# --- GENERACIÓN DEL HTML ---
+html_content = ""
+
+for card in cards_data:
+    hue = get_temp_hue(card['temp'])
+    perc_val = int(card['perc'].round(0))
+    
+    # Construimos cada tarjeta. 
+    # Añadimos 'title' al div principal para simular el parámetro 'help' de Streamlit.
+    html_content += f"""
+<div class="metric-card temp-card" style="--card-hue: {hue};" title="{texto_percentil}">
+<div class="metric-label">{card['label']}</div>
+<div class="metric-value">{card['temp']}º</div>
+<div class="metric-delta" style="color: rgba(255,255,255,0.8);">
+<span style="font-weight: 700;">{perc_val}</span>
+<span style="font-weight: 400; opacity: 0.6; font-size: 0.85em;">percentil</span>
+</div>
+</div>
+"""
+
+# --- RENDERIZADO FINAL ---
+st.markdown(f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+.weather-grid {{
+    display: grid;
+    /* Ajuste automático: si caben 4 se ponen 4, si no, bajan de línea */
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+    font-family: 'Inter', sans-serif;
+}}
+
+.metric-card {{
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    position: relative;
+    --card-hue: 220; /* Valor por defecto */
+    cursor: help; /* Cursor de ayuda para indicar que hay tooltip */
+}}
+
+.metric-card.temp-card:hover {{
+    border-color: hsla(var(--card-hue), 85%, 60%, 0.8);
+    box-shadow: 0 0 20px -5px hsla(var(--card-hue), 80%, 50%, 0.3);
+    transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.06);
+}}
+
+.metric-label {{
+    font-size: 0.7rem;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 8px;
+    font-weight: 600;
+}}
+
+.metric-value {{
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+    line-height: 1;
+}}
+
+.metric-delta {{
+    font-size: 0.9rem;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}}
+</style>
+
+<div class="weather-grid">
+{html_content}
+</div>
+""", unsafe_allow_html=True)
+
+st.divider()
+
+
+
+
+
+
+
 
 
 col1aviso,col2aviso = st.columns(2,gap="small")
