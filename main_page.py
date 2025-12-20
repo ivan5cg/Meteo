@@ -493,17 +493,14 @@ texto_percentil = "El percentil indica cómo es la temperatura frente a los regi
 
 
 # --- FUNCIÓN DE COLOR DINÁMICO ---
-# Calcula el tono (Hue) basado en la temperatura (-10 a 45 ºC)
 def get_temp_hue(t):
     norm = max(0, min(1, (t + 10) / 55))
     return int(240 * (1 - norm))
 
 # --- PREPARACIÓN DE DATOS SEGÚN HORA ---
-# Creamos una lista de diccionarios con los datos que vamos a renderizar
 cards_data = []
 
 if hora_día < 9:
-    # 4 Tarjetas
     cards_data = [
         {"label": "Mínima Hoy", "temp": valor_min, "perc": percentil_min_hoy},
         {"label": "Máxima Hoy", "temp": valor_max, "perc": percentil_max_hoy},
@@ -511,7 +508,6 @@ if hora_día < 9:
         {"label": "Máxima Mañana", "temp": valor_max_mañana, "perc": percentil_max_mañana}
     ]
 else:
-    # 3 Tarjetas
     cards_data = [
         {"label": "Máxima Hoy", "temp": valor_max, "perc": percentil_max_hoy},
         {"label": "Mínima Mañana", "temp": valor_min_mañana, "perc": percentil_min_mañana},
@@ -525,15 +521,17 @@ for card in cards_data:
     hue = get_temp_hue(card['temp'])
     perc_val = int(card['perc'].round(0))
     
-    # Construimos cada tarjeta. 
-    # Añadimos 'title' al div principal para simular el parámetro 'help' de Streamlit.
+    # Creamos la estructura: Label -> Valor -> Fila (Numero Percentil + Barra)
+    # Todo pegado a la izquierda para evitar errores de sangría en Streamlit
     html_content += f"""
 <div class="metric-card temp-card" style="--card-hue: {hue};" title="{texto_percentil}">
 <div class="metric-label">{card['label']}</div>
 <div class="metric-value">{card['temp']}º</div>
-<div class="metric-delta" style="color: rgba(255,255,255,0.8);">
-<span style="font-weight: 700;">{perc_val}</span>
-<span style="font-weight: 400; opacity: 0.6; font-size: 0.85em;">percentil</span>
+<div class="perc-row">
+<div class="perc-text">{perc_val}<span style="font-size:0.7em; font-weight:400; opacity:0.6; margin-left:2px">perc</span></div>
+<div class="perc-track">
+<div class="perc-fill" style="width: {perc_val}%;"></div>
+</div>
 </div>
 </div>
 """
@@ -545,7 +543,6 @@ st.markdown(f"""
 
 .weather-grid {{
     display: grid;
-    /* Ajuste automático: si caben 4 se ponen 4, si no, bajan de línea */
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 15px;
     margin-bottom: 25px;
@@ -560,8 +557,8 @@ st.markdown(f"""
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
     position: relative;
-    --card-hue: 220; /* Valor por defecto */
-    cursor: help; /* Cursor de ayuda para indicar que hay tooltip */
+    --card-hue: 220; 
+    cursor: help;
 }}
 
 .metric-card.temp-card:hover {{
@@ -588,12 +585,35 @@ st.markdown(f"""
     line-height: 1;
 }}
 
-.metric-delta {{
-    font-size: 0.9rem;
-    margin-top: 10px;
+/* Estilos de la fila del percentil */
+.perc-row {{
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 10px; /* Espacio entre el numero y la barra */
+    margin-top: 12px;
+}}
+
+.perc-text {{
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    white-space: nowrap;
+}}
+
+.perc-track {{
+    flex-grow: 1; /* La barra ocupa todo el espacio restante */
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}}
+
+.perc-fill {{
+    height: 100%;
+    /* Degradado de Azul (frío/bajo) a Rojo (calor/alto) */
+    background: linear-gradient(90deg, #4facfe 0%, #ff6b6b 100%);
+    border-radius: 3px;
+    transition: width 0.5s ease-out;
 }}
 </style>
 
