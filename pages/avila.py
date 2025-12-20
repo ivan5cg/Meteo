@@ -220,11 +220,149 @@ desv_temp = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_d
 
 fiabilidad = 10*np.exp(-0.05*desv_temp**2.5)
 
-col1,col2,col3 = st.columns(3,gap="small")
+# --- CÁLCULOS DE LÓGICA ---
+delta_hoy = (temp_actual - temp_ayer).round(1)
+delta_manana = (temp_mañana - temp_actual).round(1)
+fiab_val = fiabilidad.round(1)
 
-col1.metric(":thermometer: Actual (ºC)",temp_actual,(temp_actual-temp_ayer).round(1),delta_color="inverse")
-col2.metric(":thermometer: Mañana (ºC)",temp_mañana,(temp_mañana-temp_actual).round(1),delta_color="inverse")
-col3.metric("Fiabilidad",fiabilidad.round(1),help="Sobre la temperatura de mañana a esta hora, calculada sobre 10")
+# Lógica de Delta (Colores e Iconos)
+c_up = "#ff6b6b"
+c_down = "#51cf66"
+color_hoy = c_up if delta_hoy > 0 else c_down
+color_manana = c_up if delta_manana > 0 else c_down
+arrow_hoy = "▲" if delta_hoy > 0 else "▼"
+arrow_manana = "▲" if delta_manana > 0 else "▼"
+
+# --- LÓGICA DE COLOR TEMPERATURA (Dinámico) ---
+# Mapeamos rango -10ºC (Azul) a 45ºC (Rojo) usando modelo de color HSL.
+# Hue: 240 es Azul puro, 0 es Rojo puro.
+def get_temp_hue(t):
+    # Normalizamos la temperatura entre 0 y 1 (clamped)
+    norm = max(0, min(1, (t + 10) / 55)) 
+    # Invertimos para que frío sea alto (azul 240) y calor bajo (rojo 0)
+    return int(240 * (1 - norm))
+
+hue_actual = get_temp_hue(temp_actual)
+hue_manana = get_temp_hue(temp_mañana)
+
+# --- RENDERIZADO HTML ---
+st.markdown(f"""
+<style>
+/* Importamos fuente minimalista Inter */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+.weather-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+    font-family: 'Inter', sans-serif;
+}}
+
+.metric-card {{
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 24px;
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    position: relative;
+    /* Variable por defecto si no se define inline */
+    --card-hue: 220; 
+}}
+
+/* Efecto Hover Dinámico */
+.metric-card.temp-card:hover {{
+    /* Usamos el Hue calculado en Python */
+    border-color: hsla(var(--card-hue), 85%, 60%, 0.8);
+    box-shadow: 0 0 25px -5px hsla(var(--card-hue), 80%, 50%, 0.4);
+    transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.06);
+}}
+
+/* Hover simple para tarjeta de fiabilidad (sin color temperatura) */
+.metric-card.static-card:hover {{
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.06);
+}}
+
+.metric-label {{
+    font-size: 0.75rem;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 10px;
+    font-weight: 600;
+}}
+
+.metric-value {{
+    font-size: 2.5rem;
+    font-weight: 700; /* Extra bold minimalista */
+    color: #ffffff;
+    margin: 0;
+    line-height: 1;
+    letter-spacing: -1px;
+}}
+
+.metric-delta {{
+    font-size: 0.95rem;
+    margin-top: 12px;
+    font-weight: 700; /* Petición: Delta en Bold */
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}}
+
+/* Barra de progreso */
+.progress-bg {{
+    background: rgba(255,255,255,0.08);
+    height: 6px;
+    border-radius: 3px;
+    width: 100%;
+    margin-top: 20px;
+    overflow: hidden;
+}}
+.progress-fill {{
+    background: linear-gradient(90deg, #a1c4fd 0%, #c2e9fb 100%);
+    height: 100%;
+    width: {fiab_val * 10}%;
+    transition: width 1s ease-out;
+}}
+</style>
+
+<div class="weather-grid">
+
+<!-- CARD 1: ACTUAL (Con variable de color dinámica) -->
+<div class="metric-card temp-card" style="--card-hue: {hue_actual};">
+<div class="metric-label">Actual</div>
+<div class="metric-value">{temp_actual}º</div>
+<div class="metric-delta" style="color: {color_hoy}">
+{arrow_hoy} {abs(delta_hoy)}º <span style="font-weight: 400; opacity: 0.6; font-size: 0.85em;">vs ayer</span>
+</div>
+</div>
+
+<!-- CARD 2: MAÑANA (Con variable de color dinámica) -->
+<div class="metric-card temp-card" style="--card-hue: {hue_manana};">
+<div class="metric-label">Mañana</div>
+<div class="metric-value">{temp_mañana}º</div>
+<div class="metric-delta" style="color: {color_manana}">
+{arrow_manana} {abs(delta_manana)}º <span style="font-weight: 400; opacity: 0.6; font-size: 0.85em;">previsto</span>
+</div>
+</div>
+
+<!-- CARD 3: FIABILIDAD (Estática) -->
+<div class="metric-card static-card">
+<div class="metric-label">Fiabilidad</div>
+<div class="metric-value">{fiab_val}<span style="font-size: 1.2rem; opacity: 0.4; font-weight: 400;">/10</span></div>
+<div class="progress-bg">
+<div class="progress-fill"></div>
+</div>
+</div>
+
+</div>
+""", unsafe_allow_html=True)
+
 
 st.divider()
 
