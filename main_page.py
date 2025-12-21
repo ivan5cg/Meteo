@@ -12,6 +12,36 @@ import asyncio
 
 #st.write(datetime.now()+ timedelta(hours=2))
 
+st.markdown(
+    """
+    <style>
+    /* Fuerza fondo oscuro global */
+    .stApp {
+        background-color: #0e1117;
+        color: #fafafa;
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #161a23;
+    }
+
+    /* Widgets comunes */
+    input, textarea, select {
+        background-color: #262730 !important;
+        color: #fafafa !important;
+    }
+
+    /* Dataframes */
+    .dataframe {
+        background-color: #0e1117;
+        color: #fafafa;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 
 import requests
 import telegram
