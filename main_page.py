@@ -821,6 +821,397 @@ def plot_temp_data(data):
 fig = plot_temp_data(temp_data)
 
 st.pyplot(fig=fig)
+##############################################
+
+def build_temperature_html(
+    data: pd.DataFrame,
+    climatology: dict,
+    output_file: str = "temperature_responsive.html" # Nombre por defecto
+):
+    """
+    Genera un archivo HTML con un gráfico D3.js responsive.
+    """
+    df = data.sort_index()
+    
+    # Identificar columnas del ensemble (las numéricas)
+    ensemble_cols = sorted([c for c in df.columns if c.isdigit()], key=int)
+
+    # 1. Calcular extremos diarios (Min/Max absolutos del día)
+    daily_extremes = []
+    # Agrupamos por fecha (sin hora)
+    for date, g in df.groupby(df.index.date):
+        # Seleccionamos ensemble + control
+        cols_to_check = ensemble_cols + ["Ctrl"]
+        # Filtramos solo las columnas que existen en el DF
+        cols_existentes = [c for c in cols_to_check if c in g.columns]
+        
+        if not cols_existentes: continue
+
+        sub = g[cols_existentes]
+        
+        # Obtenemos valor y fecha exacta del máximo y mínimo
+        tmax_val = float(sub.max().max())
+        tmin_val = float(sub.min().min())
+        
+        # Para encontrar la hora exacta, stackeamos y buscamos índice
+        # (Esto asume que no hay NaNs totales)
+        try:
+            tmax_time = sub.stack().idxmax()[0].isoformat()
+            tmin_time = sub.stack().idxmin()[0].isoformat()
+        except:
+            # Fallback por si hay datos vacíos
+            tmax_time = pd.Timestamp(date).isoformat()
+            tmin_time = pd.Timestamp(date).isoformat()
+
+        daily_extremes.append({
+            "date": pd.Timestamp(date).isoformat(),
+            "tmin": tmin_val,
+            "tmax": tmax_val,
+            "tmin_time": tmin_time,
+            "tmax_time": tmax_time,
+        })
+
+    # 2. Manejo de 'Actual data' (convertir NaN a None para JSON)
+    if "Actual data" in df.columns:
+        actual_data = df["Actual data"].where(df["Actual data"].notna(), other=None).tolist()
+    else:
+        actual_data = [None] * len(df)
+
+    # 3. Preparar Payload
+    payload = {
+        "time": [ts.isoformat() for ts in df.index],
+        "ensemble": df[ensemble_cols].T.values.tolist(),
+        "ctrl": df["Ctrl"].tolist(),
+        "actual": actual_data,
+        "daily_extremes": daily_extremes,
+        "climatology": climatology,
+    }
+
+    # 4. Plantilla HTML/JS
+    html_content = f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Predicción Temperatura</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<style>
+    body {{
+        margin: 0;
+        padding: 0;
+        background: #0b0f1a;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #e0e0e0;
+        overflow: hidden; /* Evita scrollbar en el iframe */
+    }}
+
+    #chart-wrapper {{
+        width: 100vw;
+        height: 100vh; /* Ocupa toda la altura disponible */
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }}
+
+    /* El contenedor del SVG se ajustará */
+    #chart-container {{
+        flex: 1;
+        width: 100%;
+        min-height: 300px;
+        position: relative;
+    }}
+
+    /* Estilos SVG */
+    .axis text {{ fill: #9aa4ad; font-size: 11px; }}
+    .axis path, .axis line {{ stroke: #2a2f45; }}
+    
+    /* Tooltip */
+    .tooltip {{
+        position: absolute;
+        background: rgba(17, 24, 39, 0.95);
+        border: 1px solid #374151;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: #f3f4f6;
+        pointer-events: none;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        transition: opacity 0.1s;
+        z-index: 999;
+    }}
+    .tooltip .row {{ display: flex; justify-content: space-between; gap: 15px; margin-bottom: 2px; }}
+    .tooltip .title {{ font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 5px; padding-bottom: 2px; color: #90caf9; }}
+
+</style>
+</head>
+<body>
+
+<div id="chart-wrapper">
+    <div id="chart-container"></div>
+</div>
+<div id="tooltip" class="tooltip"></div>
+
+<script>
+    const data = {json.dumps(payload)};
+    const container = d3.select("#chart-container");
+    const tooltip = d3.select("#tooltip");
+    
+    // Parsear fechas
+    const time = data.time.map(d3.isoParse);
+
+    function render() {{
+        // Limpiar
+        container.selectAll("*").remove();
+
+        // Obtener dimensiones reales del contenedor
+        const rect = container.node().getBoundingClientRect();
+        const width = rect.width;
+        const height = rect.height;
+
+        // Si es muy pequeño (ej. carga inicial), no renderizar o usar mínimos
+        if (width === 0 || height === 0) return;
+
+        const isMobile = width < 600;
+        const margin = {{ top: 20, right: isMobile ? 15 : 40, bottom: 30, left: isMobile ? 35 : 50 }};
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+
+        const svg = container.append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        const g = svg.append("g")
+            .attr("transform", `translate(${{margin.left}},${{margin.top}})`);
+
+        // --- ESCALAS ---
+        const x = d3.scaleTime().domain(d3.extent(time)).range([0, innerWidth]);
+
+        // Aseguramos que las bandas de climatología entren en el dominio Y
+        const allValues = [
+            ...data.ctrl,
+            ...data.ensemble.flat(),
+            data.climatology.tmax.upper,
+            data.climatology.tmax.lower,
+            data.climatology.tmin.upper,
+            data.climatology.tmin.lower
+        ];
+        if (data.actual) {{
+            data.actual.forEach(d => {{ if(d !== null) allValues.push(d); }});
+        }}
+
+        const y = d3.scaleLinear()
+            .domain([d3.min(allValues) - 2, d3.max(allValues) + 2])
+            .range([innerHeight, 0]);
+
+        // --- DIBUJO ---
+
+        // 1. Climatología (Áreas Rectangulares)
+        // Maximas (Rojo)
+        g.append("rect")
+            .attr("x", 0)
+            .attr("width", innerWidth)
+            .attr("y", y(data.climatology.tmax.upper))
+            .attr("height", Math.abs(y(data.climatology.tmax.lower) - y(data.climatology.tmax.upper)))
+            .attr("fill", "#ef5350")
+            .attr("opacity", 0.25); // Opacidad aumentada
+
+        // Minimas (Azul)
+        g.append("rect")
+            .attr("x", 0)
+            .attr("width", innerWidth)
+            .attr("y", y(data.climatology.tmin.upper))
+            .attr("height", Math.abs(y(data.climatology.tmin.lower) - y(data.climatology.tmin.upper)))
+            .attr("fill", "#42a5f5")
+            .attr("opacity", 0.25); // Opacidad aumentada
+
+        const line = d3.line()
+            .defined(d => d !== null)
+            .x((d, i) => x(time[i]))
+            .y(d => y(d));
+
+        // 2. Ensemble
+        g.selectAll(".ens")
+            .data(data.ensemble)
+            .enter().append("path")
+            .attr("fill", "none")
+            .attr("stroke", "#90caf9")
+            .attr("stroke-width", 1)
+            .attr("stroke-opacity", 0.3)
+            .attr("d", d => line(d));
+
+        // 3. Control
+        g.append("path")
+            .datum(data.ctrl)
+            .attr("fill", "none")
+            .attr("stroke", "#ffffff")
+            .attr("stroke-width", 2.5)
+            .attr("d", line);
+
+        // 4. Actual
+        g.append("path")
+            .datum(data.actual)
+            .attr("fill", "none")
+            .attr("stroke", "#00e676")
+            .attr("stroke-width", 2.5)
+            .attr("d", line);
+
+        // 5. Textos de extremos (Solo si hay espacio)
+        if (!isMobile || innerWidth > 350) {{
+            data.daily_extremes.forEach(d => {{
+                g.append("text")
+                    .attr("x", x(new Date(d.tmax_time)))
+                    .attr("y", y(d.tmax) - 6)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#ef5350")
+                    .attr("font-weight", "bold")
+                    .attr("font-size", "10px")
+                    .text(d.tmax.toFixed(1));
+                
+                g.append("text")
+                    .attr("x", x(new Date(d.tmin_time)))
+                    .attr("y", y(d.tmin) + 12)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#42a5f5")
+                    .attr("font-weight", "bold")
+                    .attr("font-size", "10px")
+                    .text(d.tmin.toFixed(1));
+            }});
+        }}
+
+        // --- EJES ---
+        g.append("g")
+            .attr("class", "axis")
+            .attr("transform", `translate(0,${{innerHeight}})`)
+            .call(d3.axisBottom(x).ticks(isMobile ? 4 : 8).tickFormat(d3.timeFormat("%d/%m %H:00")));
+
+        g.append("g")
+            .attr("class", "axis")
+            .call(d3.axisLeft(y));
+
+        // --- INTERACTIVIDAD (Mouse + Touch) ---
+        const bisect = d3.bisector(d => d).left;
+        
+        // Linea vertical
+        const focusLine = g.append("line")
+            .attr("stroke", "#fff")
+            .attr("stroke-dasharray", "4")
+            .attr("y1", 0).attr("y2", innerHeight)
+            .attr("opacity", 0);
+
+        // Rectángulo transparente encima para capturar eventos
+        g.append("rect")
+            .attr("width", innerWidth)
+            .attr("height", innerHeight)
+            .attr("fill", "transparent")
+            .on("mousemove touchmove", function(event) {{
+                event.preventDefault(); // Evitar scroll en móvil al tocar el gráfico
+                
+                // Obtener coordenadas (funciona para touch y mouse)
+                let clientX;
+                if(event.type === 'touchmove') {{
+                    clientX = event.touches[0].clientX;
+                    // Ajustar offset del SVG
+                    const bounds = this.getBoundingClientRect();
+                    clientX = clientX - bounds.left; 
+                }} else {{
+                    clientX = d3.pointer(event)[0];
+                }}
+
+                const dateVal = x.invert(clientX);
+                const i = bisect(time, dateVal);
+                const idx = Math.max(0, Math.min(time.length - 1, i));
+
+                // Actualizar linea
+                focusLine.attr("x1", x(time[idx])).attr("x2", x(time[idx])).attr("opacity", 0.5);
+
+                // Estadísticas
+                const ensVals = data.ensemble.map(m => m[idx]).sort(d3.ascending);
+                const mean = d3.mean(ensVals);
+                const p10 = d3.quantile(ensVals, 0.1);
+                const p90 = d3.quantile(ensVals, 0.9);
+
+                // Tooltip
+                let pageX, pageY;
+                if(event.type === 'touchmove') {{
+                    pageX = event.touches[0].pageX;
+                    pageY = event.touches[0].pageY;
+                }} else {{
+                    pageX = event.pageX;
+                    pageY = event.pageY;
+                }}
+
+                // Evitar overflow derecha
+                const tpNode = tooltip.node();
+                let left = pageX + 15;
+                if (left + 150 > window.innerWidth) left = pageX - 160;
+
+                tooltip
+                    .style("opacity", 1)
+                    .style("left", left + "px")
+                    .style("top", (pageY + 15) + "px")
+                    .html(`
+                        <div class="title">${{time[idx].toLocaleDateString(undefined, {{weekday:'short', day:'numeric', hour:'2-digit'}})}}</div>
+                        <div class="row"><span>Media Ens:</span> <b>${{mean.toFixed(1)}}°</b></div>
+                        <div class="row"><span>Rango 10-90%:</span> <span>${{p10.toFixed(1)}} - ${{p90.toFixed(1)}}</span></div>
+                        <div class="row"><span>Control:</span> <b>${{data.ctrl[idx].toFixed(1)}}°</b></div>
+                        ${{data.actual[idx] !== null ? `<div class="row" style="color:#69f0ae"><span>Actual:</span> <b>${{data.actual[idx].toFixed(1)}}°</b></div>` : ''}}
+                    `);
+
+            }})
+            .on("mouseleave touchend", () => {{
+                tooltip.style("opacity", 0);
+                focusLine.attr("opacity", 0);
+            }});
+    }}
+
+    // Render inicial
+    render();
+    
+    // Redibujar al cambiar tamaño (Responsividad)
+    window.addEventListener("resize", render);
+</script>
+</body>
+</html>
+"""
+    
+
+
+    # --- AQUÍ ESTÁ EL CAMBIO IMPORTANTE ---
+    # Escribimos el archivo explícitamente si se da un nombre
+    if output_file:
+        full_path = os.path.abspath(output_file)
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+        print(f"✅ Archivo HTML generado con éxito en:\n{full_path}")
+    
+    return html_content
+
+# use the day-of-year from the data (first timestamp); fallback to today
+doy = df.index[0].day_of_year if len(df.index) > 0 else pd.Timestamp.now().dayofyear
+# ensure index is in 1..365 (handle leap day)
+doy = ((int(doy) - 1) % 365) + 1
+
+
+max_usual_temp_upper = float(temp_medias_rolling.loc[doy, ("tmax", 0.85)])
+max_usual_temp_lower = float(temp_medias_rolling.loc[doy, ("tmax", 0.15)])
+
+min_usual_temp_upper = float(temp_medias_rolling.loc[doy, ("tmin", 0.85)])
+min_usual_temp_lower = float(temp_medias_rolling.loc[doy, ("tmin", 0.15)])
+
+
+
+
+st.components.v1.html(build_temperature_html(
+    data=temp_data,
+    climatology={
+        "tmax": {"upper": max_usual_temp_upper, "lower": max_usual_temp_lower},
+        "tmin": {"upper": min_usual_temp_upper, "lower": min_usual_temp_lower},
+    },output_file=None
+),height=600,width=900)
+
 
 ##############################################
 
