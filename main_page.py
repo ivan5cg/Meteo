@@ -1190,7 +1190,7 @@ def build_temperature_html(
     return html_content
 
 # use the day-of-year from the data (first timestamp); fallback to today
-doy = df.index[0].day_of_year if len(df.index) > 0 else pd.Timestamp.now().dayofyear
+doy = temp_data.index[0].day_of_year if len(temp_data.index) > 0 else pd.Timestamp.now().dayofyear
 # ensure index is in 1..365 (handle leap day)
 doy = ((int(doy) - 1) % 365) + 1
 
