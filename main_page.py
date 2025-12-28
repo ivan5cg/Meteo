@@ -1204,6 +1204,7 @@ min_usual_temp_lower = float(temp_medias_rolling.loc[doy, ("tmin", 0.15)])
 
 
 
+
 st.components.v1.html(build_temperature_html(
     data=temp_data,
     climatology={
