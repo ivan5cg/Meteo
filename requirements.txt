@@ -8,4 +8,5 @@ openpyxl
 pytz
 astral
 python-telegram-bot
-google-generativeai
+google-genai
+json

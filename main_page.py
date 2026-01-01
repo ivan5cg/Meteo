@@ -46,7 +46,7 @@ st.markdown(
 
 import requests
 import telegram
-import google.generativeai as genai
+from google import genai
 
 
 
