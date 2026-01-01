@@ -9,4 +9,3 @@ pytz
 astral
 python-telegram-bot
 google-genai
-json
