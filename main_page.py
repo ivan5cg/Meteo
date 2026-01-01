@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime,timedelta
 from scipy.stats import percentileofscore
 import asyncio
+import json
 
 #st.set_option('deprecation.showPyplotGlobalUse', False)
 
@@ -54,7 +55,7 @@ TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
 
 
-genai.configure(api_key=GOOGLE_KEY)
+client = genai.Client(api_key=GOOGLE_KEY)
 
 bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
 
@@ -2324,8 +2325,8 @@ def generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mu
 
 #commentary = generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data)
 
-model = genai.GenerativeModel(('gemini-3-flash-preview'))
-import json
+#model = genai.GenerativeModel(('gemini-3-flash-preview'))
+
 
 def process_multi_model_dataframe(df):
     """Process a dataframe with timestamp index and 17 forecast columns."""
@@ -2403,7 +2404,10 @@ Please provide your analysis in clear, concise language suitable for both meteor
 
 
 prompt = generate_llm_input(weather_json)
-response = model.generate_content(prompt)
+response = client.models.generate_content(
+    model="gemini-3-flash-preview",
+    contents=prompt
+)
 
 st.write(response.text)
 
