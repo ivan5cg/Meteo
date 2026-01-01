@@ -1205,13 +1205,13 @@ min_usual_temp_lower = float(temp_medias_rolling.loc[doy, ("tmin", 0.15)])
 
 
 
-#st.components.v1.html(build_temperature_html(
-##    data=temp_data,
-#    climatology={
-#        "tmax": {"upper": max_usual_temp_upper, "lower": max_usual_temp_lower},
-#        "tmin": {"upper": min_usual_temp_upper, "lower": min_usual_temp_lower},
-#    },output_file=None
-#),height=600,width=900)
+st.components.v1.html(build_temperature_html(
+    data=temp_data,
+    climatology={
+        "tmax": {"upper": max_usual_temp_upper, "lower": max_usual_temp_lower},
+        "tmin": {"upper": min_usual_temp_upper, "lower": min_usual_temp_lower},
+   },output_file=None
+),height=600,width=900)
 
 
 ##############################################
