@@ -9,7 +9,7 @@ from datetime import datetime,timedelta
 from scipy.stats import percentileofscore
 import requests
 import telegram
-import google.generativeai as genai
+#import google.generativeai as genai
 
 
 def get_arome_data(url):
