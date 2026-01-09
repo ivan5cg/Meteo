@@ -2403,13 +2403,13 @@ Please provide your analysis in clear, concise language suitable for both meteor
     return combined_input
 
 
-prompt = generate_llm_input(weather_json)
-response = client.models.generate_content(
-    model="gemini-3-flash-preview",
-    contents=prompt
-)
+#prompt = generate_llm_input(weather_json)
+#response = client.models.generate_content(
+#    model="gemini-3-flash-preview",
+#    contents=prompt
+#)
 
-st.write(response.text)
+#st.write(response.text)
 
 #send_telegram_message_sync(string_update + response.text)
 
