@@ -68,6 +68,8 @@ def get_last_arome_run():
     return valid_run
 
 
+GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
+client = genai.Client(api_key=GOOGLE_KEY)
 
 valid_run = get_last_arome_run()
 
@@ -1636,6 +1638,9 @@ Please provide your analysis in clear, concise language suitable for both meteor
 
 
 prompt = generate_llm_input(weather_json)
-response = model.generate_content(prompt)
+response = client.models.generate_content(
+    model="gemini-3-flash-preview",
+    contents=prompt
+)
 
 st.write(response.text)
