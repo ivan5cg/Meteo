@@ -70,7 +70,7 @@ def get_last_arome_run():
 
 
 GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
-client = genai.Client(api_key=GOOGLE_KEY)
+#client = genai.Client(api_key=GOOGLE_KEY)
 
 valid_run = get_last_arome_run()
 
@@ -1560,7 +1560,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 #
 st.pyplot(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'))
 
-model = genai.GenerativeModel(('gemini-3-flash-preview'))
+#model = genai.GenerativeModel(('gemini-3-flash-preview'))
 import json
 
 def process_multi_model_dataframe(df):
