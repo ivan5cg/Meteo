@@ -50,25 +50,25 @@ from google import genai
 
 
 
-TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
-TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
-GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
+#TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
+#TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
+#GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
 
 
-client = genai.Client(api_key=GOOGLE_KEY)
+#client = genai.Client(api_key=GOOGLE_KEY)
 
-bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
+#bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
 
-async def send_telegram_message(message):
-    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-
-
-def send_telegram_message_sync(message):
-    asyncio.run(send_telegram_message(message))
+#async def send_telegram_message(message):
+ #   await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
 
 
-async def main():
-    await send_telegram_message(output_str)
+#def send_telegram_message_sync(message):
+ #   asyncio.run(send_telegram_message(message))
+
+
+#async def main():
+#    await send_telegram_message(output_str)
 
 
 

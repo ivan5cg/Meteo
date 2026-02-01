@@ -69,7 +69,7 @@ def get_last_arome_run():
     return valid_run
 
 
-GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
+#GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
 #client = genai.Client(api_key=GOOGLE_KEY)
 
 valid_run = get_last_arome_run()
