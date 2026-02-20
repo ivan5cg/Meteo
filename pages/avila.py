@@ -4,10 +4,10 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import numpy as np
 import streamlit as st
-import matplotlib.pyplot as plt
-from datetime import datetime,timedelta
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import datetime
 from scipy.stats import percentileofscore
-import requests
 import telegram
 #import google.generativeai as genai
 
@@ -656,106 +656,113 @@ st.divider()
 
 
 def plot_temp_data(data):
-        
+    fig = go.Figure()
 
-        data = data
-        # Set figure size and resolution
-        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
+    # Iterate over the columns and plot each one (model runs)
+    for column in data.columns[:-1]:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data[column],
+            mode='lines',
+            line=dict(width=1),
+            opacity=0.6,
+            name=str(column),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
 
-        # Set plot style
-        plt.style.use('default')
+    # Actual data (black thick line)
+    fig.add_trace(go.Scatter(
+        x=data.index, y=data["Actual data"],
+        mode='lines',
+        line=dict(color='white', width=4),
+        name='Datos Actuales',
+        hovertemplate='%{x|%a %d %H:%M}<br><b>Actual: %{y:.1f}°C</b><extra></extra>'
+    ))
 
-        # Iterate over the columns and plot each one
-        for column in data.columns[:-1]:
-            ax.plot(data.index, data[column], alpha=0.9)
+    # Calculamos medias históricas
+    max_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[0]
+    max_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[1]
+    min_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[0]
+    min_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[1]
 
-        ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
+    # Fill between for typical max temperatures
+    fig.add_trace(go.Scatter(
+        x=data.index.tolist() + data.index.tolist()[::-1],
+        y=[max_usual_temp_upper]*len(data.index) + [max_usual_temp_lower]*len(data.index),
+        fill='toself',
+        fillcolor='rgba(255, 0, 0, 0.1)',
+        line=dict(color='rgba(255,0,0,0)'),
+        name='Rango Max Habitual',
+        hoverinfo='skip'
+    ))
 
-        # Add title and labels
+    # Fill between for typical min temperatures
+    fig.add_trace(go.Scatter(
+        x=data.index.tolist() + data.index.tolist()[::-1],
+        y=[min_usual_temp_upper]*len(data.index) + [min_usual_temp_lower]*len(data.index),
+        fill='toself',
+        fillcolor='rgba(0, 0, 255, 0.1)',
+        line=dict(color='rgba(0,0,255,0)'),
+        name='Rango Min Habitual',
+        hoverinfo='skip'
+    ))
 
+    # Add Max/Min annotations per day
+    dates = list(set(data.index.date))
+    for date in dates:
+        df_day = data.loc[data.index.date == date]
+        if not df_day.empty:
+            min_temp = df_day.min().min()
+            max_temp = df_day.max().max()
+            
+            idx_min = df_day.min(axis=1).idxmin()
+            idx_max = df_day.max(axis=1).idxmax()
 
-        plt.title('Temperature Forecast for the next 2 days', fontsize=16)
-        plt.xlabel('Date', fontsize=12)
-        plt.ylabel('Temperature (°C)', fontsize=12)
+            fig.add_annotation(
+                x=idx_min, y=min_temp,
+                text=f"{min_temp:.1f}º",
+                showarrow=False,
+                yshift=-15,
+                font=dict(color="#4facfe", size=12, family="Inter", weight="bold")
+            )
+            fig.add_annotation(
+                x=idx_max, y=max_temp,
+                text=f"{max_temp:.1f}º",
+                showarrow=False,
+                yshift=15,
+                font=dict(color="#ff6b6b", size=12, family="Inter", weight="bold")
+            )
 
+    fig.update_layout(
+        title=dict(text='Previsión de Temperaturas (48h)', font=dict(color='white', size=18, family="Inter")),
+        xaxis=dict(
+            title='', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)', 
+            tickformat='%a %d\n%H:%M',
+            color='white'
+        ),
+        yaxis=dict(
+            title='Temperatura (°C)', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)',
+            color='white'
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        hovermode="x unified",
+        margin=dict(l=20, r=20, t=50, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
 
+    return fig
 
-        # Remove top and right spines
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
+# TABS LAYOUT
+tab1, tab2, tab3 = st.tabs(["Previsión a 48 Horas", "Tendencia Semanal Siguiente", "Sol y Astronomía"])
 
-        # Set x-axis tick parameters
-        plt.xticks(fontsize=10, rotation=0, ha='right')
-
-        # Set y-axis tick parameters
-        plt.yticks(fontsize=10)
-
-        # Add vertical lines for each hour
-        for hour in data.index:
-            ax.axvline(hour, linestyle='--', color='black', alpha=0.1)
-
-        # Remove gridlines
-        plt.grid(True)
-
-        # Compute the minimum and maximum temperature for each day and their respective indexes
-        dates = list(set(data.index.date))
-        min_temps = []
-        max_temps = []
-        min_idx = []
-        max_idx = []
-
-        for date in dates:
-            df = data.loc[data.index.date == date]
-            min_temp = df.min().min()
-            max_temp = df.max().max()
-            min_idx.append(data.loc[data.index.date == date].idxmin().min())
-            max_idx.append(data.loc[data.index.date == date].idxmax().min())
-            min_temps.append(min_temp)
-            max_temps.append(max_temp)
-
-        # Add the minimum temperature text to the plot
-        for i, temp in enumerate(min_temps):
-            min_temp = "{:.1f}".format(temp)
-            ax.text(min_idx[i], temp, min_temp, ha='left', va='top', color='blue',fontweight="bold")
-
-        # Add the maximum temperature text to the plot
-        for i, temp in enumerate(max_temps):
-            max_temp = "{:.1f}".format(temp)
-            ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
-
-
-        max_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[0]
-        max_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[1]
-
-        ax.fill_between(data.index,max_usual_temp_upper,max_usual_temp_lower, alpha=0.2, color='red')
-
-        min_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[0]
-        min_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[1]
-
-        ax.fill_between(data.index,min_usual_temp_upper,min_usual_temp_lower, alpha=0.2, color='blue')
-
-
-
-        # Format x-axis ticks
-        # Format x-axis ticks
-        ticks = []
-        tick_labels = []
-        for date in data.index:
-                if date.hour == 0:
-                    tick_labels.append(date.strftime('%a %b %d'))
-                    ax.axvline(date,0,1,color="black",linewidth=2)
-                    ticks.append(date)
-                if date.hour % 6 == 0:
-                    tick_labels.append(date.strftime('%H'))
-                    ticks.append(date)
-                    pass
-
-        ax.set_xticks(ticks);
-        ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center');
-
-        return fig
-
-st.pyplot(plot_temp_data(temp_data))
+with tab1:
+    st.plotly_chart(plot_temp_data(temp_data), use_container_width=True)
+    st.divider()
 
 ##############################################
 
@@ -870,319 +877,243 @@ def plot_prec_data(data):
 
 def plot_rain_chance(chance_prec,avg_prec):
 
-    chance_prec = chance_prec 
-    avg_prec = avg_prec 
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                        row_heights=[0.5, 0.5],
+                        vertical_spacing=0.1)
+
+    # Gráfico 1 (Arriba): Lluvia media en L/m2 (Línea + Área rellena azul)
+    fig.add_trace(go.Scatter(
+        x=avg_prec.index,
+        y=avg_prec.iloc[:,0],
+        mode='lines+markers',
+        fill='tozeroy',
+        name='Media (L/m2)',
+        line=dict(color='#4facfe', width=2),
+        marker=dict(size=4),
+        hovertemplate='%{x|%a %d %H:%M}<br><b>Media: %{y} L/m2</b><extra></extra>'
+    ), row=1, col=1)
+
+    # Gráfico 2 (Abajo): Probabilidad de lluvia (Bar chart)
+    fig.add_trace(go.Bar(
+        x=chance_prec.index,
+        y=chance_prec.iloc[:,0],
+        name='Probabilidad (%)',
+        marker=dict(color='#00f2fe', line=dict(color='rgba(255,255,255,0.2)', width=1)),
+        hovertemplate='%{x|%a %d %H:%M}<br><b>Probabilidad: %{y}%</b><extra></extra>'
+    ), row=2, col=1)
+
+    # Líneas verticales indicando medianoche
+    dates_unique = list(set(avg_prec.index.date))
+    for date in dates_unique:
+        midnight = datetime.combine(date, datetime.min.time())
+        fig.add_vline(x=midnight, line_width=1.5, line_color="rgba(255,255,255,0.5)", row='all', col=1)
+
+    fig.update_layout(
+        title=dict(text='Previsión de Lluvia (48h)', font=dict(color='white', size=18, family="Inter")),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        hovermode="x unified",
+        margin=dict(l=20, r=20, t=50, b=20),
+        showlegend=False
+    )
     
-    fig, axs = plt.subplots(2,gridspec_kw={'height_ratios': [0.5,0.5]},figsize=(10, 10),sharex=True) 
-
-    axs[1].bar(chance_prec.index, chance_prec.iloc[:,0],width=0.025)
-    axs[1].set_ylim(bottom=0,top=100)
-
-
-    axs[0].bar(avg_prec.index, avg_prec.iloc[:,0],width=0.025)
-
-    ticks = []
-    tick_labels = []
-    for date in avg_prec.index:
-            if date.hour == 0:
-                tick_labels.append(date.strftime('%a, %b %d'))
-                ticks.append(date)
-                axs[0].axvline(date,0,1,color="black",linewidth=2)
-                axs[1].axvline(date,0,1,color="black",linewidth=2)
-            if date.hour % 6 == 0:
-                tick_labels.append(date.strftime('%H'))
-                ticks.append(date)
-                pass
-
-    for hour in avg_prec.index:
-        axs[0].axvline(hour, linestyle='--', color='black', alpha=0.1)
-        axs[1].axvline(hour, linestyle='--', color='black', alpha=0.1)
-
-    axs[0].set_xticks(ticks)
-    axs[0].set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
-
-    axs[1].set_xticks(ticks)
-    axs[1].set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
-
-    axs[0].grid(True)
-    axs[1].grid(True)
-
-    plt.suptitle("Rain forecast",y=0.91)
-
-    axs[0].set_ylabel('Average L/m2 in case of rain')
-    axs[1].set_ylabel('Chance of rain')
+    fig.update_xaxes(
+        showgrid=True, gridcolor='rgba(255,255,255,0.1)', color='white',
+        tickformat='%a %d\n%H:%M'
+    )
+    fig.update_yaxes(title_text="L/m2", showgrid=True, gridcolor='rgba(255,255,255,0.1)', color='white', row=1, col=1, rangemode='tozero')
+    fig.update_yaxes(title_text="Probabilidad %", showgrid=True, gridcolor='rgba(255,255,255,0.1)', color='white', range=[0, 105], row=2, col=1)
 
     return fig
-#st.write(prec_data)
 
-
-#st.pyplot(plot_prec_data(prec_data))
-
-st.pyplot(plot_rain_chance(chance_prec,avg_prec))
+with tab1:
+    st.plotly_chart(plot_rain_chance(chance_prec,avg_prec), use_container_width=True)
+    st.divider()
 
 #######################################################
 wind_data = get_wind_gust_data(valid_run)
 wind_data["Actual data"] = aemet_horario["Racha (km/h)"]
 
 def plot_wind_data(data):
+    fig = go.Figure()
 
-        data = data
+    # Iterate over the columns and plot each one
+    for column in data.columns[:-1]:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data[column],
+            mode='lines',
+            line=dict(width=1),
+            opacity=0.6,
+            name=str(column),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
 
-        # Set figure size and resolution
-        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
+    # Actual data
+    fig.add_trace(go.Scatter(
+        x=data.index, y=data["Actual data"],
+        mode='lines',
+        line=dict(color='white', width=4),
+        name='Datos Actuales',
+        hovertemplate='%{x|%a %d %H:%M}<br><b>Racha Actual: %{y:.0f} km/h</b><extra></extra>'
+    ))
 
-        # Set plot style
-        plt.style.use('default')
+    # Add Max/Min annotations per day
+    dates = list(set(data.index.date))
+    for date in dates:
+        df_day = data.loc[data.index.date == date]
+        if not df_day.empty:
+            min_temp = df_day.min().min()
+            max_temp = df_day.max().max()
+            
+            idx_min = df_day.min(axis=1).idxmin()
+            idx_max = df_day.max(axis=1).idxmax()
 
-        # Iterate over the columns and plot each one
-        for column in data.columns[:-1]:
-            ax.plot(data.index, data[column], alpha=0.9)
+            fig.add_annotation(
+                x=idx_min, y=min_temp,
+                text=f"{min_temp:.0f}",
+                showarrow=False,
+                yshift=-15,
+                font=dict(color="#4facfe", size=12, family="Inter", weight="bold")
+            )
+            fig.add_annotation(
+                x=idx_max, y=max_temp,
+                text=f"{max_temp:.0f}",
+                showarrow=False,
+                yshift=15,
+                font=dict(color="#ff6b6b", size=12, family="Inter", weight="bold")
+            )
 
-        ax.plot(data["Actual data"], alpha=1,linewidth=5,color="black")
+    fig.update_layout(
+        title=dict(text='Previsión de Viento (Rachas) (48h)', font=dict(color='white', size=18, family="Inter")),
+        xaxis=dict(
+            title='', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)', 
+            tickformat='%a %d\n%H:%M',
+            color='white'
+        ),
+        yaxis=dict(
+            title='Velocidad (km/h)', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)',
+            color='white',
+            rangemode='tozero'
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        hovermode="x unified",
+        margin=dict(l=20, r=20, t=50, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
 
-        # Add title and labels
+    return fig
 
-
-        plt.title('Wind Forecast for the next 2 days', fontsize=16)
-        plt.xlabel('Date', fontsize=12)
-        plt.ylabel('Speed (km/h)', fontsize=12)
-
-       
-
-        # Remove top and right spines
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-
-        # Set x-axis tick parameters
-        plt.xticks(fontsize=10, rotation=0, ha='right')
-
-        # Set y-axis tick parameters
-        plt.yticks(fontsize=10)
-
-        # Add vertical lines for each hour
-        for hour in data.index:
-            ax.axvline(hour, linestyle='--', color='black', alpha=0.1)
-
-        # Remove gridlines
-        plt.grid(True)
-
-        # Compute the minimum and maximum temperature for each day and their respective indexes
-        dates = list(set(data.index.date))
-        min_temps = []
-        max_temps = []
-        min_idx = []
-        max_idx = []
-
-        for date in dates:
-            df = data.loc[data.index.date == date]
-            min_temp = df.min().min()
-            max_temp = df.max().max()
-            min_idx.append(data.loc[data.index.date == date].idxmin().min())
-            max_idx.append(data.loc[data.index.date == date].idxmax().min())
-            min_temps.append(min_temp)
-            max_temps.append(max_temp)
-
-        # Add the minimum temperature text to the plot
-        for i, temp in enumerate(min_temps):
-            min_temp = "{:.0f}".format(temp)
-            ax.text(min_idx[i], temp, min_temp, ha='left', va='top', color='blue',fontweight="bold")
-
-        # Add the maximum temperature text to the plot
-        for i, temp in enumerate(max_temps):
-            max_temp = "{:.0f}".format(temp)
-            ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
-
-
-        # Format x-axis ticks
-        # Format x-axis ticks
-        ticks = []
-        tick_labels = []
-        for date in data.index:
-                if date.hour == 0:
-                    tick_labels.append(date.strftime('%a, %b %d'))
-                    ax.axvline(date,0,1,color="black",linewidth=2)
-                    ticks.append(date)
-                if date.hour % 6 == 0:
-                    tick_labels.append(date.strftime('%H'))
-                    
-                    ticks.append(date)
-                    pass
-
-        ax.set_xticks(ticks)
-        ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
-
-        return fig
-
-st.pyplot(plot_wind_data(wind_data))
+with tab1:
+    st.plotly_chart(plot_wind_data(wind_data), use_container_width=True)
+    st.divider()
 
 #@#############################################
 
 pressure_data = get_pressure_data(valid_run)
 
 def plot_pressure_data(data):
+    fig = go.Figure()
 
-        data = data
+    # Iterate over the columns and plot each one
+    for column in data.columns[:-1]:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data[column],
+            mode='lines',
+            line=dict(width=1),
+            opacity=0.6,
+            name=str(column),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
 
-        # Set figure size and resolution
-        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
+    fig.update_layout(
+        title=dict(text='Previsión de Presión Atmosférica (48h)', font=dict(color='white', size=18, family="Inter")),
+        xaxis=dict(
+            title='', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)', 
+            tickformat='%a %d\n%H:%M',
+            color='white'
+        ),
+        yaxis=dict(
+            title='Presión (hPa)', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)',
+            color='white',
+            range=[980, 1040]
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        hovermode="x unified",
+        margin=dict(l=20, r=20, t=50, b=20),
+        showlegend=False
+    )
 
-        # Set plot style
-        plt.style.use('default')
+    return fig
 
-        # Iterate over the columns and plot each one
-        for column in data.columns[:-1]:
-            ax.plot(data.index, data[column], alpha=0.9)
-
-        #ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
-
-        # Add title and labels
-
-
-        plt.title('Pressure Forecast for the next 2 days', fontsize=16)
-        plt.xlabel('Date', fontsize=12)
-        plt.ylabel('Pressure (hpa)', fontsize=12)
-
-        ax.set_ylim(bottom=980,top=1040)
-
-       
-
-        # Remove top and right spines
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-
-        # Set x-axis tick parameters
-        plt.xticks(fontsize=10, rotation=0, ha='right')
-
-        # Set y-axis tick parameters
-        plt.yticks(fontsize=10)
-
-        # Add vertical lines for each hour
-        for hour in data.index:
-            ax.axvline(hour, linestyle='--', color='black', alpha=0.1)
-
-        # Remove gridlines
-        plt.grid(True)
-
-        # Compute the minimum and maximum temperature for each day and their respective indexes
-        dates = list(set(data.index.date))
-        min_temps = []
-        max_temps = []
-        min_idx = []
-        max_idx = []
-
-        for date in dates:
-            df = data.loc[data.index.date == date]
-            min_temp = df.min().min()
-            max_temp = df.max().max()
-            min_idx.append(data.loc[data.index.date == date].idxmin().min())
-            max_idx.append(data.loc[data.index.date == date].idxmax().min())
-            min_temps.append(min_temp)
-            max_temps.append(max_temp)
-
-        # Add the minimum temperature text to the plot
-        for i, temp in enumerate(min_temps):
-            min_temp = "{:.0f}".format(temp)
-            ax.text(min_idx[i], temp, min_temp, ha='left', va='top', color='blue',fontweight="bold")
-
-        # Add the maximum temperature text to the plot
-        for i, temp in enumerate(max_temps):
-            max_temp = "{:.0f}".format(temp)
-            ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
-
-
-        # Format x-axis ticks
-        # Format x-axis ticks
-        ticks = []
-        tick_labels = []
-        for date in data.index:
-                if date.hour == 0:
-                    tick_labels.append(date.strftime('%a, %b %d'))
-                    ax.axvline(date,0,1,color="black",linewidth=2)
-                    ticks.append(date)
-                if date.hour % 6 == 0:
-                    tick_labels.append(date.strftime('%H'))
-                    ticks.append(date)
-                    pass
-
-        ax.set_xticks(ticks)
-        ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
-
-        return fig
-
-st.pyplot(plot_pressure_data(pressure_data))
+with tab1:
+    st.plotly_chart(plot_pressure_data(pressure_data), use_container_width=True)
+    st.divider()
 
 ################################################
 
 mucape_data = get_mucape_data(valid_run)
 
 def plot_mucape_data(data):
+    fig = go.Figure()
 
-        data = data.astype("int")
+    # Iterate over the columns and plot each one
+    for column in data.columns[:-1]:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data[column],
+            mode='lines',
+            line=dict(width=1),
+            opacity=0.6,
+            name=str(column),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
 
-        # Set figure size and resolution
-        fig, ax = plt.subplots(figsize=(10, 6), dpi=100)
+    # Add danger zones
+    fig.add_hrect(y0=0, y1=300, fillcolor="green", opacity=0.1, line_width=0, layer="below")
+    fig.add_hrect(y0=300, y1=1000, fillcolor="yellow", opacity=0.1, line_width=0, layer="below")
+    fig.add_hrect(y0=1000, y1=3000, fillcolor="red", opacity=0.1, line_width=0, layer="below")
 
-        # Set plot style
-        plt.style.use('default')
+    fig.update_layout(
+        title=dict(text='Potencial de Tormentas (MUCAPE) (48h)', font=dict(color='white', size=18, family="Inter")),
+        xaxis=dict(
+            title='', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)', 
+            tickformat='%a %d\n%H:%M',
+            color='white'
+        ),
+        yaxis=dict(
+            title='J/kg', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)',
+            color='white',
+            rangemode='tozero'
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        hovermode="x unified",
+        margin=dict(l=20, r=20, t=50, b=20),
+        showlegend=False
+    )
 
-        # Iterate over the columns and plot each one
-        for column in data.columns[:-1]:
-            ax.plot(data.index, data[column], alpha=0.9)
+    return fig
 
-        #ax.plot(data["Actual data"], alpha=1,linewidth=4,color="black")
+with tab1:
+    st.plotly_chart(plot_mucape_data(mucape_data), use_container_width=True)
 
-        # Add title and labels
-
-
-        plt.title('Storm Potential Forecast for the next 2 days', fontsize=16)
-        plt.xlabel('Date', fontsize=12)
-        plt.ylabel('J/kg', fontsize=12)
-
-       
-
-        # Remove top and right spines
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-
-        # Set x-axis tick parameters
-        plt.xticks(fontsize=10, rotation=0, ha='right')
-
-        # Set y-axis tick parameters
-        plt.yticks(fontsize=10)
-
-        # Add vertical lines for each hour
-        for hour in data.index:
-            ax.axvline(hour, linestyle='--', color='black', alpha=0.1)
-
-        # Remove gridlines
-        plt.grid(True)
-
-
-
-        # Format x-axis ticks
-        # Format x-axis ticks
-        ticks = []
-        tick_labels = []
-        for date in data.index:
-                if date.hour == 0:
-                    tick_labels.append(date.strftime('%a, %b %d'))
-                    ax.axvline(date,0,1,color="black",linewidth=2)
-                    ticks.append(date)
-                if date.hour % 6 == 0:
-                    tick_labels.append(date.strftime('%H'))
-                    ticks.append(date)
-                    pass
-
-        ax.set_xticks(ticks)
-        ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center')
-
-        ax.axhspan(0,300,facecolor='green', alpha=0.17)
-        ax.axhspan(300,1000,facecolor='yellow', alpha=0.17)
-        ax.axhspan(1000,2000,facecolor='red', alpha=0.17)
-
-        return fig
-
-st.pyplot(plot_mucape_data(mucape_data))
+st.divider()
 
 
 
@@ -1277,157 +1208,186 @@ import matplotlib.pyplot as plt
 
 
 def plot_long_forecast():
-     
-    fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
+    fig = go.Figure()
 
+    # Preparamos fechas para el eje x
+    dates_str = pd.to_datetime(data_temp_min.index).strftime('%A %d').tolist()
 
+    # Boxplot Temperaturas Mínimas (Azul)
+    for i in range(8):
+        day_data = data_temp_min.iloc[i,:].dropna()
+        fig.add_trace(go.Box(
+            y=day_data, x=[dates_str[i]]*len(day_data),
+            name='Min',
+            marker_color='lightblue',
+            line_color='#2c3e50',
+            fillcolor='rgba(77, 171, 247, 0.6)',
+            boxpoints='outliers',
+            offsetgroup='A',
+            showlegend=False
+        ))
 
-    day0 = data_temp_min.iloc[0,:].dropna()
-    day1 = data_temp_min.iloc[1,:].dropna()
-    day2 = data_temp_min.iloc[2,:].dropna()
-    day3 = data_temp_min.iloc[3,:].dropna()
-    day4 = data_temp_min.iloc[4,:].dropna()
-    day5 = data_temp_min.iloc[5,:].dropna()
-    day6 = data_temp_min.iloc[6,:].dropna()
-    day7 = data_temp_min.iloc[7,:].dropna()
+    # Boxplot Temperaturas Máximas (Rojo)
+    for i in range(8):
+        day_data = data_temp_max.iloc[i,:].dropna()
+        fig.add_trace(go.Box(
+            y=day_data, x=[dates_str[i]]*len(day_data),
+            name='Max',
+            marker_color='lightcoral',
+            line_color='#2c3e50',
+            fillcolor='rgba(255, 107, 107, 0.6)',
+            boxpoints='outliers',
+            offsetgroup='B',
+            showlegend=False
+        ))
 
-    data_plotted = [day0,day1,day2,day3,day4,day5,day6,day7]
+    # Actualizar diseño
+    fig.update_layout(
+        title=dict(text='Evolución Temperaturas (Próxima Semana)', font=dict(color='white', size=18, family="Inter")),
+        boxmode='group',
+        yaxis=dict(
+            title='Temperatura (°C)', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)',
+            color='white'
+        ),
+        xaxis=dict(
+            title='', 
+            showgrid=False,
+            color='white'
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=20, r=20, t=50, b=20),
+        hovermode="x unified"
+    )
 
-
-    boxprops =  dict(linewidth=1, color='black', facecolor='lightblue')
-    whiskerprops = dict(linewidth=1, color='black',linestyle='dashed')
-    flierprops = dict(marker='o', markerfacecolor='blue', markersize=4, linestyle='none')
-    medianprops = dict(linewidth=1, color='black')
-
-    ax.boxplot(data_plotted, positions=[0.25,1.25,2.25,3.25,4.25,5.25,6.25,7.25], patch_artist=True,boxprops=boxprops, 
-                whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
-
-
-
-    day0 = data_temp_max.iloc[0,:].dropna()
-    day1 = data_temp_max.iloc[1,:].dropna()
-    day2 = data_temp_max.iloc[2,:].dropna()
-    day3 = data_temp_max.iloc[3,:].dropna()
-    day4 = data_temp_max.iloc[4,:].dropna()
-    day5 = data_temp_max.iloc[5,:].dropna()
-    day6 = data_temp_max.iloc[6,:].dropna()
-    day7 = data_temp_max.iloc[7,:].dropna()
-
-    data_plotted = [day0,day1,day2,day3,day4,day5,day6,day7]
-
-    boxprops =  dict(linewidth=1, color='black', facecolor='lightcoral')
-    whiskerprops = dict(linewidth=1, color='black',linestyle='dashed')
-    flierprops = dict(marker='o', markerfacecolor='red', markersize=4, linestyle='none')
-    medianprops = dict(linewidth=1, color='black')
-
-
-    ax.boxplot(data_plotted, positions=[0.75,1.75,2.75,3.75,4.75,5.75,6.75,7.75], patch_artist=True,boxprops=boxprops, 
-                whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
-
-
-    max_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[0]
-    max_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[1]
-
-    ax.fill_between(data.index,max_usual_temp_upper,max_usual_temp_lower, alpha=0.2, color='red')
-
-    min_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[0]
-    min_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[1]
-
-    ax.fill_between(data.index,min_usual_temp_upper,min_usual_temp_lower, alpha=0.2, color='blue')
-
-
-    ax.set_xlim(0,8)
-
-    ax.axvline(((datetime.now().hour+2) / 24 + 1),color="black",linewidth=.4)
-
-
-    ax.set_title("Evolución temperaturas a una semana")
-    ax.set_ylabel("Temperatura")
-
-
-    ax.set_xticks([0,1,2,3,4,5,6,7], pd.to_datetime(data_temp_min.index).strftime('%A %d'),ha="center")
-    ax.set_xticklabels(labels=pd.to_datetime(data_temp_min.index).strftime('%A %d'), rotation=0, ha='left', fontsize=9)
-
-    ax.grid()
+    # Línea vertical para el momento actual relativo (aproximado en el gráfico de 7 días)
+    # No es exacto en un boxplot categórico, lo omitiremos en plotly para mantenerlo limpio.
 
     return fig
 
-st.pyplot(plot_long_forecast())
+with tab2:
+    st.plotly_chart(plot_long_forecast(), use_container_width=True)
+    st.divider()
 
 
 
 def plot_long_rain_forecast():
-     
-    fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
+    fig = go.Figure()
 
-    data_plotted = (6* data_preci_df.resample("6H",closed="left",label="left").mean()).dropna(axis=1,how="all").T.iloc[:,:-10]
-
-
-    boxprops =  dict(linewidth=1, color='black', facecolor='lightblue')
-    whiskerprops = dict(linewidth=1, color='black',linestyle='dashed')
-    flierprops = dict(marker='o', markerfacecolor='blue', markersize=4, linestyle='none')
-    medianprops = dict(linewidth=1, color='black')
-
-    ax.boxplot(data_plotted, positions=[x+0.5 for x in range(0,len(data_plotted.columns))] , patch_artist=True,boxprops=boxprops, 
-                whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
-
-
+    data_plotted = (6 * data_preci_df.resample("6H", closed="left", label="left").mean()).dropna(axis=1, how="all").T.iloc[:, :-10]
+    
     date_list = []
     for item in data_plotted.columns.date:
         if item not in date_list:
             date_list.append(item)
+    dates_str = pd.to_datetime(date_list).strftime('%A %d').tolist()
 
+    # Cada iteración crea un boxplot para un bloque de 6 horas
+    for i, col in enumerate(data_plotted.columns):
+        day_date = col.date()
+        date_idx = date_list.index(day_date)
+        day_str = dates_str[date_idx]
+        
+        # Etiqueta para agrupar por horas: ej "00:00 - 06:00"
+        hour_label = f"{col.hour:02d}:00"
+        
+        fig.add_trace(go.Box(
+            y=data_plotted[col].dropna(),
+            x=[f"{day_str}"] * len(data_plotted[col].dropna()),
+            name=hour_label,
+            marker_color='lightblue',
+            line_color='#2c3e50',
+            fillcolor='rgba(77, 171, 247, 0.6)',
+            boxpoints='outliers',
+            showlegend=False
+        ))
 
-
-    ax.set_xticks([x for x in range(0,len(data_plotted.columns),4)], date_list,ha="center");
-    ax.set_xticklabels(labels=pd.to_datetime(date_list).strftime('%A %d'),rotation=0, ha='left', fontsize=9);
-    ax.grid()
-    ax.set_ylim(0)
-    #ax.axvline(((datetime.now().hour+2) ),color="black",linewidth=.4)
-
-    ax.set_title("Evolución precipitación");
-    ax.set_ylabel("L/m2");
+    # Actualizar diseño
+    fig.update_layout(
+        title=dict(text='Evolución Precipitación Diaria (Próxima Semana)', font=dict(color='white', size=18, family="Inter")),
+        boxmode='group',
+        yaxis=dict(
+            title='Lluvia (L/m2)', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)',
+            color='white',
+            rangemode='tozero'
+        ),
+        xaxis=dict(
+            title='', 
+            showgrid=False,
+            color='white'
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=20, r=20, t=50, b=20),
+        hovermode="x unified"
+    )
 
     return fig
 
-st.pyplot(plot_long_rain_forecast())
+with tab2:
+    st.plotly_chart(plot_long_rain_forecast(), use_container_width=True)
+    st.divider()
 
 
 def plot_long_wind_forecast():
-     
-    fig,ax = plt.subplots(figsize=(10, 6), dpi=100)
+    fig = go.Figure()
 
-    data_plotted = data_rachas_df.resample("6H",closed="left",label="left").mean().dropna(axis=1,how="all").T.iloc[:,:-18]
-
-
-    boxprops =  dict(linewidth=1, color='black', facecolor='gold')
-    whiskerprops = dict(linewidth=1, color='black',linestyle='dashed')
-    flierprops = dict(marker='o', markerfacecolor='gold', markersize=4, linestyle='none')
-    medianprops = dict(linewidth=1, color='black')
-
-    ax.boxplot(data_plotted, positions=[x+0.5 for x in range(0,len(data_plotted.columns))] , patch_artist=True,boxprops=boxprops, 
-                whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
-
-
+    data_plotted = data_rachas_df.resample("6H", closed="left", label="left").mean().dropna(axis=1, how="all").T.iloc[:, :-18]
+    
     date_list = []
     for item in data_plotted.columns.date:
         if item not in date_list:
             date_list.append(item)
+    dates_str = pd.to_datetime(date_list).strftime('%A %d').tolist()
 
+    for i, col in enumerate(data_plotted.columns):
+        day_date = col.date()
+        date_idx = date_list.index(day_date)
+        day_str = dates_str[date_idx]
+        
+        hour_label = f"{col.hour:02d}:00"
+        
+        fig.add_trace(go.Box(
+            y=data_plotted[col].dropna(),
+            x=[f"{day_str}"] * len(data_plotted[col].dropna()),
+            name=hour_label,
+            marker_color='gold',
+            line_color='#2c3e50',
+            fillcolor='rgba(255, 215, 0, 0.6)',
+            boxpoints='outliers',
+            showlegend=False
+        ))
 
-
-    ax.set_xticks([x for x in range(0,len(data_plotted.columns),4)], date_list,ha="center");
-    ax.set_xticklabels(labels=pd.to_datetime(date_list).strftime('%A %d'),rotation=0, ha='left', fontsize=9);
-    ax.grid()
-    ax.set_ylim(0)
-    #ax.axvline(((datetime.now().hour+2)  + 1),color="black",linewidth=.4)
-
-    ax.set_title("Evolución viento");
-    ax.set_ylabel("Km/h");
+    # Actualizar diseño
+    fig.update_layout(
+        title=dict(text='Evolución Viento Rachas (Próxima Semana)', font=dict(color='white', size=18, family="Inter")),
+        boxmode='group',
+        yaxis=dict(
+            title='Velocidad (km/h)', 
+            showgrid=True, 
+            gridcolor='rgba(255,255,255,0.1)',
+            color='white',
+            rangemode='tozero'
+        ),
+        xaxis=dict(
+            title='', 
+            showgrid=False,
+            color='white'
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=20, r=20, t=50, b=20),
+        hovermode="x unified"
+    )
 
     return fig
 
-st.pyplot(plot_long_wind_forecast())
+with tab2:
+    st.plotly_chart(plot_long_wind_forecast(), use_container_width=True)
 
 
 import datetime
@@ -1484,81 +1444,97 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     # Current time index
     current_time_index = today.hour * 60 + today.minute
 
-    # Convert to numpy array for efficient plotting
-    elevaciones_array = np.array(elevaciones)
+    fig = go.Figure()
 
-    # Compute length of the day
-    day_length_seconds = (sunset_local - sunrise_local).total_seconds()
-    day_length_hours = int(day_length_seconds // 3600)  # Convert seconds to hours
-    day_length_minutes = int((day_length_seconds % 3600) / 60)  # Extract remaining minutes
+    hours = [i/60 for i in range(len(elevaciones_array))]
 
-    # Set up the plot
-    fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
+    # Área rellena positiva (Sobre el horizonte, Amarillo/Naranja luz)
+    # Reemplazamos valores negativos con 0 para el área superior
+    elev_pos = np.maximum(elevaciones_array, 0)
+    fig.add_trace(go.Scatter(
+        x=hours, y=elev_pos,
+        mode='lines',
+        fill='tozeroy',
+        fillcolor='rgba(255, 165, 0, 0.4)',  # Naranja suave transparente
+        line=dict(color='orange', width=2),
+        name='Sobre el horizonte',
+        hoverinfo='skip'
+    ))
 
-    # Plot the sun elevation profile
-    ax.fill_between(np.arange(len(elevaciones)), elevaciones_array, where=elevaciones_array > 0, 
-                    color='peachpuff', alpha=0.5)
-    ax.fill_between(np.arange(len(elevaciones)), elevaciones_array, where=elevaciones_array < 0, 
-                    color='lightblue', alpha=0.5)
+    # Área rellena negativa (Bajo el horizonte, Azul noche)
+    # Reemplazamos valores positivos con 0 para el área inferior
+    elev_neg = np.minimum(elevaciones_array, 0)
+    fig.add_trace(go.Scatter(
+        x=hours, y=elev_neg,
+        mode='lines',
+        fill='tozeroy',
+        fillcolor='rgba(0, 0, 139, 0.4)',  # Azul oscuro transparente
+        line=dict(color='blue', width=2),
+        name='Bajo el horizonte',
+        hoverinfo='skip'
+    ))
 
-    # Mark the current time
+    # Actual Path invisible para el hover
+    fig.add_trace(go.Scatter(
+        x=hours, y=elevaciones_array,
+        mode='lines',
+        line=dict(color='rgba(0,0,0,0)'),
+        showlegend=False,
+        hovertemplate='<b>Hora:</b> %{x:.2f}h<br><b>Elevación:</b> %{y:.2f}°<extra></extra>'
+    ))
+
+    # Posición actual
+    current_hour_float = current_time_index / 60
     current_elevation = elevaciones_array[current_time_index]
-    ax.plot(current_time_index, current_elevation, 'o', color='darkblue', markersize=8, label='Current Position')
+    fig.add_trace(go.Scatter(
+        x=[current_hour_float], y=[current_elevation],
+        mode='markers+text',
+        marker=dict(size=12, color='white', line=dict(color='black', width=2)),
+        text=["Actual"], textposition="top center",
+        name='Tiempo Actual',
+        hoverinfo='skip'
+    ))
 
-    # Format sunrise, sunset, and max elevation times as hh:mm
-    sunrise_time = f"{sunrise_local.hour:02d}:{sunrise_local.minute:02d}"
-    sunset_time = f"{sunset_local.hour:02d}:{sunset_local.minute:02d}"
+    # Amanecer, Atardecer, Cenit
+    fig.add_trace(go.Scatter(
+        x=[sunrise_index/60, max_elevation_index/60, sunset_index/60], 
+        y=[0, elevaciones_array[max_elevation_index], 0],
+        mode='markers+text',
+        marker=dict(size=[10, 10, 10], color=['gold', 'red', 'darkorange']),
+        text=[f"Amanecer<br>{sunrise_time}", f"Cenit<br>{max_elevation_time}", f"Ocaso<br>{sunset_time}"],
+        textposition=["bottom left", "top center", "bottom right"],
+        name='Hitos Solares',
+        hoverinfo='skip'
+    ))
 
-    # Mark sunrise, sunset, and max elevation with labels
-    ax.plot(sunrise_index, 0, marker='o', color='gold', markersize=10)
-    ax.text(sunrise_index, -10, sunrise_time, ha='center', fontsize=10, color='orange')
+    # Relleno extra para indicar el nivel del horizonte visible (y=0)
+    fig.add_hline(y=0, line_width=1, line_dash="dash", line_color="rgba(255,255,255,0.5)")
 
-    ax.plot(sunset_index, 0, marker='o', color='darkorange', markersize=10)
-    ax.text(sunset_index, -10, sunset_time, ha='center', fontsize=10, color='darkorange')
-
-    ax.plot(max_elevation_index, elevaciones_array[max_elevation_index], 'o', color='red', markersize=8)
-    ax.text(max_elevation_index, elevaciones_array[max_elevation_index] + 2, max_elevation_time, ha='center', fontsize=10, color='red')
-
-    # Add labels and title
-    ax.set_xlabel('Time of Day (hours)', fontsize=12, fontweight='light')
-    ax.set_ylabel('Sun Elevation (degrees)', fontsize=12, fontweight='light')
-    ax.set_title(f'Sun Elevation Profile | Date: {today.strftime("%Y-%m-%d")} | Day Length: {day_length_hours}h {day_length_minutes}m', 
-                 fontsize=14, fontweight='bold')
-
-    # Customize the x-axis labels to show hours
-    hours = np.arange(0, len(elevaciones), 60)
-    ax.set_xticks(hours)
-    ax.set_xticklabels([str(i // 60) for i in hours], fontsize=10, fontweight='light')
-
-    # Customize the y-axis labels
-    ax.yaxis.set_tick_params(labelsize=10, labelcolor='grey', width=0.5)
-
-    # Make the grid lines more subtle
-    ax.grid(True, linestyle=':', linewidth=0.5, color='grey', alpha=0.7)
-
-    # Remove unnecessary spines
-    for spine in ['top', 'right']:
-        ax.spines[spine].set_visible(False)
-    for spine in ['left', 'bottom']:
-        ax.spines[spine].set_color('grey')
-        ax.spines[spine].set_linewidth(0.5)
-
-    # Minimalist legend
-    ax.legend(loc='upper left', frameon=False, fontsize=10)
-
-    # Add a text box with daylight change information
-    daylight_change_text = f"Cambio tiempo de luz: {daylight_change}"
-    plt.text(0.02, 0.88, daylight_change_text, transform=ax.transAxes, fontsize=10,
-             verticalalignment='top', bbox=dict(boxstyle='round,pad=0.5', fc='white', ec='grey', alpha=0.7))
-
-    # Display the plot
-    plt.tight_layout()
-    plt.show()
+    fig.update_layout(
+        title=dict(
+            text=f'Perfil de Elevación Solar | {today.strftime("%Y-%m-%d")}<br><sup>Duración del día: {day_length_hours}h {day_length_minutes}m ({daylight_change})</sup>',
+            font=dict(color='white', size=18, family="Inter")
+        ),
+        xaxis=dict(
+            title='Hora del día', 
+            showgrid=True, gridcolor='rgba(255,255,255,0.1)', color='white',
+            tickmode='linear', tick0=0, dtick=2, range=[0, 24]
+        ),
+        yaxis=dict(
+            title='Elevación (grados)', 
+            showgrid=True, gridcolor='rgba(255,255,255,0.1)', color='white'
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        hovermode="x unified",
+        margin=dict(l=20, r=20, t=80, b=20),
+        showlegend=False
+    )
 
     return fig
 
-#
-st.pyplot(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'))
+with tab3:
+    st.plotly_chart(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'), use_container_width=True)
 
 #model = genai.GenerativeModel(('gemini-3-flash-preview'))
 import json
