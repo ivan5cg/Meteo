@@ -6,7 +6,7 @@ import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import datetime
+from datetime import datetime, timedelta
 from scipy.stats import percentileofscore
 import telegram
 #import google.generativeai as genai
@@ -1390,11 +1390,9 @@ with tab2:
     st.plotly_chart(plot_long_wind_forecast(), use_container_width=True)
 
 
-import datetime
 import pytz
 from astral import LocationInfo
 from astral.sun import sun, elevation
-import matplotlib.pyplot as plt
 import numpy as np
 
 def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
@@ -1403,8 +1401,8 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 
     # Get current date and time in the specified timezone
     timezone = pytz.timezone(timezone_str)
-    today = datetime.datetime.now(tz=timezone)
-    yesterday = today - datetime.timedelta(days=1)
+    today = datetime.now(tz=timezone)
+    yesterday = today - timedelta(days=1)
     year, month, day = today.year, today.month, today.day
 
     # Calculate exact sunrise and sunset times for today and yesterday
@@ -1429,11 +1427,12 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     sunset_index = sunset_local.hour * 60 + sunset_local.minute
 
     # Generate datetime objects for every minute of the day
-    listahoras = [timezone.localize(datetime.datetime(year, month, day, hour, minute))
+    listahoras = [timezone.localize(datetime(year, month, day, hour, minute))
                   for hour in range(24) for minute in range(60)]
 
     # Calculate sun elevation for each minute
     elevaciones = [elevation(location.observer, dt) for dt in listahoras]
+    elevaciones_array = np.array(elevaciones)
 
     # Find the index of the maximum elevation
     max_elevation_index = np.argmax(elevaciones)
