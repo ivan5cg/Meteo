@@ -757,12 +757,8 @@ def plot_temp_data(data):
 
     return fig
 
-# TABS LAYOUT
-tab1, tab2, tab3 = st.tabs(["Previsión a 48 Horas", "Tendencia Semanal Siguiente", "Sol y Astronomía"])
-
-with tab1:
-    st.plotly_chart(plot_temp_data(temp_data), use_container_width=True)
-    st.divider()
+st.plotly_chart(plot_temp_data(temp_data), use_container_width=True)
+st.divider()
 
 ##############################################
 
@@ -926,9 +922,8 @@ def plot_rain_chance(chance_prec,avg_prec):
 
     return fig
 
-with tab1:
-    st.plotly_chart(plot_rain_chance(chance_prec,avg_prec), use_container_width=True)
-    st.divider()
+st.plotly_chart(plot_rain_chance(chance_prec,avg_prec), use_container_width=True)
+st.divider()
 
 #######################################################
 wind_data = get_wind_gust_data(valid_run)
@@ -1009,9 +1004,8 @@ def plot_wind_data(data):
 
     return fig
 
-with tab1:
-    st.plotly_chart(plot_wind_data(wind_data), use_container_width=True)
-    st.divider()
+st.plotly_chart(plot_wind_data(wind_data), use_container_width=True)
+st.divider()
 
 #@#############################################
 
@@ -1057,9 +1051,8 @@ def plot_pressure_data(data):
 
     return fig
 
-with tab1:
-    st.plotly_chart(plot_pressure_data(pressure_data), use_container_width=True)
-    st.divider()
+st.plotly_chart(plot_pressure_data(pressure_data), use_container_width=True)
+st.divider()
 
 ################################################
 
@@ -1110,9 +1103,7 @@ def plot_mucape_data(data):
 
     return fig
 
-with tab1:
-    st.plotly_chart(plot_mucape_data(mucape_data), use_container_width=True)
-
+st.plotly_chart(plot_mucape_data(mucape_data), use_container_width=True)
 st.divider()
 
 
@@ -1267,9 +1258,8 @@ def plot_long_forecast():
 
     return fig
 
-with tab2:
-    st.plotly_chart(plot_long_forecast(), use_container_width=True)
-    st.divider()
+st.plotly_chart(plot_long_forecast(), use_container_width=True)
+st.divider()
 
 
 
@@ -1328,9 +1318,8 @@ def plot_long_rain_forecast():
 
     return fig
 
-with tab2:
-    st.plotly_chart(plot_long_rain_forecast(), use_container_width=True)
-    st.divider()
+st.plotly_chart(plot_long_rain_forecast(), use_container_width=True)
+st.divider()
 
 
 def plot_long_wind_forecast():
@@ -1386,8 +1375,7 @@ def plot_long_wind_forecast():
 
     return fig
 
-with tab2:
-    st.plotly_chart(plot_long_wind_forecast(), use_container_width=True)
+st.plotly_chart(plot_long_wind_forecast(), use_container_width=True)
 
 
 import pytz
@@ -1532,8 +1520,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 
     return fig
 
-with tab3:
-    st.plotly_chart(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'), use_container_width=True)
+st.plotly_chart(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'), use_container_width=True)
 
 #model = genai.GenerativeModel(('gemini-3-flash-preview'))
 import json
