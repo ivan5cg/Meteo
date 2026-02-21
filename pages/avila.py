@@ -1474,16 +1474,9 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     hours = np.array([i / 60 for i in range(1440)])
 
     # ── Matplotlib figure ──
-    fig, ax = plt.subplots(figsize=(14, 6), dpi=130)
-
-    # Background: deep dark gradient
-    bg_gradient = np.linspace(0, 1, 256).reshape(1, -1)
-    bg_cmap = LinearSegmentedColormap.from_list('bg', [
-        '#0a0e27', '#0d1333', '#0a0e27'
-    ])
-    ax.imshow(bg_gradient, aspect='auto', cmap=bg_cmap, alpha=0.95,
-              extent=[0, 24, elevaciones_array.min() - 5, max_elev_val + 15],
-              zorder=0)
+    fig, ax = plt.subplots(figsize=(14, 8), dpi=130)
+    fig.patch.set_alpha(0)
+    ax.set_facecolor('none')
 
     # ── Twilight bands (horizontal zones) ──
     twilight_zones = [
@@ -1517,7 +1510,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 
     # ── Night fill (below horizon) ──
     elev_neg = np.minimum(elevaciones_array, 0)
-    ax.fill_between(hours, elev_neg, 0, color='#080c24', alpha=0.8, zorder=2, lw=0)
+    ax.fill_between(hours, elev_neg, 0, color='#0d1b3e', alpha=0.7, zorder=2, lw=0)
 
     # ── Main elevation curve with gradient color ──
     points = np.array([hours, elevaciones_array]).T.reshape(-1, 1, 2)
@@ -1574,27 +1567,27 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
                 textcoords='offset points', ha='center', va='bottom',
                 fontsize=9, fontweight='bold', color='#ffd740',
                 fontfamily='sans-serif', zorder=8,
-                path_effects=[pe.withStroke(linewidth=3, foreground='#0a0e27')])
+                path_effects=[pe.withStroke(linewidth=3, foreground='#111')])
 
     # ── Sunrise marker ──
     ax.plot(sunrise_h, 0, 'D', color='#ffab40', markersize=9,
             markeredgecolor='#e65100', markeredgewidth=1.5, zorder=7)
-    ax.annotate(f'☀ Amanecer\n{sunrise_time}',
+    ax.annotate(f'Amanecer\n{sunrise_time}',
                 xy=(sunrise_h, 0), xytext=(-15, -28),
                 textcoords='offset points', ha='center', va='top',
                 fontsize=9, fontweight='bold', color='#ffcc80',
                 fontfamily='sans-serif', zorder=8,
-                path_effects=[pe.withStroke(linewidth=3, foreground='#0a0e27')])
+                path_effects=[pe.withStroke(linewidth=3, foreground='#111')])
 
     # ── Sunset marker ──
     ax.plot(sunset_h, 0, 'D', color='#ff7043', markersize=9,
             markeredgecolor='#bf360c', markeredgewidth=1.5, zorder=7)
-    ax.annotate(f'🌅 Ocaso\n{sunset_time}',
+    ax.annotate(f'Ocaso\n{sunset_time}',
                 xy=(sunset_h, 0), xytext=(15, -28),
                 textcoords='offset points', ha='center', va='top',
                 fontsize=9, fontweight='bold', color='#ffab91',
                 fontfamily='sans-serif', zorder=8,
-                path_effects=[pe.withStroke(linewidth=3, foreground='#0a0e27')])
+                path_effects=[pe.withStroke(linewidth=3, foreground='#111')])
 
     # ── Current position marker ──
     # Dashed vertical line from horizon to current position
@@ -1610,7 +1603,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
                 textcoords='offset points', ha='center', va='bottom',
                 fontsize=8, fontweight='bold', color='white',
                 fontfamily='sans-serif', zorder=8,
-                path_effects=[pe.withStroke(linewidth=3, foreground='#0a0e27')])
+                path_effects=[pe.withStroke(linewidth=3, foreground='#111')])
 
     # ── Axes styling ──
     ax.set_xlim(0, 24)
@@ -1637,14 +1630,13 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
         fontfamily='sans-serif', pad=20
     )
     ax.text(0.5, 1.02,
-            f'Duración del día: {day_length_hours}h {day_length_minutes}m  ·  {daylight_change}  ·  🌅 {sunrise_time} → {sunset_time} 🌇',
+            f'Duracion del dia: {day_length_hours}h {day_length_minutes}m  |  {daylight_change}  |  {sunrise_time} -- {sunset_time}',
             transform=ax.transAxes, ha='center', va='bottom',
             fontsize=9, color='#90a4ae', fontfamily='sans-serif')
 
     ax.set_xlabel('')
     ax.set_ylabel('')
 
-    fig.patch.set_facecolor('#0a0e27')
     fig.tight_layout(pad=2)
 
     return fig
