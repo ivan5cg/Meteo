@@ -1236,6 +1236,27 @@ def plot_long_forecast():
             line_width=2
         ))
 
+    # Add Max/Min annotations per day
+    for i in range(min(8, len(dates_str))):
+        min_data = data_temp_min.iloc[i,:].dropna()
+        max_data = data_temp_max.iloc[i,:].dropna()
+        if not min_data.empty:
+            fig.add_annotation(
+                x=dates_str[i], y=min_data.min(),
+                text=f"{min_data.min():.1f}º",
+                showarrow=False,
+                yshift=-15,
+                font=dict(color="#4facfe", size=12, family="Inter", weight="bold")
+            )
+        if not max_data.empty:
+            fig.add_annotation(
+                x=dates_str[i], y=max_data.max(),
+                text=f"{max_data.max():.1f}º",
+                showarrow=False,
+                yshift=15,
+                font=dict(color="#ff6b6b", size=12, family="Inter", weight="bold")
+            )
+
     # Actualizar diseño
     fig.update_layout(
         title=dict(text='Evolución Temperaturas (Próxima Semana)', font=dict(color='white', size=18, family="Inter")),
@@ -1256,9 +1277,6 @@ def plot_long_forecast():
         margin=dict(l=20, r=20, t=50, b=20),
         hovermode="x unified"
     )
-
-    # Línea vertical para el momento actual relativo (aproximado en el gráfico de 7 días)
-    # No es exacto en un boxplot categórico, lo omitiremos en plotly para mantenerlo limpio.
 
     return fig
 
@@ -1291,11 +1309,13 @@ def plot_long_rain_forecast():
             y=data_plotted[col].dropna(),
             x=[f"{day_str}"] * len(data_plotted[col].dropna()),
             name=hour_label,
-            marker_color='lightblue',
-            line_color='#2c3e50',
-            fillcolor='rgba(77, 171, 247, 0.6)',
+            marker_color='#4facfe',
+            line_color='#4facfe',
+            fillcolor='rgba(77, 171, 247, 0.85)',
             boxpoints='outliers',
-            showlegend=False
+            showlegend=False,
+            width=0.35,
+            line_width=2
         ))
 
     # Actualizar diseño
@@ -1349,10 +1369,12 @@ def plot_long_wind_forecast():
             x=[f"{day_str}"] * len(data_plotted[col].dropna()),
             name=hour_label,
             marker_color='gold',
-            line_color='#2c3e50',
-            fillcolor='rgba(255, 215, 0, 0.6)',
+            line_color='gold',
+            fillcolor='rgba(255, 215, 0, 0.85)',
             boxpoints='outliers',
-            showlegend=False
+            showlegend=False,
+            width=0.35,
+            line_width=2
         ))
 
     # Actualizar diseño
