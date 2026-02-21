@@ -1410,14 +1410,18 @@ import pytz
 from astral import LocationInfo
 from astral.sun import sun, elevation
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.patches as mpatches
+from matplotlib.collections import LineCollection
+import matplotlib.patheffects as pe
 
 def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     # Define location information
     location = LocationInfo("Custom Location", "Custom Region", timezone_str, latitude, longitude)
 
     # Get current date and time in the specified timezone
-    timezone = pytz.timezone(timezone_str)
-    today = datetime.now(tz=timezone)
+    tz = pytz.timezone(timezone_str)
+    today = datetime.now(tz=tz)
     yesterday = today - timedelta(days=1)
     year, month, day = today.year, today.month, today.day
 
@@ -1426,8 +1430,8 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     s_yesterday = sun(location.observer, date=yesterday)
 
     # Convert sunrise and sunset times to local timezone
-    sunrise_local = s_today['sunrise'].astimezone(timezone)
-    sunset_local = s_today['sunset'].astimezone(timezone)
+    sunrise_local = s_today['sunrise'].astimezone(tz)
+    sunset_local = s_today['sunset'].astimezone(tz)
 
     # Calculate day length for today and yesterday
     day_length_today = (s_today['sunset'] - s_today['sunrise']).total_seconds()
@@ -1436,7 +1440,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     # Calculate the difference in day length
     day_length_diff = day_length_today - day_length_yesterday
     diff_minutes, diff_seconds = divmod(abs(int(day_length_diff)), 60)
-    daylight_change = f"{diff_minutes} min {diff_seconds} seg {'ganados' if day_length_diff > 0 else 'perdidos'}"
+    daylight_change = f"{diff_minutes}m {diff_seconds}s {'ganados' if day_length_diff > 0 else 'perdidos'}"
 
     # Format sunrise/sunset times and day length for display
     sunrise_time = sunrise_local.strftime('%H:%M')
@@ -1444,12 +1448,12 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     day_length_hours = int(day_length_today // 3600)
     day_length_minutes = int((day_length_today % 3600) // 60)
 
-    # Convert sunrise and sunset times to indices
-    sunrise_index = sunrise_local.hour * 60 + sunrise_local.minute
-    sunset_index = sunset_local.hour * 60 + sunset_local.minute
+    # Convert sunrise and sunset times to fractional hours
+    sunrise_h = sunrise_local.hour + sunrise_local.minute / 60
+    sunset_h = sunset_local.hour + sunset_local.minute / 60
 
     # Generate datetime objects for every minute of the day
-    listahoras = [timezone.localize(datetime(year, month, day, hour, minute))
+    listahoras = [tz.localize(datetime(year, month, day, hour, minute))
                   for hour in range(24) for minute in range(60)]
 
     # Calculate sun elevation for each minute
@@ -1457,104 +1461,195 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     elevaciones_array = np.array(elevaciones)
 
     # Find the index of the maximum elevation
-    max_elevation_index = np.argmax(elevaciones)
-
-    # Convert the maximum elevation index to a corresponding time
+    max_elevation_index = int(np.argmax(elevaciones))
     max_elevation_time = listahoras[max_elevation_index].strftime('%H:%M')
+    max_elev_val = elevaciones_array[max_elevation_index]
 
-    # Current time index
+    # Current time
     current_time_index = today.hour * 60 + today.minute
+    current_h = current_time_index / 60
+    current_elev = elevaciones_array[min(current_time_index, 1439)]
 
-    fig = go.Figure()
+    # Hours array
+    hours = np.array([i / 60 for i in range(1440)])
 
-    hours = [i/60 for i in range(len(elevaciones_array))]
+    # ── Matplotlib figure ──
+    fig, ax = plt.subplots(figsize=(14, 6), dpi=130)
 
-    # Área rellena positiva (Sobre el horizonte, Amarillo/Naranja luz)
-    # Reemplazamos valores negativos con 0 para el área superior
+    # Background: deep dark gradient
+    bg_gradient = np.linspace(0, 1, 256).reshape(1, -1)
+    bg_cmap = LinearSegmentedColormap.from_list('bg', [
+        '#0a0e27', '#0d1333', '#0a0e27'
+    ])
+    ax.imshow(bg_gradient, aspect='auto', cmap=bg_cmap, alpha=0.95,
+              extent=[0, 24, elevaciones_array.min() - 5, max_elev_val + 15],
+              zorder=0)
+
+    # ── Twilight bands (horizontal zones) ──
+    twilight_zones = [
+        (-18, -12, '#0c1445', 0.5, 'Astronómica'),
+        (-12, -6, '#1a1b5e', 0.5, 'Náutica'),
+        (-6,   0, '#2d2b6e', 0.5, 'Civil'),
+    ]
+    for y_lo, y_hi, color, alpha, label in twilight_zones:
+        ax.axhspan(y_lo, y_hi, color=color, alpha=alpha, zorder=1, lw=0)
+
+    # ── Daytime sky gradient fill (above horizon) ──
     elev_pos = np.maximum(elevaciones_array, 0)
-    fig.add_trace(go.Scatter(
-        x=hours, y=elev_pos,
-        mode='lines',
-        fill='tozeroy',
-        fillcolor='rgba(255, 165, 0, 0.4)',  # Naranja suave transparente
-        line=dict(color='orange', width=2),
-        name='Sobre el horizonte',
-        hoverinfo='skip'
-    ))
+    # Create vertical gradient effect for the day fill
+    n_strips = 80
+    max_e = max(elev_pos)
+    if max_e > 0:
+        for i in range(n_strips):
+            y_lo = max_e * i / n_strips
+            y_hi = max_e * (i + 1) / n_strips
+            frac = i / n_strips
+            # Warm gradient: deep amber at horizon → bright gold at top
+            r = 1.0
+            g = 0.55 + 0.35 * frac
+            b = 0.05 + 0.15 * frac
+            strip_y_lo = np.full_like(hours, y_lo)
+            strip_y_hi = np.minimum(elev_pos, y_hi)
+            strip_y_hi = np.maximum(strip_y_hi, y_lo)
+            ax.fill_between(hours, strip_y_lo, strip_y_hi,
+                          color=(r, g, b), alpha=0.6 - 0.2 * frac,
+                          zorder=2, lw=0)
 
-    # Área rellena negativa (Bajo el horizonte, Azul noche)
-    # Reemplazamos valores positivos con 0 para el área inferior
+    # ── Night fill (below horizon) ──
     elev_neg = np.minimum(elevaciones_array, 0)
-    fig.add_trace(go.Scatter(
-        x=hours, y=elev_neg,
-        mode='lines',
-        fill='tozeroy',
-        fillcolor='rgba(0, 0, 139, 0.4)',  # Azul oscuro transparente
-        line=dict(color='blue', width=2),
-        name='Bajo el horizonte',
-        hoverinfo='skip'
-    ))
+    ax.fill_between(hours, elev_neg, 0, color='#080c24', alpha=0.8, zorder=2, lw=0)
 
-    # Actual Path invisible para el hover
-    fig.add_trace(go.Scatter(
-        x=hours, y=elevaciones_array,
-        mode='lines',
-        line=dict(color='rgba(0,0,0,0)'),
-        showlegend=False,
-        hovertemplate='<b>Hora:</b> %{x:.2f}h<br><b>Elevación:</b> %{y:.2f}°<extra></extra>'
-    ))
+    # ── Main elevation curve with gradient color ──
+    points = np.array([hours, elevaciones_array]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
 
-    # Posición actual
-    current_hour_float = current_time_index / 60
-    current_elevation = elevaciones_array[current_time_index]
-    fig.add_trace(go.Scatter(
-        x=[current_hour_float], y=[current_elevation],
-        mode='markers+text',
-        marker=dict(size=12, color='white', line=dict(color='black', width=2)),
-        text=["Actual"], textposition="top center",
-        name='Tiempo Actual',
-        hoverinfo='skip'
-    ))
+    # Color by elevation: blues below, golds above
+    norm_vals = (elevaciones_array[:-1] + elevaciones_array[1:]) / 2
+    norm_range = max(abs(norm_vals.min()), abs(norm_vals.max()))
+    norm_vals_normalized = (norm_vals + norm_range) / (2 * norm_range) if norm_range > 0 else norm_vals * 0 + 0.5
 
-    # Amanecer, Atardecer, Cenit
-    fig.add_trace(go.Scatter(
-        x=[sunrise_index/60, max_elevation_index/60, sunset_index/60], 
-        y=[0, elevaciones_array[max_elevation_index], 0],
-        mode='markers+text',
-        marker=dict(size=[10, 10, 10], color=['gold', 'red', 'darkorange']),
-        text=[f"Amanecer<br>{sunrise_time}", f"Cenit<br>{max_elevation_time}", f"Ocaso<br>{sunset_time}"],
-        textposition=["bottom left", "top center", "bottom right"],
-        name='Hitos Solares',
-        hoverinfo='skip'
-    ))
+    curve_cmap = LinearSegmentedColormap.from_list('curve', [
+        '#1a237e',   # deep blue (far below horizon)
+        '#3949ab',   # medium blue
+        '#7c4dff',   # purple (near horizon night)
+        '#ff9100',   # orange (near horizon day)
+        '#ffd54f',   # bright gold (high elevation)
+        '#fff9c4',   # near-white gold (zenith)
+    ])
+    lc = LineCollection(segments, cmap=curve_cmap, norm=plt.Normalize(0, 1), zorder=5)
+    lc.set_array(norm_vals_normalized)
+    lc.set_linewidth(3)
+    ax.add_collection(lc)
 
-    # Relleno extra para indicar el nivel del horizonte visible (y=0)
-    fig.add_hline(y=0, line_width=1, line_dash="dash", line_color="rgba(255,255,255,0.5)")
+    # ── Horizon line ──
+    ax.axhline(y=0, color='#b0bec5', linewidth=1.2, linestyle='--', alpha=0.6, zorder=4)
+    ax.text(23.8, 0.8, 'HORIZONTE', fontsize=7, color='#78909c',
+            ha='right', va='bottom', fontfamily='sans-serif', fontweight='bold',
+            alpha=0.6, zorder=6)
 
-    fig.update_layout(
-        title=dict(
-            text=f'Perfil de Elevación Solar | {today.strftime("%Y-%m-%d")}<br><sup>Duración del día: {day_length_hours}h {day_length_minutes}m ({daylight_change})</sup>',
-            font=dict(color='white', size=18, family="Inter")
-        ),
-        xaxis=dict(
-            title='Hora del día', 
-            showgrid=True, gridcolor='rgba(255,255,255,0.1)', color='white',
-            tickmode='linear', tick0=0, dtick=2, range=[0, 24]
-        ),
-        yaxis=dict(
-            title='Elevación (grados)', 
-            showgrid=True, gridcolor='rgba(255,255,255,0.1)', color='white'
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        hovermode="x unified",
-        margin=dict(l=20, r=20, t=80, b=20),
-        showlegend=False
+    # ── Twilight labels (right side) ──
+    tw_labels = [
+        (-15, 'Tw. Astronómico', '#5c6bc0'),
+        (-9, 'Tw. Náutico', '#7986cb'),
+        (-3, 'Tw. Civil', '#9fa8da'),
+    ]
+    for y_pos, label, color in tw_labels:
+        if y_pos > elevaciones_array.min():
+            ax.text(23.8, y_pos, label, fontsize=6.5, color=color,
+                    ha='right', va='center', fontfamily='sans-serif',
+                    alpha=0.7, fontstyle='italic', zorder=6)
+
+    # ── Sun marker at zenith ──
+    zenith_h = max_elevation_index / 60
+    # Outer glow
+    for r, a in [(28, 0.05), (22, 0.08), (16, 0.12)]:
+        ax.plot(zenith_h, max_elev_val, 'o', color='#ffab00', markersize=r, alpha=a, zorder=6)
+    # Sun disc
+    ax.plot(zenith_h, max_elev_val, 'o', color='#ffd740', markersize=14,
+            markeredgecolor='#ff6f00', markeredgewidth=2, zorder=7)
+    ax.plot(zenith_h, max_elev_val, 'o', color='#fff9c4', markersize=6, zorder=8)
+    # Zenith label
+    ax.annotate(f'CENIT  {max_elevation_time}\n{max_elev_val:.1f}°',
+                xy=(zenith_h, max_elev_val), xytext=(0, 22),
+                textcoords='offset points', ha='center', va='bottom',
+                fontsize=9, fontweight='bold', color='#ffd740',
+                fontfamily='sans-serif', zorder=8,
+                path_effects=[pe.withStroke(linewidth=3, foreground='#0a0e27')])
+
+    # ── Sunrise marker ──
+    ax.plot(sunrise_h, 0, 'D', color='#ffab40', markersize=9,
+            markeredgecolor='#e65100', markeredgewidth=1.5, zorder=7)
+    ax.annotate(f'☀ Amanecer\n{sunrise_time}',
+                xy=(sunrise_h, 0), xytext=(-15, -28),
+                textcoords='offset points', ha='center', va='top',
+                fontsize=9, fontweight='bold', color='#ffcc80',
+                fontfamily='sans-serif', zorder=8,
+                path_effects=[pe.withStroke(linewidth=3, foreground='#0a0e27')])
+
+    # ── Sunset marker ──
+    ax.plot(sunset_h, 0, 'D', color='#ff7043', markersize=9,
+            markeredgecolor='#bf360c', markeredgewidth=1.5, zorder=7)
+    ax.annotate(f'🌅 Ocaso\n{sunset_time}',
+                xy=(sunset_h, 0), xytext=(15, -28),
+                textcoords='offset points', ha='center', va='top',
+                fontsize=9, fontweight='bold', color='#ffab91',
+                fontfamily='sans-serif', zorder=8,
+                path_effects=[pe.withStroke(linewidth=3, foreground='#0a0e27')])
+
+    # ── Current position marker ──
+    # Dashed vertical line from horizon to current position
+    ax.plot([current_h, current_h], [0, current_elev], '--',
+            color='#e0e0e0', linewidth=1, alpha=0.5, zorder=5)
+    # Pulsing glow
+    for r, a in [(18, 0.06), (13, 0.1)]:
+        ax.plot(current_h, current_elev, 'o', color='white', markersize=r, alpha=a, zorder=6)
+    ax.plot(current_h, current_elev, 'o', color='white', markersize=8,
+            markeredgecolor='#424242', markeredgewidth=1.5, zorder=7)
+    ax.annotate(f'AHORA\n{today.strftime("%H:%M")}',
+                xy=(current_h, current_elev), xytext=(0, 16),
+                textcoords='offset points', ha='center', va='bottom',
+                fontsize=8, fontweight='bold', color='white',
+                fontfamily='sans-serif', zorder=8,
+                path_effects=[pe.withStroke(linewidth=3, foreground='#0a0e27')])
+
+    # ── Axes styling ──
+    ax.set_xlim(0, 24)
+    ax.set_ylim(elevaciones_array.min() - 5, max_elev_val + 15)
+    ax.set_xticks(range(0, 25, 2))
+    ax.set_xticklabels([f'{h:02d}:00' for h in range(0, 25, 2)],
+                       fontsize=8, color='#b0bec5', fontfamily='sans-serif')
+    ax.set_yticks(range(int(elevaciones_array.min() // 10) * 10, int(max_elev_val) + 10, 10))
+    ax.set_yticklabels([f'{v}°' for v in range(int(elevaciones_array.min() // 10) * 10, int(max_elev_val) + 10, 10)],
+                       fontsize=8, color='#b0bec5', fontfamily='sans-serif')
+
+    ax.tick_params(axis='both', colors='#546e7a', length=4, width=0.8)
+    ax.grid(True, alpha=0.08, color='#b0bec5', linewidth=0.5)
+
+    # Spines
+    for spine in ax.spines.values():
+        spine.set_color('#1a237e')
+        spine.set_linewidth(0.8)
+
+    # ── Title ──
+    ax.set_title(
+        f'Perfil de Elevación Solar  ·  {today.strftime("%A %d de %B, %Y")}',
+        fontsize=15, fontweight='bold', color='#e0e0e0',
+        fontfamily='sans-serif', pad=20
     )
+    ax.text(0.5, 1.02,
+            f'Duración del día: {day_length_hours}h {day_length_minutes}m  ·  {daylight_change}  ·  🌅 {sunrise_time} → {sunset_time} 🌇',
+            transform=ax.transAxes, ha='center', va='bottom',
+            fontsize=9, color='#90a4ae', fontfamily='sans-serif')
+
+    ax.set_xlabel('')
+    ax.set_ylabel('')
+
+    fig.patch.set_facecolor('#0a0e27')
+    fig.tight_layout(pad=2)
 
     return fig
 
-st.plotly_chart(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'), use_container_width=True)
+st.pyplot(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'), use_container_width=True)
 
 #model = genai.GenerativeModel(('gemini-3-flash-preview'))
 import json
