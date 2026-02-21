@@ -1210,12 +1210,14 @@ def plot_long_forecast():
         fig.add_trace(go.Box(
             y=day_data, x=[dates_str[i]]*len(day_data),
             name='Min',
-            marker_color='lightblue',
-            line_color='#2c3e50',
-            fillcolor='rgba(77, 171, 247, 0.6)',
+            marker_color='#4facfe',
+            line_color='#4facfe',
+            fillcolor='rgba(77, 171, 247, 0.85)',
             boxpoints='outliers',
             offsetgroup='A',
-            showlegend=False
+            showlegend=False,
+            width=0.35,
+            line_width=2
         ))
 
     # Boxplot Temperaturas Máximas (Rojo)
@@ -1224,12 +1226,14 @@ def plot_long_forecast():
         fig.add_trace(go.Box(
             y=day_data, x=[dates_str[i]]*len(day_data),
             name='Max',
-            marker_color='lightcoral',
-            line_color='#2c3e50',
-            fillcolor='rgba(255, 107, 107, 0.6)',
+            marker_color='#ff6b6b',
+            line_color='#ff6b6b',
+            fillcolor='rgba(255, 107, 107, 0.85)',
             boxpoints='outliers',
             offsetgroup='B',
-            showlegend=False
+            showlegend=False,
+            width=0.35,
+            line_width=2
         ))
 
     # Actualizar diseño
@@ -1409,6 +1413,12 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     day_length_diff = day_length_today - day_length_yesterday
     diff_minutes, diff_seconds = divmod(abs(int(day_length_diff)), 60)
     daylight_change = f"{diff_minutes} min {diff_seconds} seg {'ganados' if day_length_diff > 0 else 'perdidos'}"
+
+    # Format sunrise/sunset times and day length for display
+    sunrise_time = sunrise_local.strftime('%H:%M')
+    sunset_time = sunset_local.strftime('%H:%M')
+    day_length_hours = int(day_length_today // 3600)
+    day_length_minutes = int((day_length_today % 3600) // 60)
 
     # Convert sunrise and sunset times to indices
     sunrise_index = sunrise_local.hour * 60 + sunrise_local.minute
