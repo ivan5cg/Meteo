@@ -1475,14 +1475,14 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 
     # ── Matplotlib figure ──
     fig, ax = plt.subplots(figsize=(14, 8), dpi=130)
-    fig.patch.set_alpha(0)
-    ax.set_facecolor('none')
+    fig.patch.set_facecolor('#f5f5f0')
+    ax.set_facecolor('#f5f5f0')
 
     # ── Twilight bands (horizontal zones) ──
     twilight_zones = [
-        (-18, -12, '#0c1445', 0.5, 'Astronómica'),
-        (-12, -6, '#1a1b5e', 0.5, 'Náutica'),
-        (-6,   0, '#2d2b6e', 0.5, 'Civil'),
+        (-18, -12, '#c5cae9', 0.4, 'Astronómica'),
+        (-12, -6, '#9fa8da', 0.4, 'Náutica'),
+        (-6,   0, '#7986cb', 0.35, 'Civil'),
     ]
     for y_lo, y_hi, color, alpha, label in twilight_zones:
         ax.axhspan(y_lo, y_hi, color=color, alpha=alpha, zorder=1, lw=0)
@@ -1497,20 +1497,20 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
             y_lo = max_e * i / n_strips
             y_hi = max_e * (i + 1) / n_strips
             frac = i / n_strips
-            # Warm gradient: deep amber at horizon → bright gold at top
+            # Warm gradient: deep amber at horizon → soft gold at top
             r = 1.0
-            g = 0.55 + 0.35 * frac
-            b = 0.05 + 0.15 * frac
+            g = 0.65 + 0.25 * frac
+            b = 0.15 + 0.25 * frac
             strip_y_lo = np.full_like(hours, y_lo)
             strip_y_hi = np.minimum(elev_pos, y_hi)
             strip_y_hi = np.maximum(strip_y_hi, y_lo)
             ax.fill_between(hours, strip_y_lo, strip_y_hi,
-                          color=(r, g, b), alpha=0.6 - 0.2 * frac,
+                          color=(r, g, b), alpha=0.5 - 0.15 * frac,
                           zorder=2, lw=0)
 
     # ── Night fill (below horizon) ──
     elev_neg = np.minimum(elevaciones_array, 0)
-    ax.fill_between(hours, elev_neg, 0, color='#0d1b3e', alpha=0.7, zorder=2, lw=0)
+    ax.fill_between(hours, elev_neg, 0, color='#283593', alpha=0.25, zorder=2, lw=0)
 
     # ── Main elevation curve with gradient color ──
     points = np.array([hours, elevaciones_array]).T.reshape(-1, 1, 2)
@@ -1524,115 +1524,115 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     curve_cmap = LinearSegmentedColormap.from_list('curve', [
         '#1a237e',   # deep blue (far below horizon)
         '#3949ab',   # medium blue
-        '#7c4dff',   # purple (near horizon night)
-        '#ff9100',   # orange (near horizon day)
-        '#ffd54f',   # bright gold (high elevation)
-        '#fff9c4',   # near-white gold (zenith)
+        '#5c6bc0',   # indigo (near horizon night)
+        '#e65100',   # deep orange (near horizon day)
+        '#ff9800',   # orange (mid elevation)
+        '#f57f17',   # amber (zenith)
     ])
     lc = LineCollection(segments, cmap=curve_cmap, norm=plt.Normalize(0, 1), zorder=5)
     lc.set_array(norm_vals_normalized)
-    lc.set_linewidth(3)
+    lc.set_linewidth(3.5)
     ax.add_collection(lc)
 
     # ── Horizon line ──
-    ax.axhline(y=0, color='#b0bec5', linewidth=1.2, linestyle='--', alpha=0.6, zorder=4)
+    ax.axhline(y=0, color='#546e7a', linewidth=1.2, linestyle='--', alpha=0.5, zorder=4)
     ax.text(23.8, 0.8, 'HORIZONTE', fontsize=7, color='#78909c',
             ha='right', va='bottom', fontfamily='sans-serif', fontweight='bold',
-            alpha=0.6, zorder=6)
+            alpha=0.7, zorder=6)
 
     # ── Twilight labels (right side) ──
     tw_labels = [
-        (-15, 'Tw. Astronómico', '#5c6bc0'),
-        (-9, 'Tw. Náutico', '#7986cb'),
-        (-3, 'Tw. Civil', '#9fa8da'),
+        (-15, 'Tw. Astronomico', '#3949ab'),
+        (-9, 'Tw. Nautico', '#3f51b5'),
+        (-3, 'Tw. Civil', '#5c6bc0'),
     ]
     for y_pos, label, color in tw_labels:
         if y_pos > elevaciones_array.min():
             ax.text(23.8, y_pos, label, fontsize=6.5, color=color,
                     ha='right', va='center', fontfamily='sans-serif',
-                    alpha=0.7, fontstyle='italic', zorder=6)
+                    alpha=0.8, fontstyle='italic', zorder=6)
 
     # ── Sun marker at zenith ──
     zenith_h = max_elevation_index / 60
     # Outer glow
-    for r, a in [(28, 0.05), (22, 0.08), (16, 0.12)]:
-        ax.plot(zenith_h, max_elev_val, 'o', color='#ffab00', markersize=r, alpha=a, zorder=6)
+    for r, a in [(28, 0.06), (22, 0.1), (16, 0.15)]:
+        ax.plot(zenith_h, max_elev_val, 'o', color='#ff8f00', markersize=r, alpha=a, zorder=6)
     # Sun disc
-    ax.plot(zenith_h, max_elev_val, 'o', color='#ffd740', markersize=14,
-            markeredgecolor='#ff6f00', markeredgewidth=2, zorder=7)
-    ax.plot(zenith_h, max_elev_val, 'o', color='#fff9c4', markersize=6, zorder=8)
+    ax.plot(zenith_h, max_elev_val, 'o', color='#ffb300', markersize=14,
+            markeredgecolor='#e65100', markeredgewidth=2, zorder=7)
+    ax.plot(zenith_h, max_elev_val, 'o', color='#ffe082', markersize=6, zorder=8)
     # Zenith label
     ax.annotate(f'CENIT  {max_elevation_time}\n{max_elev_val:.1f}°',
                 xy=(zenith_h, max_elev_val), xytext=(0, 22),
                 textcoords='offset points', ha='center', va='bottom',
-                fontsize=9, fontweight='bold', color='#ffd740',
+                fontsize=9, fontweight='bold', color='#bf360c',
                 fontfamily='sans-serif', zorder=8,
-                path_effects=[pe.withStroke(linewidth=3, foreground='#111')])
+                path_effects=[pe.withStroke(linewidth=3, foreground='#f5f5f0')])
 
     # ── Sunrise marker ──
-    ax.plot(sunrise_h, 0, 'D', color='#ffab40', markersize=9,
+    ax.plot(sunrise_h, 0, 'D', color='#ff8f00', markersize=9,
             markeredgecolor='#e65100', markeredgewidth=1.5, zorder=7)
     ax.annotate(f'Amanecer\n{sunrise_time}',
                 xy=(sunrise_h, 0), xytext=(-15, -28),
                 textcoords='offset points', ha='center', va='top',
-                fontsize=9, fontweight='bold', color='#ffcc80',
+                fontsize=9, fontweight='bold', color='#bf360c',
                 fontfamily='sans-serif', zorder=8,
-                path_effects=[pe.withStroke(linewidth=3, foreground='#111')])
+                path_effects=[pe.withStroke(linewidth=3, foreground='#f5f5f0')])
 
     # ── Sunset marker ──
-    ax.plot(sunset_h, 0, 'D', color='#ff7043', markersize=9,
+    ax.plot(sunset_h, 0, 'D', color='#d84315', markersize=9,
             markeredgecolor='#bf360c', markeredgewidth=1.5, zorder=7)
     ax.annotate(f'Ocaso\n{sunset_time}',
                 xy=(sunset_h, 0), xytext=(15, -28),
                 textcoords='offset points', ha='center', va='top',
-                fontsize=9, fontweight='bold', color='#ffab91',
+                fontsize=9, fontweight='bold', color='#bf360c',
                 fontfamily='sans-serif', zorder=8,
-                path_effects=[pe.withStroke(linewidth=3, foreground='#111')])
+                path_effects=[pe.withStroke(linewidth=3, foreground='#f5f5f0')])
 
     # ── Current position marker ──
     # Dashed vertical line from horizon to current position
     ax.plot([current_h, current_h], [0, current_elev], '--',
-            color='#e0e0e0', linewidth=1, alpha=0.5, zorder=5)
-    # Pulsing glow
-    for r, a in [(18, 0.06), (13, 0.1)]:
-        ax.plot(current_h, current_elev, 'o', color='white', markersize=r, alpha=a, zorder=6)
-    ax.plot(current_h, current_elev, 'o', color='white', markersize=8,
-            markeredgecolor='#424242', markeredgewidth=1.5, zorder=7)
+            color='#455a64', linewidth=1, alpha=0.5, zorder=5)
+    # Glow
+    for r, a in [(18, 0.06), (13, 0.12)]:
+        ax.plot(current_h, current_elev, 'o', color='#37474f', markersize=r, alpha=a, zorder=6)
+    ax.plot(current_h, current_elev, 'o', color='#263238', markersize=8,
+            markeredgecolor='white', markeredgewidth=1.5, zorder=7)
     ax.annotate(f'AHORA\n{today.strftime("%H:%M")}',
                 xy=(current_h, current_elev), xytext=(0, 16),
                 textcoords='offset points', ha='center', va='bottom',
-                fontsize=8, fontweight='bold', color='white',
+                fontsize=8, fontweight='bold', color='#263238',
                 fontfamily='sans-serif', zorder=8,
-                path_effects=[pe.withStroke(linewidth=3, foreground='#111')])
+                path_effects=[pe.withStroke(linewidth=3, foreground='#f5f5f0')])
 
     # ── Axes styling ──
     ax.set_xlim(0, 24)
     ax.set_ylim(elevaciones_array.min() - 5, max_elev_val + 15)
     ax.set_xticks(range(0, 25, 2))
     ax.set_xticklabels([f'{h:02d}:00' for h in range(0, 25, 2)],
-                       fontsize=8, color='#b0bec5', fontfamily='sans-serif')
+                       fontsize=8, color='#455a64', fontfamily='sans-serif')
     ax.set_yticks(range(int(elevaciones_array.min() // 10) * 10, int(max_elev_val) + 10, 10))
     ax.set_yticklabels([f'{v}°' for v in range(int(elevaciones_array.min() // 10) * 10, int(max_elev_val) + 10, 10)],
-                       fontsize=8, color='#b0bec5', fontfamily='sans-serif')
+                       fontsize=8, color='#455a64', fontfamily='sans-serif')
 
-    ax.tick_params(axis='both', colors='#546e7a', length=4, width=0.8)
-    ax.grid(True, alpha=0.08, color='#b0bec5', linewidth=0.5)
+    ax.tick_params(axis='both', colors='#78909c', length=4, width=0.8)
+    ax.grid(True, alpha=0.15, color='#90a4ae', linewidth=0.5)
 
     # Spines
     for spine in ax.spines.values():
-        spine.set_color('#1a237e')
+        spine.set_color('#cfd8dc')
         spine.set_linewidth(0.8)
 
     # ── Title ──
     ax.set_title(
-        f'Perfil de Elevación Solar  ·  {today.strftime("%A %d de %B, %Y")}',
-        fontsize=15, fontweight='bold', color='#e0e0e0',
+        f'Perfil de Elevacion Solar  |  {today.strftime("%A %d de %B, %Y")}',
+        fontsize=15, fontweight='bold', color='#263238',
         fontfamily='sans-serif', pad=20
     )
     ax.text(0.5, 1.02,
             f'Duracion del dia: {day_length_hours}h {day_length_minutes}m  |  {daylight_change}  |  {sunrise_time} -- {sunset_time}',
             transform=ax.transAxes, ha='center', va='bottom',
-            fontsize=9, color='#90a4ae', fontfamily='sans-serif')
+            fontsize=9, color='#607d8b', fontfamily='sans-serif')
 
     ax.set_xlabel('')
     ax.set_ylabel('')
