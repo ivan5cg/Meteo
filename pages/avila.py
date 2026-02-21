@@ -1302,19 +1302,20 @@ def plot_long_rain_forecast():
         date_idx = date_list.index(day_date)
         day_str = dates_str[date_idx]
         
-        # Etiqueta para agrupar por horas: ej "00:00 - 06:00"
+        # Etiqueta por franja horaria
         hour_label = f"{col.hour:02d}:00"
+        slot_label = f"{day_str}\n{hour_label}"
         
         fig.add_trace(go.Box(
             y=data_plotted[col].dropna(),
-            x=[f"{day_str}"] * len(data_plotted[col].dropna()),
+            x=[slot_label] * len(data_plotted[col].dropna()),
             name=hour_label,
             marker_color='#4facfe',
             line_color='#4facfe',
             fillcolor='rgba(77, 171, 247, 0.85)',
             boxpoints='outliers',
             showlegend=False,
-            width=0.35,
+            width=0.6,
             line_width=2
         ))
 
@@ -1363,17 +1364,18 @@ def plot_long_wind_forecast():
         day_str = dates_str[date_idx]
         
         hour_label = f"{col.hour:02d}:00"
+        slot_label = f"{day_str}\n{hour_label}"
         
         fig.add_trace(go.Box(
             y=data_plotted[col].dropna(),
-            x=[f"{day_str}"] * len(data_plotted[col].dropna()),
+            x=[slot_label] * len(data_plotted[col].dropna()),
             name=hour_label,
             marker_color='gold',
             line_color='gold',
             fillcolor='rgba(255, 215, 0, 0.85)',
             boxpoints='outliers',
             showlegend=False,
-            width=0.35,
+            width=0.6,
             line_width=2
         ))
 
