@@ -8,5 +8,4 @@ openpyxl
 pytz
 astral
 python-telegram-bot
-google-genai
 plotly

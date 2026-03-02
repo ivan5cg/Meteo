@@ -8,7 +8,7 @@ from datetime import datetime,timedelta
 from scipy.stats import percentileofscore
 import requests
 import telegram
-import google.generativeai as genai
+
 
 
 def get_arome_data(url):
@@ -1062,7 +1062,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 #
 st.pyplot(plot_sun_elevation(43.34784961489017, -4.048470509356984, 'Europe/Madrid'))
 
-model = genai.GenerativeModel(('gemini-2.5-flash'))
+
 import json
 
 def process_multi_model_dataframe(df):
@@ -1140,7 +1140,3 @@ Please provide your analysis in clear, concise language suitable for both meteor
     return combined_input
 
 
-prompt = generate_llm_input(weather_json)
-response = model.generate_content(prompt)
-
-st.write(response.text)

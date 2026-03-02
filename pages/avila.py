@@ -9,7 +9,7 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 from scipy.stats import percentileofscore
 import telegram
-#import google.generativeai as genai
+
 
 
 def get_arome_data(url):
@@ -69,8 +69,7 @@ def get_last_arome_run():
     return valid_run
 
 
-#GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
-#client = genai.Client(api_key=GOOGLE_KEY)
+
 
 valid_run = get_last_arome_run()
 
@@ -1532,7 +1531,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 
 st.pyplot(plot_sun_elevation(40.65744607301477, -4.696006449529498, 'Europe/Madrid'), use_container_width=True)
 
-#model = genai.GenerativeModel(('gemini-3-flash-preview'))
+
 import json
 
 def process_multi_model_dataframe(df):
@@ -1610,10 +1609,3 @@ Please provide your analysis in clear, concise language suitable for both meteor
     return combined_input
 
 
-#prompt = generate_llm_input(weather_json)
-#response = client.models.generate_content(
-#    model="gemini-3-flash-preview",
-#    contents=prompt
-#)
-
-#st.write(response.text)

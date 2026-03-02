@@ -46,16 +46,16 @@ st.markdown(
 
 import requests
 import telegram
-from google import genai
+
 
 
 
 #TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 #TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
-#GOOGLE_KEY = st.secrets["GOOGLE_KEY"]
 
 
-#client = genai.Client(api_key=GOOGLE_KEY)
+
+
 
 #bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
 
@@ -2325,7 +2325,7 @@ def generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mu
 
 #commentary = generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data)
 
-#model = genai.GenerativeModel(('gemini-3-flash-preview'))
+
 
 
 def process_multi_model_dataframe(df):
@@ -2403,13 +2403,5 @@ Please provide your analysis in clear, concise language suitable for both meteor
     return combined_input
 
 
-#prompt = generate_llm_input(weather_json)
-#response = client.models.generate_content(
-#    model="gemini-3-flash-preview",
-#    contents=prompt
-#)
 
-#st.write(response.text)
-
-#send_telegram_message_sync(string_update + response.text)
 
