@@ -8,6 +8,8 @@ from datetime import datetime,timedelta
 from scipy.stats import percentileofscore
 import asyncio
 import json
+import plotly.express as px
+import plotly.graph_objects as go
 
 #st.set_option('deprecation.showPyplotGlobalUse', False)
 
@@ -715,8 +717,90 @@ if alerts_html:
 
 st.divider()
 
+# --- GRÁFICO HISTÓRICO DE BOLITAS ---
+st.subheader("Temperaturas Históricas vs. Previsión")
+st.markdown("Distribución de las temperaturas registradas un día como hoy desde 1950. Los puntos destacados indican la previsión para hoy y mañana.")
 
+# Preparar datos históricos para el gráfico
+df_min_hist = pd.DataFrame({
+    'Tipo': 'Mínima',
+    'Temperatura': datos_df_global[datos_df_global["día_del_año"] == día_año_hoy]["tmin"].dropna(),
+    'Año': datos_df_global[datos_df_global["día_del_año"] == día_año_hoy]["tmin"].dropna().index.year.astype(str),
+})
 
+df_max_hist = pd.DataFrame({
+    'Tipo': 'Máxima',
+    'Temperatura': datos_df_global[datos_df_global["día_del_año"] == día_año_hoy]["tmax"].dropna(),
+    'Año': datos_df_global[datos_df_global["día_del_año"] == día_año_hoy]["tmax"].dropna().index.year.astype(str),
+})
+
+# Concatenamos y dibujamos un strip plot
+df_hist_plot = pd.concat([df_min_hist, df_max_hist])
+
+fig_hist = px.strip(
+    df_hist_plot, 
+    x="Tipo", 
+    y="Temperatura", 
+    color="Tipo",
+    hover_data=["Año"],
+    stripmode="overlay",
+    color_discrete_sequence=['#42a5f5', '#ff6b6b'] 
+    # Colores: azul frío y rojo cálido
+)
+
+# Ajustar las "bolitas" históricas
+fig_hist.update_traces(
+    jitter=0.8,
+    opacity=0.35, # algo translúcidas
+    marker=dict(size=8, line=dict(width=0.5, color='white'))
+)
+
+# Añadir los valores de Hoy
+fig_hist.add_trace(go.Scatter(
+    x=['Mínima', 'Máxima'],
+    y=[valor_min, valor_max],
+    mode='markers+text',
+    name='H: Prev. Hoy',
+    marker=dict(size=18, color=['#00e676', '#00e676'], line=dict(width=2, color='white'), symbol='circle'),
+    text=[f"Hoy: {valor_min}º", f"Hoy: {valor_max}º"],
+    textposition='middle left',
+    textfont=dict(color='white', size=13),
+    hoverinfo='skip'
+))
+
+# Añadir los valores de Mañana
+fig_hist.add_trace(go.Scatter(
+    x=['Mínima', 'Máxima'],
+    y=[valor_min_mañana, valor_max_mañana],
+    mode='markers+text',
+    name='M: Prev. Mañana',
+    marker=dict(size=18, color=['#ffeb3b', '#ffeb3b'], line=dict(width=2, color='white'), symbol='diamond'),
+    text=[f"Mañana: {valor_min_mañana}º", f"Mañana: {valor_max_mañana}º"],
+    textposition='middle right',
+    textfont=dict(color='white', size=13),
+    hoverinfo='skip'
+))
+
+fig_hist.update_layout(
+    template='plotly_dark',
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)',
+    margin=dict(l=20, r=20, t=40, b=20),
+    xaxis_title='',
+    yaxis_title='Temperatura (°C)',
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1
+    ),
+    hovermode='closest'
+)
+
+st.plotly_chart(fig_hist, use_container_width=True)
+
+st.divider()
 
 def plot_temp_data(data):
         
