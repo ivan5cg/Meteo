@@ -223,8 +223,6 @@ temp_medias = datos_df_global[["día_del_año","tmed","tmax","tmin"]]
 temp_medias = temp_medias.dropna(how="any")
 
 
-# Hardcoded usual temps for Santander
-temp_medias_rolling = None
 
 
 #####################################################
@@ -655,12 +653,6 @@ def plot_temp_data(data):
             ax.text(max_idx[i], temp, max_temp, ha='left', va='bottom', color='red',fontweight="bold")
 
 
-        max_usual_temp_upper = 24.0
-        max_usual_temp_lower = 20.0
-        min_usual_temp_upper = 18.0
-        min_usual_temp_lower = 14.0
-
-        ax.fill_between(data.index,min_usual_temp_upper,min_usual_temp_lower, alpha=0.2, color='blue')
 
 
 
@@ -691,7 +683,6 @@ st.pyplot(fig=fig)
 
 def build_temperature_html(
     data: pd.DataFrame,
-    climatology: dict,
     output_file: str = "temperature_responsive.html" # Nombre por defecto
 ):
     """
@@ -750,7 +741,6 @@ def build_temperature_html(
         "ctrl": df["Ctrl"].tolist(),
         "actual": actual_data,
         "daily_extremes": daily_extremes,
-        "climatology": climatology,
     }
 
     # 4. Plantilla HTML/JS
@@ -855,14 +845,10 @@ def build_temperature_html(
         // --- ESCALAS ---
         const x = d3.scaleTime().domain(d3.extent(time)).range([0, innerWidth]);
 
-        // Aseguramos que las bandas de climatología entren en el dominio Y
+        // Aseguramos que los datos entren en el dominio Y
         const allValues = [
             ...data.ctrl,
-            ...data.ensemble.flat(),
-            data.climatology.tmax.upper,
-            data.climatology.tmax.lower,
-            data.climatology.tmin.upper,
-            data.climatology.tmin.lower
+            ...data.ensemble.flat()
         ];
         if (data.actual) {{
             data.actual.forEach(d => {{ if(d !== null) allValues.push(d); }});
@@ -874,24 +860,7 @@ def build_temperature_html(
 
         // --- DIBUJO ---
 
-        // 1. Climatología (Áreas Rectangulares)
-        // Maximas (Rojo)
-        g.append("rect")
-            .attr("x", 0)
-            .attr("width", innerWidth)
-            .attr("y", y(data.climatology.tmax.upper))
-            .attr("height", Math.abs(y(data.climatology.tmax.lower) - y(data.climatology.tmax.upper)))
-            .attr("fill", "#ef5350")
-            .attr("opacity", 0.25); // Opacidad aumentada
 
-        // Minimas (Azul)
-        g.append("rect")
-            .attr("x", 0)
-            .attr("width", innerWidth)
-            .attr("y", y(data.climatology.tmin.upper))
-            .attr("height", Math.abs(y(data.climatology.tmin.lower) - y(data.climatology.tmin.upper)))
-            .attr("fill", "#42a5f5")
-            .attr("opacity", 0.25); // Opacidad aumentada
 
         const line = d3.line()
             .defined(d => d !== null)
@@ -1055,22 +1024,9 @@ def build_temperature_html(
     
     return html_content
 
-# use the day-of-year from the data (first timestamp); fallback to today
-max_usual_temp_upper = 24.0
-max_usual_temp_lower = 20.0
-min_usual_temp_upper = 18.0
-min_usual_temp_lower = 14.0
-
-
-
-
-
 st.components.v1.html(build_temperature_html(
     data=temp_data,
-    climatology={
-        "tmax": {"upper": max_usual_temp_upper, "lower": max_usual_temp_lower},
-        "tmin": {"upper": min_usual_temp_upper, "lower": min_usual_temp_lower},
-   },output_file=None
+    output_file=None
 ),height=600,width=900)
 
 
@@ -1562,12 +1518,6 @@ def plot_long_forecast():
                 whiskerprops=whiskerprops,flierprops=flierprops,medianprops=medianprops);
 
 
-    max_usual_temp_upper = 24.0
-    max_usual_temp_lower = 20.0
-    min_usual_temp_upper = 18.0
-    min_usual_temp_lower = 14.0
-
-    ax.fill_between(data.index,min_usual_temp_upper,min_usual_temp_lower, alpha=0.2, color='blue')
 
 
     ax.set_xlim(0,8)
