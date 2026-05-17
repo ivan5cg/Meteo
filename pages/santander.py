@@ -673,6 +673,17 @@ def plot_temp_data(data):
         ax.set_xticks(ticks);
         ax.set_xticklabels(tick_labels, fontsize=10, rotation=0, ha='center');
 
+        import matplotlib.colors as mcolors
+        import colorsys
+        xmin, xmax = ax.get_xlim()
+        ymin, ymax = ax.get_ylim()
+        y_array = np.linspace(ymax, ymin, 256)
+        norm = np.clip((y_array + 10) / 55.0, 0, 1)
+        h = 240 * (1 - norm) / 360.0
+        r, g, b = np.vectorize(colorsys.hls_to_rgb)(h, 0.60, 0.85)
+        gradient = np.dstack((r, g, b, np.full_like(r, 0.25))).reshape(256, 1, 4)
+        ax.imshow(gradient, aspect='auto', extent=[xmin, xmax, ymin, ymax], zorder=-10)
+
         return fig
 
 
@@ -859,6 +870,36 @@ def build_temperature_html(
             .range([innerHeight, 0]);
 
         // --- DIBUJO ---
+        
+        const defs = svg.append("defs");
+        const gradient = defs.append("linearGradient")
+            .attr("id", "temp-gradient")
+            .attr("x1", "0%").attr("y1", "0%")
+            .attr("x2", "0%").attr("y2", "100%");
+            
+        function getTempColor(t, alpha) {{
+            const norm = Math.max(0, Math.min(1, (t + 10) / 55));
+            const h = 240 * (1 - norm);
+            return `hsla(${{h}}, 85%, 60%, ${{alpha}})`;
+        }}
+        
+        const yMin = y.domain()[0];
+        const yMax = y.domain()[1];
+        const steps = 20;
+        for (let i = 0; i <= steps; i++) {{
+            const t = yMax - (yMax - yMin) * (i / steps);
+            const offset = (i / steps) * 100;
+            gradient.append("stop")
+                .attr("offset", offset + "%")
+                .attr("stop-color", getTempColor(t, 0.15));
+        }}
+
+        g.append("rect")
+            .attr("x", 0)
+            .attr("y", 0)
+            .attr("width", innerWidth)
+            .attr("height", innerHeight)
+            .attr("fill", "url(#temp-gradient)");
 
 
 
@@ -1533,6 +1574,17 @@ def plot_long_forecast():
     ax.set_xticklabels(labels=pd.to_datetime(data_temp_min.index).strftime('%A %d'), rotation=0, ha='left', fontsize=9)
 
     ax.grid();
+
+    import matplotlib.colors as mcolors
+    import colorsys
+    xmin, xmax = ax.get_xlim()
+    ymin, ymax = ax.get_ylim()
+    y_array = np.linspace(ymax, ymin, 256)
+    norm = np.clip((y_array + 10) / 55.0, 0, 1)
+    h = 240 * (1 - norm) / 360.0
+    r, g, b = np.vectorize(colorsys.hls_to_rgb)(h, 0.60, 0.85)
+    gradient = np.dstack((r, g, b, np.full_like(r, 0.25))).reshape(256, 1, 4)
+    ax.imshow(gradient, aspect='auto', extent=[xmin, xmax, ymin, ymax], zorder=-10)
 
     return fig
 
