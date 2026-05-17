@@ -76,7 +76,7 @@ import telegram
 
 def get_arome_data(url):
 
-#url = 'https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.42&lon=-3.82&run=9&mode=8&sort=0'  # Replace this with the URL containing the table
+#url = 'https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.4911&lon=-3.8006&run=9&mode=8&sort=0'  # Replace this with the URL containing the table
 
     url = url
 
@@ -114,7 +114,7 @@ def get_arome_data(url):
 def get_last_arome_run():
 
     runs = [3, 9, 15, 21]
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.35&lon=-4.047&mode=8&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.4911&lon=-3.8006&mode=8&sort=0'
 
     first_index = pd.Timestamp(year=2017, month=1, day=1,tz="UTC")
 
@@ -151,7 +151,7 @@ aemet_horario.index = aemet_horario.index.tz_localize('Europe/Madrid')
 
 def get_temp_data(valid_run):
 
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.42&lon=-3.82&mode=8&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.4911&lon=-3.8006&mode=8&sort=0'
     url_run = f'{url}&run={valid_run}'
 
     temp_data = get_arome_data(url_run)
@@ -160,7 +160,7 @@ def get_temp_data(valid_run):
 
 def get_wind_gust_data(valid_run):
 
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.42&lon=-3.82&mode=13&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.4911&lon=-3.8006&mode=13&sort=0'
     url_run = f'{url}&run={valid_run}'
 
     wind_gust_data = get_arome_data(url_run)
@@ -169,7 +169,7 @@ def get_wind_gust_data(valid_run):
 
 def get_pressure_data(valid_run):
 
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.42&lon=-3.82&mode=1&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.4911&lon=-3.8006&mode=1&sort=0'
     url_run = f'{url}&run={valid_run}'
 
     pressure_data = get_arome_data(url_run)
@@ -178,7 +178,7 @@ def get_pressure_data(valid_run):
 
 def get_mucape_data(valid_run):
 
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.42&lon=-3.82&mode=0&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.4911&lon=-3.8006&mode=0&sort=0'
     url_run = f'{url}&run={valid_run}'
 
     mucape_data = get_arome_data(url_run)
@@ -187,7 +187,7 @@ def get_mucape_data(valid_run):
 
 def get_prec_data(valid_run):
 
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.42&lon=-3.82&mode=10&sort=0'
+    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.4911&lon=-3.8006&mode=10&sort=0'
     url_run = f'{url}&run={valid_run}'
 
     prec_data = get_arome_data(url_run)
@@ -1384,7 +1384,7 @@ st.divider()
 
 @st.cache_data(ttl=60*60)
 def get_forecast_data():
-     data = pd.read_json("https://api.open-meteo.com/v1/forecast?latitude=43.42&longitude=-3.82&hourly=temperature_2m,precipitation,pressure_msl,cloudcover,windspeed_10m,windgusts_10m,cape&current_weather=true&timezone=Europe%2FBerlin&past_days=1&models=ecmwf_ifs04,gfs_global,icon_eu,meteofrance_arpege_europe,meteofrance_arome_france_hd")
+     data = pd.read_json("https://api.open-meteo.com/v1/forecast?latitude=43.4911&longitude=-3.8006&hourly=temperature_2m,precipitation,pressure_msl,cloudcover,windspeed_10m,windgusts_10m,cape&current_weather=true&timezone=Europe%2FBerlin&past_days=1&models=ecmwf_ifs04,gfs_global,icon_eu,meteofrance_arpege_europe,meteofrance_arome_france_hd")
      return data
 
 data = get_forecast_data()
@@ -1751,7 +1751,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
     return fig
 
 #
-fig = plot_sun_elevation(43.42, -3.82, 'Europe/Madrid')
+fig = plot_sun_elevation(43.4911, -3.8006, 'Europe/Madrid')
 
 st.pyplot(fig=fig)
 
@@ -1760,7 +1760,7 @@ st.divider()
 
 def get_gfs_data(url):
 
-#url = 'https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=43.42&lon=-3.82&run=12&ext=1&mode=7&sort=2'  # Replace this with the URL containing the table
+#url = 'https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=43.4911&lon=-3.8006&run=12&ext=1&mode=7&sort=2'  # Replace this with the URL containing the table
 
     url = url
 
@@ -1797,7 +1797,7 @@ def get_gfs_data(url):
 def get_last_gfs_run():
 
     runs = [0, 6, 12, 18]  # GFS runs at 00, 06, 12, and 18 UTC
-    url ='https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=43.42&lon=-3.82&ext=1&mode=7&sort=2'
+    url ='https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=43.4911&lon=-3.8006&ext=1&mode=7&sort=2'
 
     first_index = pd.Timestamp(year=2017, month=1, day=1,tz="UTC")
 
@@ -1821,7 +1821,7 @@ def get_temp_data_gfs(valid_run_gfs):
 
 
 
-    url ='https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=43.42&lon=-3.82&ext=1&mode=7&sort=0'
+    url ='https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=43.4911&lon=-3.8006&ext=1&mode=7&sort=0'
     url_run = f'{url}&run={valid_run_gfs}'
 
     temp_data = get_gfs_data(url_run)
