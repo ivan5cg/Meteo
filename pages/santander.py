@@ -138,7 +138,7 @@ valid_run = get_last_arome_run()
 
 ###############
 
-aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_1109_datos-horarios.csv?k=can&l=1109&datos=det&w=0&f=temperatura&x=h24" ,
+aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_1111X_datos-horarios.csv?k=can&l=1111X&datos=det&w=0&f=temperatura&x=h24" ,
                             encoding="latin-1",skiprows=2,parse_dates=True,index_col=0,dayfirst=True)
 aemet_horario.index = aemet_horario.index.tz_localize('Europe/Madrid')
 
@@ -450,10 +450,10 @@ valor_max = temp_data[temp_data.index.day_of_year==día_año_hoy].mean(axis=1).m
 valor_min = temp_data[temp_data.index.day_of_year==día_año_hoy].mean(axis=1).min().round(1)
 valor_max_mañana = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).max().round(1)
 valor_min_mañana = temp_data[temp_data.index.day_of_year==día_año_mañana].mean(axis=1).min().round(1)
-percentil_min_hoy = 50.0
-percentil_max_hoy = 50.0
-percentil_max_mañana = 50.0
-percentil_min_mañana = 50.0
+percentil_min_hoy = np.float64(50.0)
+percentil_max_hoy = np.float64(50.0)
+percentil_max_mañana = np.float64(50.0)
+percentil_min_mañana = np.float64(50.0)
 texto_percentil = ""
 
 
