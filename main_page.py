@@ -10,6 +10,7 @@ import asyncio
 import json
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 #st.set_option('deprecation.showPyplotGlobalUse', False)
 
