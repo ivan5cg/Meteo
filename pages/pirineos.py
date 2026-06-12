@@ -15,7 +15,7 @@ from astral.sun import sun, elevation
 CITIES = {
     "Sallent de Gállego": {"lat": 42.77147619941324, "lon": -0.3307980233574127},
     "Tramacastilla de Tena": {"lat": 42.71396690891642, "lon": -0.3163249093993428},
-    "Torla-Ordesa": {"lat": 42.63930097107062, "lon": 0.002418347583015096},
+    "Torla-Ordesa": {"lat": 42.640, "lon": 0.000},
 }
 
 TIMEZONE = "Europe/Madrid"
