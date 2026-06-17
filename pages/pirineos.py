@@ -550,8 +550,8 @@ def render_city_forecast(city_name, lat, lon, valid_run):
 
     valor_max = temp_data[temp_data.index.day_of_year == día_año_hoy].mean(axis=1).max().round(1)
     valor_min = temp_data[temp_data.index.day_of_year == día_año_hoy].mean(axis=1).min().round(1)
-    valor_max_mañana = temp_data[temp_data.index.day_of_year == día_año_mañana].mean(axis=1).max().round(1)
-    valor_min_mañana = temp_data[temp_data.index.day_of_year == día_año_mañana].mean(axis=1).min().round(1)
+    valor_max_manana = temp_data[temp_data.index.day_of_year == día_año_mañana].mean(axis=1).max().round(1)
+    valor_min_manana = temp_data[temp_data.index.day_of_year == día_año_mañana].mean(axis=1).min().round(1)
 
     # ── Mapeo de color para las tarjetas de temperatura ──
     def get_temp_hue(t):
@@ -560,8 +560,8 @@ def render_city_forecast(city_name, lat, lon, valid_run):
 
     hue_min_hoy = get_temp_hue(valor_min)
     hue_max_hoy = get_temp_hue(valor_max)
-    hue_min_manana = get_temp_hue(valor_min_mañana)
-    hue_max_manana = get_temp_hue(valor_max_mañana)
+    hue_min_manana = get_temp_hue(valor_min_manana)
+    hue_max_manana = get_temp_hue(valor_max_manana)
     
     fiab_val = fiabilidad.round(1)
 
@@ -590,7 +590,7 @@ def render_city_forecast(city_name, lat, lon, valid_run):
             </div>
             <div class="metric-card temp-card" style="--card-hue: {hue_max_manana};">
                 <div class="metric-label">Máxima Mañana</div>
-                <div class="metric-value">{valor_max_mañana}º</div>
+                <div class="metric-value">{valor_max_manana}º</div>
             </div>
         </div>
         """
@@ -614,7 +614,7 @@ def render_city_forecast(city_name, lat, lon, valid_run):
             </div>
             <div class="metric-card temp-card" style="--card-hue: {hue_max_manana};">
                 <div class="metric-label">Máxima Mañana</div>
-                <div class="metric-value">{valor_max_mañana}º</div>
+                <div class="metric-value">{valor_max_manana}º</div>
             </div>
         </div>
         """
