@@ -98,7 +98,7 @@ def plot_temp_data(data):
 
     # Iterate over the columns and plot each one
     for column in data.columns:
-        if column in ["Actual data", "Moy"]:
+        if column in ["Actual data", "Moy", "Ctrl"]:
             continue
         fig.add_trace(go.Scatter(
             x=data.index, y=data[column],
@@ -108,6 +108,16 @@ def plot_temp_data(data):
             name=str(column),
             showlegend=False,
             hoverinfo='skip'
+        ))
+
+    # Control deterministic prediction
+    if "Ctrl" in data.columns:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data["Ctrl"],
+            mode='lines',
+            line=dict(color='white', width=2.5),
+            name='Control',
+            hovertemplate='%{x|%a %d %H:%M}<br><b>Control: %{y:.1f}°C</b><extra></extra>'
         ))
 
     # Add Max/Min annotations per day
@@ -226,7 +236,7 @@ def plot_wind_data(data):
 
     # Iterate over the columns and plot each one
     for column in data.columns:
-        if column in ["Actual data", "Moy"]:
+        if column in ["Actual data", "Moy", "Ctrl"]:
             continue
         fig.add_trace(go.Scatter(
             x=data.index, y=data[column],
@@ -236,6 +246,16 @@ def plot_wind_data(data):
             name=str(column),
             showlegend=False,
             hoverinfo='skip'
+        ))
+
+    # Control deterministic prediction
+    if "Ctrl" in data.columns:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data["Ctrl"],
+            mode='lines',
+            line=dict(color='white', width=2.5),
+            name='Control',
+            hovertemplate='%{x|%a %d %H:%M}<br><b>Control: %{y:.0f} km/h</b><extra></extra>'
         ))
 
     # Add Max/Min annotations per day
@@ -303,7 +323,7 @@ def plot_pressure_data(data):
 
     # Iterate over the columns and plot each one
     for column in data.columns:
-        if column in ["Actual data", "Moy"]:
+        if column in ["Actual data", "Moy", "Ctrl"]:
             continue
         fig.add_trace(go.Scatter(
             x=data.index, y=data[column],
@@ -313,6 +333,16 @@ def plot_pressure_data(data):
             name=str(column),
             showlegend=False,
             hoverinfo='skip'
+        ))
+
+    # Control deterministic prediction
+    if "Ctrl" in data.columns:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data["Ctrl"],
+            mode='lines',
+            line=dict(color='white', width=2.5),
+            name='Control',
+            hovertemplate='%{x|%a %d %H:%M}<br><b>Control: %{y:.0f} hPa</b><extra></extra>'
         ))
 
     # Midnight lines
