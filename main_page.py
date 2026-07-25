@@ -19,27 +19,122 @@ from plotly.subplots import make_subplots
 st.markdown(
     """
     <style>
-    /* Fuerza fondo oscuro global */
-    .stApp {
-        background-color: #0e1117;
-        color: #fafafa;
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+    
+    /* Fondo intermedio cálido global (Sepia / Arena Lino) y tipografía */
+    html, body, [data-testid="stAppViewContainer"], .stApp {
+        font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        background-color: #e8e3da !important;
+        color: #2a241f !important;
     }
 
-    /* Sidebar */
+    /* Cabecera superior integrada con el fondo (elimina la barra negra) */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
+        background: transparent !important;
+    }
+    header[data-testid="stHeader"] * {
+        color: #2a241f !important;
+    }
+    [data-testid="stDecoration"] {
+        display: none !important;
+    }
+
+    /* Separadores (dividers) visibles y elegantes */
+    hr, [data-testid="stDivider"], .stDivider {
+        border: none !important;
+        height: 1.5px !important;
+        background: linear-gradient(90deg, transparent 0%, #b8b0a2 15%, #948b7d 50%, #b8b0a2 85%, transparent 100%) !important;
+        margin: 2rem 0 !important;
+        opacity: 1 !important;
+    }
+
+    /* Sidebar intermedio cálido */
     section[data-testid="stSidebar"] {
-        background-color: #161a23;
+        background-color: #ded8cd !important;
+        border-right: 1px solid #c8c0b2;
+    }
+    
+    /* Texto del Sidebar */
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3,
+    section[data-testid="stSidebar"] h4,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] div {
+        color: #2a241f;
     }
 
-    /* Widgets comunes */
-    input, textarea, select {
-        background-color: #262730 !important;
-        color: #fafafa !important;
+    /* Proteger iconos de Streamlit para que no aparezca el texto "keyboard_double_arrow_left" */
+    [data-testid="stSidebarCollapseButton"] *,
+    [data-testid="stSidebarExpandButton"] *,
+    [data-testid="stHeader"] button *,
+    button[kind="header"] *,
+    .material-symbols-outlined,
+    [data-testid="stIcon"] {
+        font-family: inherit !important;
     }
 
-    /* Dataframes */
-    .dataframe {
-        background-color: #0e1117;
-        color: #fafafa;
+    /* Controles e Inputs */
+    input, textarea, select, button {
+        background-color: #f7f4ee !important;
+        color: #2a241f !important;
+        border: 1px solid #c8c0b2 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+    }
+
+    /* Estilo minimalista para tablas HTML */
+    .records-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        margin-bottom: 15px;
+        font-size: 0.85rem;
+    }
+    .records-table th {
+        text-align: left;
+        padding: 8px;
+        color: #635b53;
+        font-weight: 600;
+        border-bottom: 1px solid #c8c0b2;
+    }
+    .records-table td {
+        padding: 8px;
+        border-bottom: 1px solid #dcd5c9;
+        color: #2a241f;
+    }
+    .records-table tr:hover {
+        background-color: rgba(217, 119, 6, 0.06);
+    }
+    .records-table td.temp-max {
+        color: #d93856 !important; /* Coral cálido */
+        font-weight: 600;
+    }
+    .records-table td.temp-min {
+        color: #0277bd !important; /* Teal/Azul cálido */
+        font-weight: 600;
+    }
+
+    /* Rejilla responsiva para cámaras */
+    .camera-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin-top: 15px;
+    }
+    .camera-card {
+        border-radius: 14px;
+        overflow: hidden;
+        background: #f7f4ee;
+        border: 1px solid #d6cfc4;
+        box-shadow: 0 4px 14px -2px rgba(60, 50, 40, 0.08);
+    }
+    .camera-card img {
+        width: 100%;
+        height: auto;
+        display: block;
     }
     </style>
     """,
@@ -302,9 +397,9 @@ delta_hoy = (temp_actual - temp_ayer).round(1)
 delta_manana = (temp_mañana - temp_actual).round(1)
 fiab_val = fiabilidad.round(1)
 
-# Lógica de Delta (Colores e Iconos)
-c_up = "#ff6b6b"
-c_down = "#51cf66"
+# Lógica de Delta (Colores e Iconos Cálidos)
+c_up = "#d93856"    # Coral cálido
+c_down = "#0277bd"  # Teal/Cielo cálido
 color_hoy = c_up if delta_hoy > 0 else c_down
 color_manana = c_up if delta_manana > 0 else c_down
 arrow_hoy = "▲" if delta_hoy > 0 else "▼"
@@ -325,83 +420,79 @@ hue_manana = get_temp_hue(temp_mañana)
 # --- RENDERIZADO HTML ---
 st.markdown(f"""
 <style>
-/* Importamos fuente minimalista Inter */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-
 .weather-grid {{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
     margin-bottom: 25px;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
 }}
 
 .metric-card {{
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 24px;
-    border-radius: 16px;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
+    background: #f7f4ee;
+    border: 1px solid #d6cfc4;
+    padding: 20px;
+    border-radius: 14px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
-    /* Variable por defecto si no se define inline */
-    --card-hue: 220; 
+    box-shadow: 0 4px 16px -2px rgba(60, 50, 40, 0.08);
+    --card-hue: 30; 
 }}
 
 /* Efecto Hover Dinámico */
 .metric-card.temp-card:hover {{
-    /* Usamos el Hue calculado en Python */
-    border-color: hsla(var(--card-hue), 85%, 60%, 0.8);
-    box-shadow: 0 0 25px -5px hsla(var(--card-hue), 80%, 50%, 0.4);
-    transform: translateY(-4px);
-    background: rgba(255, 255, 255, 0.06);
+    border-color: hsla(var(--card-hue), 85%, 45%, 0.5);
+    box-shadow: 0 8px 24px -4px hsla(var(--card-hue), 85%, 40%, 0.18);
+    transform: translateY(-3px);
+    background: #ffffff;
 }}
 
-/* Hover simple para tarjeta de fiabilidad (sin color temperatura) */
+/* Hover simple para tarjeta de fiabilidad */
 .metric-card.static-card:hover {{
-    border-color: rgba(255, 255, 255, 0.3);
-    transform: translateY(-4px);
-    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(217, 119, 6, 0.4);
+    box-shadow: 0 8px 24px -4px rgba(217, 119, 6, 0.15);
+    transform: translateY(-3px);
+    background: #ffffff;
 }}
 
 .metric-label {{
     font-size: 0.75rem;
-    letter-spacing: 1.2px;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.5);
-    margin-bottom: 10px;
+    color: #635b53;
+    margin-bottom: 8px;
     font-weight: 600;
 }}
 
 .metric-value {{
     font-size: 2.5rem;
-    font-weight: 700; /* Extra bold minimalista */
-    color: #ffffff;
+    font-weight: 700;
+    color: #2a241f;
     margin: 0;
     line-height: 1;
-    letter-spacing: -1px;
+    letter-spacing: -0.025em;
 }}
 
 .metric-delta {{
-    font-size: 0.95rem;
-    margin-top: 12px;
-    font-weight: 700; /* Petición: Delta en Bold */
+    font-size: 0.85rem;
+    margin-top: 10px;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 }}
 
 /* Barra de progreso */
 .progress-bg {{
-    background: rgba(255,255,255,0.08);
+    background: #ded8cd;
     height: 6px;
     border-radius: 3px;
     width: 100%;
-    margin-top: 20px;
+    margin-top: 18px;
     overflow: hidden;
 }}
 .progress-fill {{
-    background: linear-gradient(90deg, #a1c4fd 0%, #c2e9fb 100%);
+    background: linear-gradient(90deg, #d97706 0%, #d93856 100%);
     height: 100%;
     width: {fiab_val * 10}%;
     transition: width 1s ease-out;
@@ -410,28 +501,28 @@ st.markdown(f"""
 
 <div class="weather-grid">
 
-<!-- CARD 1: ACTUAL (Con variable de color dinámica) -->
+<!-- CARD 1: ACTUAL -->
 <div class="metric-card temp-card" style="--card-hue: {hue_actual};">
 <div class="metric-label">Actual</div>
 <div class="metric-value">{temp_actual}º</div>
 <div class="metric-delta" style="color: {color_hoy}">
-{arrow_hoy} {abs(delta_hoy)}º <span style="font-weight: 400; opacity: 0.6; font-size: 0.85em;">vs ayer</span>
+{arrow_hoy} {abs(delta_hoy)}º <span style="font-weight: 400; opacity: 0.6; font-size: 0.9em; margin-left: 2px;">vs ayer</span>
 </div>
 </div>
 
-<!-- CARD 2: MAÑANA (Con variable de color dinámica) -->
+<!-- CARD 2: MAÑANA -->
 <div class="metric-card temp-card" style="--card-hue: {hue_manana};">
 <div class="metric-label">Mañana</div>
 <div class="metric-value">{temp_mañana}º</div>
 <div class="metric-delta" style="color: {color_manana}">
-{arrow_manana} {abs(delta_manana)}º <span style="font-weight: 400; opacity: 0.6; font-size: 0.85em;">previsto</span>
+{arrow_manana} {abs(delta_manana)}º <span style="font-weight: 400; opacity: 0.6; font-size: 0.9em; margin-left: 2px;">previsto</span>
 </div>
 </div>
 
-<!-- CARD 3: FIABILIDAD (Estática) -->
+<!-- CARD 3: FIABILIDAD -->
 <div class="metric-card static-card">
 <div class="metric-label">Fiabilidad</div>
-<div class="metric-value">{fiab_val}<span style="font-size: 1.2rem; opacity: 0.4; font-weight: 400;">/10</span></div>
+<div class="metric-value">{fiab_val}<span style="font-size: 1.1rem; opacity: 0.4; font-weight: 400;"> / 10</span></div>
 <div class="progress-bg">
 <div class="progress-fill"></div>
 </div>
@@ -445,10 +536,32 @@ st.divider()
 
 ##########################################################
 
-st.sidebar.subheader("")
-st.sidebar.subheader("Records para un día como hoy:")
+st.sidebar.markdown("### Récords para hoy:")
 
-st.sidebar.dataframe(records_dia)
+records_html = f"""
+<table class="records-table">
+  <thead>
+    <tr>
+      <th>Categoría</th>
+      <th>T. Máx</th>
+      <th>T. Mín</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Récord Calor</td>
+      <td class="temp-max">{max_maxima}º <span style="font-size: 0.85em; opacity: 0.5;">({año_max_maxima})</span></td>
+      <td class="temp-min">{min_maxima}º <span style="font-size: 0.85em; opacity: 0.5;">({año_min_maxima})</span></td>
+    </tr>
+    <tr>
+      <td>Récord Frío</td>
+      <td class="temp-max">{max_minima}º <span style="font-size: 0.85em; opacity: 0.5;">({año_max_minima})</span></td>
+      <td class="temp-min">{min_minima}º <span style="font-size: 0.85em; opacity: 0.5;">({año_min_minima})</span></td>
+    </tr>
+  </tbody>
+</table>
+"""
+st.sidebar.markdown(records_html, unsafe_allow_html=True)
 
 
 
@@ -566,7 +679,7 @@ for card in cards_data:
 <div class="metric-label">{card['label']}</div>
 <div class="metric-value">{card['temp']}º</div>
 <div class="perc-row">
-<div class="perc-text">{perc_val}<span style="font-size:0.7em; font-weight:400; opacity:0.6; margin-left:2px">perc</span></div>
+<div class="perc-text">{perc_val}<span style="font-size:0.75em; font-weight:400; opacity:0.6; margin-left:2px">perc</span></div>
 <div class="perc-track">
 <div class="perc-fill" style="width: {perc_val}%; background-size: {bg_size_percent:.0f}% 100%;"></div>
 </div>
@@ -577,50 +690,49 @@ for card in cards_data:
 # --- RENDERIZADO FINAL ---
 st.markdown(f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-
-.weather-grid {{
+.weather-grid-perc {{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
     margin-bottom: 25px;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
 }}
 
-.metric-card {{
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+.weather-grid-perc .metric-card {{
+    background: #f7f4ee;
+    border: 1px solid #d6cfc4;
     padding: 20px;
-    border-radius: 16px;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
+    border-radius: 14px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
-    --card-hue: 220; 
+    box-shadow: 0 4px 16px -2px rgba(60, 50, 40, 0.08);
+    --card-hue: 30; 
     cursor: help;
 }}
 
-.metric-card.temp-card:hover {{
-    border-color: hsla(var(--card-hue), 85%, 60%, 0.8);
-    box-shadow: 0 0 20px -5px hsla(var(--card-hue), 80%, 50%, 0.3);
-    transform: translateY(-4px);
-    background: rgba(255, 255, 255, 0.06);
+.weather-grid-perc .metric-card.temp-card:hover {{
+    border-color: hsla(var(--card-hue), 85%, 45%, 0.5);
+    box-shadow: 0 8px 24px -4px hsla(var(--card-hue), 85%, 40%, 0.18);
+    transform: translateY(-3px);
+    background: #ffffff;
 }}
 
-.metric-label {{
-    font-size: 0.7rem;
-    letter-spacing: 1.2px;
+.weather-grid-perc .metric-label {{
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.5);
+    color: #635b53;
     margin-bottom: 8px;
     font-weight: 600;
 }}
 
-.metric-value {{
-    font-size: 2.2rem;
+.weather-grid-perc .metric-value {{
+    font-size: 2.25rem;
     font-weight: 700;
-    color: #ffffff;
+    color: #2a241f;
     margin: 0;
     line-height: 1;
+    letter-spacing: -0.025em;
 }}
 
 .perc-row {{
@@ -631,34 +743,33 @@ st.markdown(f"""
 }}
 
 .perc-text {{
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     font-weight: 700;
-    color: rgba(255,255,255,0.9);
+    color: #403831;
     white-space: nowrap;
-    width: 45px; /* Ancho fijo para alinear las barras verticalmente */
+    width: 45px;
 }}
 
 .perc-track {{
     flex-grow: 1;
-    height: 8px; /* Un poco más gruesa para que se aprecie mejor */
-    background: rgba(255,255,255,0.1);
+    height: 8px;
+    background: #ded8cd;
     border-radius: 4px;
     overflow: hidden;
 }}
 
 .perc-fill {{
     height: 100%;
-    /* Degradado fijo: Azul -> Cian -> Naranja -> Rojo */
-    background-image: linear-gradient(90deg, #4facfe 0%, #00f2fe 30%, #ff9f43 70%, #ff6b6b 100%);
+    /* Degradado cálido Turquesa - Ámbar - Coral */
+    background-image: linear-gradient(90deg, #0277bd 0%, #d97706 50%, #d93856 100%);
     background-repeat: no-repeat;
-    /* La posición es clave: anclada a la izquierda */
     background-position: left center;
     border-radius: 4px;
     transition: width 0.5s ease-out;
 }}
 </style>
 
-<div class="weather-grid">
+<div class="weather-grid-perc">
 {html_content}
 </div>
 """, unsafe_allow_html=True)
@@ -669,47 +780,86 @@ st.divider()
 
 
 # --- LÓGICA DE AVISOS Y GENERACIÓN HTML ---
+# Iconos SVG vectoriales para alertas (sin emoticonos)
+svg_warm = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="alert-svg"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>'
+svg_cold = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="alert-svg"><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/><path d="M20 12h-8M4 12h8M12 4v8M12 20v-8M16.39 8.39l-6.39 6.39M7.61 15.61l6.39-6.39M16.39 15.61L10 10M7.61 8.39L14 14"/></svg>'
+svg_rise = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="alert-svg"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>'
+svg_fall = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="alert-svg"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>'
+
 alerts_html = ""
 
-# Función corregida: HTML compactado sin espacios a la izquierda
-def create_alert(type_alert, icon, text):
+def create_alert(type_alert, svg_icon, text):
     c_class = "alert-warm" if type_alert == "warm" else "alert-cold"
-    # Todo en una línea o pegado al margen para evitar error de renderizado
-    return f'<div class="alert-item {c_class}"><span class="alert-icon">{icon}</span><span class="alert-text">{text}</span></div>'
+    return f'<div class="alert-item {c_class}"><span class="alert-icon-container">{svg_icon}</span><span class="alert-text">{text}</span></div>'
 
-# --- TUS CONDICIONALES (Sin tocar lógica) ---
+# --- CONDICIONALES ---
 
 # 1. Hoy
 if percentil_max_hoy > 80:     
-     alerts_html += create_alert("warm", "🔥", "Hoy hará mucho calor")
+     alerts_html += create_alert("warm", svg_warm, "Hoy hará mucho calor")
 elif percentil_max_hoy < 20:
-    alerts_html += create_alert("cold", "🥶", "Hoy hará mucho frío")
+     alerts_html += create_alert("cold", svg_cold, "Hoy hará mucho frío")
 
 # 2. Mañana
 if percentil_max_mañana > 80:     
-     alerts_html += create_alert("warm", "🔥", "Mañana hará mucho calor")
+     alerts_html += create_alert("warm", svg_warm, "Mañana hará mucho calor")
 elif percentil_max_mañana < 20:
-    alerts_html += create_alert("cold", "🥶", "Mañana hará mucho frío")
+     alerts_html += create_alert("cold", svg_cold, "Mañana hará mucho frío")
 
 # 3. Diferencia
 if (percentil_max_mañana - percentil_max_hoy) > 50:     
-     alerts_html += create_alert("warm", "📈", "Mañana subirán mucho las temperaturas")
-elif (percentil_max_hoy - percentil_max_mañana) > 50 :
-    alerts_html += create_alert("cold", "📉", "Mañana bajarán mucho las temperaturas")
-
+     alerts_html += create_alert("warm", svg_rise, "Mañana subirán mucho las temperaturas")
+elif (percentil_max_hoy - percentil_max_mañana) > 50:
+     alerts_html += create_alert("cold", svg_fall, "Mañana bajarán mucho las temperaturas")
 
 # --- RENDERIZADO ---
 if alerts_html:
-    # IMPORTANTE: Todo el bloque style y div pegado a la izquierda
     st.markdown(f"""
 <style>
-.alerts-container {{ display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 25px; font-family: 'Inter', sans-serif; }}
-.alert-item {{ display: flex; align-items: center; padding: 12px 16px; border-radius: 12px; border: 1px solid; backdrop-filter: blur(8px); transition: transform 0.2s ease; flex: 1 1 auto; min-width: 200px; max-width: fit-content; }}
-.alert-item:hover {{ transform: translateY(-2px); }}
-.alert-warm {{ background: rgba(255, 107, 107, 0.1); border-color: rgba(255, 107, 107, 0.3); color: #ffcccc; }}
-.alert-cold {{ background: rgba(77, 171, 247, 0.1); border-color: rgba(77, 171, 247, 0.3); color: #ccedff; }}
-.alert-icon {{ font-size: 1.2rem; margin-right: 10px; }}
-.alert-text {{ font-size: 0.9rem; font-weight: 500; letter-spacing: 0.3px; }}
+.alerts-container {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 25px;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}}
+.alert-item {{
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid;
+    transition: transform 0.2s ease;
+    flex: 1 1 auto;
+    min-width: 200px;
+    max-width: fit-content;
+}}
+.alert-item:hover {{
+    transform: translateY(-2px);
+}}
+.alert-warm {{
+    background: #fdf6e7;
+    border-color: #fce7c6;
+    color: #b45309;
+}}
+.alert-cold {{
+    background: #eefbfe;
+    border-color: #c5f3fa;
+    color: #0369a1;
+}}
+.alert-icon-container {{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    color: currentColor;
+    flex-shrink: 0;
+}}
+.alert-text {{
+    font-size: 0.9rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}}
 </style>
 <div class="alerts-container">
 {alerts_html}
@@ -719,30 +869,102 @@ if alerts_html:
 st.divider()
 
 
+def apply_custom_plotly_theme(fig, title_text, yaxis_title="", show_legend=True, hovermode="x unified"):
+    fig.update_layout(
+        title=dict(
+            text=title_text,
+            font=dict(color='#2a241f', size=16, family="Plus Jakarta Sans, Inter"),
+            x=0, y=0.98
+        ),
+        xaxis=dict(
+            title='',
+            showgrid=True,
+            gridcolor='rgba(60, 50, 40, 0.12)',
+            linecolor='rgba(60, 50, 40, 0.25)',
+            tickcolor='rgba(60, 50, 40, 0.25)',
+            color='#2a241f',
+            tickfont=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=11),
+            tickformat='%a %d\n%H:%M'
+        ),
+        yaxis=dict(
+            title=dict(text=yaxis_title, font=dict(family="Plus Jakarta Sans, Inter", size=12, color='#2a241f')),
+            showgrid=True,
+            gridcolor='rgba(60, 50, 40, 0.12)',
+            linecolor='rgba(60, 50, 40, 0.25)',
+            color='#2a241f',
+            tickfont=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=11)
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        hoverlabel=dict(
+            bgcolor='rgba(247, 244, 238, 0.96)',
+            bordercolor='#d6cfc4',
+            font=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=12),
+            align='left'
+        ),
+        hovermode=hovermode,
+        margin=dict(l=10, r=10, t=60, b=10),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=11),
+            bgcolor='rgba(0,0,0,0)'
+        ) if show_legend else None,
+        showlegend=show_legend
+    )
 
 def plot_temp_data(data):
     fig = go.Figure()
 
-    # Iterate over the columns and plot each one (model runs)
-    for column in data.columns[:-1]:
+    ens_cols = [c for c in data.columns if c not in ["Actual data", "Ctrl"]]
+    ens_data = data[ens_cols]
+    ens_mean = ens_data.mean(axis=1)
+    ens_p10 = ens_data.quantile(0.1, axis=1)
+    ens_p90 = ens_data.quantile(0.9, axis=1)
+
+    # Ensemble runs (líneas sutiles tono taupe, sin saturar el hover)
+    for column in ens_cols:
         fig.add_trace(go.Scatter(
             x=data.index, y=data[column],
             mode='lines',
-            line=dict(width=1),
-            opacity=0.6,
-            name=str(column),
+            line=dict(color='rgba(99, 91, 83, 0.22)', width=1),
+            name=f"Miembro {column}",
             showlegend=False,
             hoverinfo='skip'
         ))
 
-    # Actual data (black thick line)
+    # Media Ensemble + Rango en línea dedicada debajo
     fig.add_trace(go.Scatter(
-        x=data.index, y=data["Actual data"],
+        x=data.index, y=ens_mean,
         mode='lines',
-        line=dict(color='white', width=4),
-        name='Datos Actuales',
-        hovertemplate='%{x|%a %d %H:%M}<br><b>Actual: %{y:.1f}°C</b><extra></extra>'
+        line=dict(color='#635b53', width=1.5, dash='dot'),
+        name='Media Ens',
+        customdata=np.stack([ens_p10, ens_p90], axis=-1),
+        hovertemplate='Media Ens: <b>%{y:.1f}°C</b><br>Rango 10-90%: <b>%{customdata[0]:.1f}° - %{customdata[1]:.1f}°C</b><extra></extra>'
     ))
+
+    # Run Control (Ctrl) destacada en Ámbar/Terracota
+    if "Ctrl" in data.columns:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data["Ctrl"],
+            mode='lines',
+            line=dict(color='#d97706', width=2.5, dash='dash'),
+            name='Run Control (Ctrl)',
+            hovertemplate='Control (Ctrl): <b>%{y:.1f}°C</b><extra></extra>'
+        ))
+
+    # Actual data (Línea destacada carbón/espresso profundo)
+    if "Actual data" in data.columns:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data["Actual data"],
+            mode='lines',
+            line=dict(color='#2a241f', width=3),
+            name='Datos Actuales',
+            hovertemplate='Actual: <b>%{y:.1f}°C</b><extra></extra>'
+        ))
 
     # Calculamos medias históricas
     max_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmax"].iloc[0]
@@ -750,25 +972,25 @@ def plot_temp_data(data):
     min_usual_temp_upper = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[0]
     min_usual_temp_lower = temp_medias_rolling.iloc[temp_data.index.day_of_year[27]]["tmin"].iloc[1]
 
-    # Fill between for typical max temperatures
+    # Rango máx habitual (Relleno coral cálido)
     fig.add_trace(go.Scatter(
         x=data.index.tolist() + data.index.tolist()[::-1],
         y=[max_usual_temp_upper]*len(data.index) + [max_usual_temp_lower]*len(data.index),
         fill='toself',
-        fillcolor='rgba(255, 0, 0, 0.1)',
+        fillcolor='rgba(217, 56, 86, 0.1)',
         line=dict(color='rgba(255,0,0,0)'),
-        name='Rango Max Habitual',
+        name='Rango Máx Habitual',
         hoverinfo='skip'
     ))
 
-    # Fill between for typical min temperatures
+    # Rango mín habitual (Relleno teal cálido)
     fig.add_trace(go.Scatter(
         x=data.index.tolist() + data.index.tolist()[::-1],
         y=[min_usual_temp_upper]*len(data.index) + [min_usual_temp_lower]*len(data.index),
         fill='toself',
-        fillcolor='rgba(0, 0, 255, 0.1)',
+        fillcolor='rgba(2, 119, 189, 0.1)',
         line=dict(color='rgba(0,0,255,0)'),
-        name='Rango Min Habitual',
+        name='Rango Mín Habitual',
         hoverinfo='skip'
     ))
 
@@ -785,436 +1007,23 @@ def plot_temp_data(data):
 
             fig.add_annotation(
                 x=idx_min, y=min_temp,
-                text=f"{min_temp:.1f}º",
+                text=f"<b>{min_temp:.1f}º</b>",
                 showarrow=False,
                 yshift=-15,
-                font=dict(color="#4facfe", size=12, family="Inter", weight="bold")
+                font=dict(color="#0277bd", size=11, family="Plus Jakarta Sans, Inter")
             )
             fig.add_annotation(
                 x=idx_max, y=max_temp,
-                text=f"{max_temp:.1f}º",
+                text=f"<b>{max_temp:.1f}º</b>",
                 showarrow=False,
                 yshift=15,
-                font=dict(color="#ff6b6b", size=12, family="Inter", weight="bold")
+                font=dict(color="#d93856", size=11, family="Plus Jakarta Sans, Inter")
             )
 
-    fig.update_layout(
-        title=dict(text='Previsión de Temperaturas (48h)', font=dict(color='white', size=18, family="Inter")),
-        xaxis=dict(
-            title='', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)', 
-            tickformat='%a %d\n%H:%M',
-            color='white'
-        ),
-        yaxis=dict(
-            title='Temperatura (°C)', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)',
-            color='white'
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        hovermode="x unified",
-        margin=dict(l=20, r=20, t=50, b=20),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
-
+    apply_custom_plotly_theme(fig, 'Previsión de Temperaturas (48h)', 'Temperatura (°C)', hovermode="x unified")
     return fig
 
-
 st.plotly_chart(plot_temp_data(temp_data), use_container_width=True)
-##############################################
-
-def build_temperature_html(
-    data: pd.DataFrame,
-    climatology: dict,
-    output_file: str = "temperature_responsive.html" # Nombre por defecto
-):
-    """
-    Genera un archivo HTML con un gráfico D3.js responsive.
-    """
-    df = data.sort_index()
-    
-    # Identificar columnas del ensemble (las numéricas)
-    ensemble_cols = sorted([c for c in df.columns if c.isdigit()], key=int)
-
-    # 1. Calcular extremos diarios (Min/Max absolutos del día)
-    daily_extremes = []
-    # Agrupamos por fecha (sin hora)
-    for date, g in df.groupby(df.index.date):
-        # Seleccionamos ensemble + control
-        cols_to_check = ensemble_cols + ["Ctrl"]
-        # Filtramos solo las columnas que existen en el DF
-        cols_existentes = [c for c in cols_to_check if c in g.columns]
-        
-        if not cols_existentes: continue
-
-        sub = g[cols_existentes]
-        
-        # Obtenemos valor y fecha exacta del máximo y mínimo
-        tmax_val = float(sub.max().max())
-        tmin_val = float(sub.min().min())
-        
-        # Para encontrar la hora exacta, stackeamos y buscamos índice
-        # (Esto asume que no hay NaNs totales)
-        try:
-            tmax_time = sub.stack().idxmax()[0].isoformat()
-            tmin_time = sub.stack().idxmin()[0].isoformat()
-        except:
-            # Fallback por si hay datos vacíos
-            tmax_time = pd.Timestamp(date).isoformat()
-            tmin_time = pd.Timestamp(date).isoformat()
-
-        daily_extremes.append({
-            "date": pd.Timestamp(date).isoformat(),
-            "tmin": tmin_val,
-            "tmax": tmax_val,
-            "tmin_time": tmin_time,
-            "tmax_time": tmax_time,
-        })
-
-    # 2. Manejo de 'Actual data' (convertir NaN a None para JSON)
-    if "Actual data" in df.columns:
-        actual_data = df["Actual data"].where(df["Actual data"].notna(), other=None).tolist()
-    else:
-        actual_data = [None] * len(df)
-
-    # 3. Preparar Payload
-    payload = {
-        "time": [ts.isoformat() for ts in df.index],
-        "ensemble": df[ensemble_cols].T.values.tolist(),
-        "ctrl": df["Ctrl"].tolist(),
-        "actual": actual_data,
-        "daily_extremes": daily_extremes,
-        "climatology": climatology,
-    }
-
-    # 4. Plantilla HTML/JS
-    html_content = f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Predicción Temperatura</title>
-<script src="https://d3js.org/d3.v7.min.js"></script>
-
-<style>
-    body {{
-        margin: 0;
-        padding: 0;
-        background: #0b0f1a;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        color: #e0e0e0;
-        overflow: hidden; /* Evita scrollbar en el iframe */
-    }}
-
-    #chart-wrapper {{
-        width: 100vw;
-        height: 100vh; /* Ocupa toda la altura disponible */
-        position: relative;
-        display: flex;
-        flex-direction: column;
-    }}
-
-    /* El contenedor del SVG se ajustará */
-    #chart-container {{
-        flex: 1;
-        width: 100%;
-        min-height: 300px;
-        position: relative;
-    }}
-
-    /* Estilos SVG */
-    .axis text {{ fill: #9aa4ad; font-size: 11px; }}
-    .axis path, .axis line {{ stroke: #2a2f45; }}
-    
-    /* Tooltip */
-    .tooltip {{
-        position: absolute;
-        background: rgba(17, 24, 39, 0.95);
-        border: 1px solid #374151;
-        border-radius: 6px;
-        padding: 8px 12px;
-        font-size: 12px;
-        color: #f3f4f6;
-        pointer-events: none;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-        opacity: 0;
-        transition: opacity 0.1s;
-        z-index: 999;
-    }}
-    .tooltip .row {{ display: flex; justify-content: space-between; gap: 15px; margin-bottom: 2px; }}
-    .tooltip .title {{ font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 5px; padding-bottom: 2px; color: #90caf9; }}
-
-</style>
-</head>
-<body>
-
-<div id="chart-wrapper">
-    <div id="chart-container"></div>
-</div>
-<div id="tooltip" class="tooltip"></div>
-
-<script>
-    const data = {json.dumps(payload)};
-    const container = d3.select("#chart-container");
-    const tooltip = d3.select("#tooltip");
-    
-    // Parsear fechas
-    const time = data.time.map(d3.isoParse);
-
-    function render() {{
-        // Limpiar
-        container.selectAll("*").remove();
-
-        // Obtener dimensiones reales del contenedor
-        const rect = container.node().getBoundingClientRect();
-        const width = rect.width;
-        const height = rect.height;
-
-        // Si es muy pequeño (ej. carga inicial), no renderizar o usar mínimos
-        if (width === 0 || height === 0) return;
-
-        const isMobile = width < 600;
-        const margin = {{ top: 20, right: isMobile ? 15 : 40, bottom: 30, left: isMobile ? 35 : 50 }};
-        const innerWidth = width - margin.left - margin.right;
-        const innerHeight = height - margin.top - margin.bottom;
-
-        const svg = container.append("svg")
-            .attr("width", width)
-            .attr("height", height);
-
-        const g = svg.append("g")
-            .attr("transform", `translate(${{margin.left}},${{margin.top}})`);
-
-        // --- ESCALAS ---
-        const x = d3.scaleTime().domain(d3.extent(time)).range([0, innerWidth]);
-
-        // Aseguramos que las bandas de climatología entren en el dominio Y
-        const allValues = [
-            ...data.ctrl,
-            ...data.ensemble.flat(),
-            data.climatology.tmax.upper,
-            data.climatology.tmax.lower,
-            data.climatology.tmin.upper,
-            data.climatology.tmin.lower
-        ];
-        if (data.actual) {{
-            data.actual.forEach(d => {{ if(d !== null) allValues.push(d); }});
-        }}
-
-        const y = d3.scaleLinear()
-            .domain([d3.min(allValues) - 2, d3.max(allValues) + 2])
-            .range([innerHeight, 0]);
-
-        // --- DIBUJO ---
-
-        // 1. Climatología (Áreas Rectangulares)
-        // Maximas (Rojo)
-        g.append("rect")
-            .attr("x", 0)
-            .attr("width", innerWidth)
-            .attr("y", y(data.climatology.tmax.upper))
-            .attr("height", Math.abs(y(data.climatology.tmax.lower) - y(data.climatology.tmax.upper)))
-            .attr("fill", "#ef5350")
-            .attr("opacity", 0.25); // Opacidad aumentada
-
-        // Minimas (Azul)
-        g.append("rect")
-            .attr("x", 0)
-            .attr("width", innerWidth)
-            .attr("y", y(data.climatology.tmin.upper))
-            .attr("height", Math.abs(y(data.climatology.tmin.lower) - y(data.climatology.tmin.upper)))
-            .attr("fill", "#42a5f5")
-            .attr("opacity", 0.25); // Opacidad aumentada
-
-        const line = d3.line()
-            .defined(d => d !== null)
-            .x((d, i) => x(time[i]))
-            .y(d => y(d));
-
-        // 2. Ensemble
-        g.selectAll(".ens")
-            .data(data.ensemble)
-            .enter().append("path")
-            .attr("fill", "none")
-            .attr("stroke", "#90caf9")
-            .attr("stroke-width", 1)
-            .attr("stroke-opacity", 0.3)
-            .attr("d", d => line(d));
-
-        // 3. Control
-        g.append("path")
-            .datum(data.ctrl)
-            .attr("fill", "none")
-            .attr("stroke", "#ffffff")
-            .attr("stroke-width", 2.5)
-            .attr("d", line);
-
-        // 4. Actual
-        g.append("path")
-            .datum(data.actual)
-            .attr("fill", "none")
-            .attr("stroke", "#00e676")
-            .attr("stroke-width", 2.5)
-            .attr("d", line);
-
-        // 5. Textos de extremos (Solo si hay espacio)
-        if (!isMobile || innerWidth > 350) {{
-            data.daily_extremes.forEach(d => {{
-                g.append("text")
-                    .attr("x", x(new Date(d.tmax_time)))
-                    .attr("y", y(d.tmax) - 6)
-                    .attr("text-anchor", "middle")
-                    .attr("fill", "#ef5350")
-                    .attr("font-weight", "bold")
-                    .attr("font-size", "10px")
-                    .text(d.tmax.toFixed(1));
-                
-                g.append("text")
-                    .attr("x", x(new Date(d.tmin_time)))
-                    .attr("y", y(d.tmin) + 12)
-                    .attr("text-anchor", "middle")
-                    .attr("fill", "#42a5f5")
-                    .attr("font-weight", "bold")
-                    .attr("font-size", "10px")
-                    .text(d.tmin.toFixed(1));
-            }});
-        }}
-
-        // --- EJES ---
-        g.append("g")
-            .attr("class", "axis")
-            .attr("transform", `translate(0,${{innerHeight}})`)
-            .call(d3.axisBottom(x).ticks(isMobile ? 4 : 8).tickFormat(d3.timeFormat("%d/%m %H:00")));
-
-        g.append("g")
-            .attr("class", "axis")
-            .call(d3.axisLeft(y));
-
-        // --- INTERACTIVIDAD (Mouse + Touch) ---
-        const bisect = d3.bisector(d => d).left;
-        
-        // Linea vertical
-        const focusLine = g.append("line")
-            .attr("stroke", "#fff")
-            .attr("stroke-dasharray", "4")
-            .attr("y1", 0).attr("y2", innerHeight)
-            .attr("opacity", 0);
-
-        // Rectángulo transparente encima para capturar eventos
-        g.append("rect")
-            .attr("width", innerWidth)
-            .attr("height", innerHeight)
-            .attr("fill", "transparent")
-            .on("mousemove touchmove", function(event) {{
-                event.preventDefault(); // Evitar scroll en móvil al tocar el gráfico
-                
-                // Obtener coordenadas (funciona para touch y mouse)
-                let clientX;
-                if(event.type === 'touchmove') {{
-                    clientX = event.touches[0].clientX;
-                    // Ajustar offset del SVG
-                    const bounds = this.getBoundingClientRect();
-                    clientX = clientX - bounds.left; 
-                }} else {{
-                    clientX = d3.pointer(event)[0];
-                }}
-
-                const dateVal = x.invert(clientX);
-                const i = bisect(time, dateVal);
-                const idx = Math.max(0, Math.min(time.length - 1, i));
-
-                // Actualizar linea
-                focusLine.attr("x1", x(time[idx])).attr("x2", x(time[idx])).attr("opacity", 0.5);
-
-                // Estadísticas
-                const ensVals = data.ensemble.map(m => m[idx]).sort(d3.ascending);
-                const mean = d3.mean(ensVals);
-                const p10 = d3.quantile(ensVals, 0.1);
-                const p90 = d3.quantile(ensVals, 0.9);
-
-                // Tooltip
-                let pageX, pageY;
-                if(event.type === 'touchmove') {{
-                    pageX = event.touches[0].pageX;
-                    pageY = event.touches[0].pageY;
-                }} else {{
-                    pageX = event.pageX;
-                    pageY = event.pageY;
-                }}
-
-                // Evitar overflow derecha
-                const tpNode = tooltip.node();
-                let left = pageX + 15;
-                if (left + 150 > window.innerWidth) left = pageX - 160;
-
-                tooltip
-                    .style("opacity", 1)
-                    .style("left", left + "px")
-                    .style("top", (pageY + 15) + "px")
-                    .html(`
-                        <div class="title">${{time[idx].toLocaleDateString(undefined, {{weekday:'short', day:'numeric', hour:'2-digit'}})}}</div>
-                        <div class="row"><span>Media Ens:</span> <b>${{mean.toFixed(1)}}°</b></div>
-                        <div class="row"><span>Rango 10-90%:</span> <span>${{p10.toFixed(1)}} - ${{p90.toFixed(1)}}</span></div>
-                        <div class="row"><span>Control:</span> <b>${{data.ctrl[idx].toFixed(1)}}°</b></div>
-                        ${{data.actual[idx] !== null ? `<div class="row" style="color:#69f0ae"><span>Actual:</span> <b>${{data.actual[idx].toFixed(1)}}°</b></div>` : ''}}
-                    `);
-
-            }})
-            .on("mouseleave touchend", () => {{
-                tooltip.style("opacity", 0);
-                focusLine.attr("opacity", 0);
-            }});
-    }}
-
-    // Render inicial
-    render();
-    
-    // Redibujar al cambiar tamaño (Responsividad)
-    window.addEventListener("resize", render);
-</script>
-</body>
-</html>
-"""
-    
-
-
-    # --- AQUÍ ESTÁ EL CAMBIO IMPORTANTE ---
-    # Escribimos el archivo explícitamente si se da un nombre
-    if output_file:
-        full_path = os.path.abspath(output_file)
-        with open(full_path, "w", encoding="utf-8") as f:
-            f.write(html_content)
-        print(f"✅ Archivo HTML generado con éxito en:\n{full_path}")
-    
-    return html_content
-
-# use the day-of-year from the data (first timestamp); fallback to today
-doy = temp_data.index[0].day_of_year if len(temp_data.index) > 0 else pd.Timestamp.now().dayofyear
-# ensure index is in 1..365 (handle leap day)
-doy = ((int(doy) - 1) % 365) + 1
-
-
-max_usual_temp_upper = float(temp_medias_rolling.loc[doy, ("tmax", 0.85)])
-max_usual_temp_lower = float(temp_medias_rolling.loc[doy, ("tmax", 0.15)])
-
-min_usual_temp_upper = float(temp_medias_rolling.loc[doy, ("tmin", 0.85)])
-min_usual_temp_lower = float(temp_medias_rolling.loc[doy, ("tmin", 0.15)])
-
-
-
-
-
-st.components.v1.html(build_temperature_html(
-    data=temp_data,
-    climatology={
-        "tmax": {"upper": max_usual_temp_upper, "lower": max_usual_temp_lower},
-        "tmin": {"upper": min_usual_temp_upper, "lower": min_usual_temp_lower},
-   },output_file=None
-),height=600,width=900)
 
 
 ##############################################
@@ -1243,48 +1052,57 @@ def plot_rain_chance(chance_prec,avg_prec):
                         row_heights=[0.5, 0.5],
                         vertical_spacing=0.1)
 
-    # Gráfico 1 (Arriba): Lluvia media en L/m2 (Línea + Área rellena azul)
+    # Gráfico 1 (Arriba): Lluvia media en L/m2 (Línea + Área rellena turquesa)
     fig.add_trace(go.Scatter(
         x=avg_prec.index,
         y=avg_prec.iloc[:,0],
         mode='lines+markers',
         fill='tozeroy',
+        fillcolor='rgba(2, 119, 189, 0.12)',
         name='Media (L/m2)',
-        line=dict(color='#4facfe', width=2),
+        line=dict(color='#0277bd', width=2),
         marker=dict(size=4),
-        hovertemplate='%{x|%a %d %H:%M}<br><b>Media: %{y} L/m2</b><extra></extra>'
+        hovertemplate='Lluvia Media: <b>%{y} L/m2</b><extra></extra>'
     ), row=1, col=1)
 
-    # Gráfico 2 (Abajo): Probabilidad de lluvia (Bar chart)
+    # Gráfico 2 (Abajo): Probabilidad de lluvia (Bar chart ámbar)
     fig.add_trace(go.Bar(
         x=chance_prec.index,
         y=chance_prec.iloc[:,0],
         name='Probabilidad (%)',
-        marker=dict(color='#00f2fe', line=dict(color='rgba(255,255,255,0.2)', width=1)),
-        hovertemplate='%{x|%a %d %H:%M}<br><b>Probabilidad: %{y}%</b><extra></extra>'
+        marker=dict(color='#d97706', line=dict(color='rgba(0,0,0,0.05)', width=1)),
+        hovertemplate='Probabilidad: <b>%{y}%</b><extra></extra>'
     ), row=2, col=1)
 
-    # Líneas verticales indicando medianoche
+    # Líneas verticales indicando medianoche (muy tenues)
     dates_unique = list(set(avg_prec.index.date))
     for date in dates_unique:
         midnight = datetime.combine(date, datetime.min.time())
-        fig.add_vline(x=midnight, line_width=1.5, line_color="rgba(255,255,255,0.5)", row='all', col=1)
+        fig.add_vline(x=midnight, line_width=1, line_color="rgba(60, 50, 40, 0.15)", row='all', col=1)
 
     fig.update_layout(
-        title=dict(text='Previsión de Lluvia (48h)', font=dict(color='white', size=18, family="Inter")),
+        title=dict(text='Previsión de Lluvia (48h)', font=dict(color='#2a241f', size=16, family="Plus Jakarta Sans, Inter")),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
+        hoverlabel=dict(
+            bgcolor='rgba(247, 244, 238, 0.96)',
+            bordercolor='#d6cfc4',
+            font=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=12),
+            align='left'
+        ),
         hovermode="x unified",
-        margin=dict(l=20, r=20, t=50, b=20),
+        margin=dict(l=10, r=10, t=60, b=10),
         showlegend=False
     )
     
     fig.update_xaxes(
-        showgrid=True, gridcolor='rgba(255,255,255,0.1)', color='white',
+        showgrid=True, gridcolor='rgba(60, 50, 40, 0.12)',
+        linecolor='rgba(60, 50, 40, 0.25)', tickcolor='rgba(60, 50, 40, 0.25)',
+        color='#2a241f', tickfont=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=11),
         tickformat='%a %d\n%H:%M'
     )
-    fig.update_yaxes(title_text="L/m2", showgrid=True, gridcolor='rgba(255,255,255,0.1)', color='white', row=1, col=1, rangemode='tozero')
-    fig.update_yaxes(title_text="Probabilidad %", showgrid=True, gridcolor='rgba(255,255,255,0.1)', color='white', range=[0, 105], row=2, col=1)
+    fig.update_yaxes(title_text="L/m2", title_font=dict(color='#2a241f', size=11, family="Plus Jakarta Sans, Inter"), showgrid=True, gridcolor='rgba(60, 50, 40, 0.12)', linecolor='rgba(60, 50, 40, 0.25)', color='#2a241f', tickfont=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=11), row=1, col=1, rangemode='tozero')
+    fig.update_yaxes(title_text="Probabilidad %", title_font=dict(color='#2a241f', size=11, family="Plus Jakarta Sans, Inter"), showgrid=True, gridcolor='rgba(60, 50, 40, 0.12)', linecolor='rgba(60, 50, 40, 0.25)', color='#2a241f', tickfont=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=11), range=[0, 105], row=2, col=1)
 
     return fig
 
@@ -1298,26 +1116,49 @@ wind_gust_data["Actual data"] = aemet_horario["Racha (km/h)"]
 def plot_wind_data(data):
     fig = go.Figure()
 
-    # Iterate over the columns and plot each one
-    for column in data.columns[:-1]:
+    ens_cols = [c for c in data.columns if c not in ["Actual data", "Ctrl"]]
+    ens_data = data[ens_cols]
+    ens_mean = ens_data.mean(axis=1)
+
+    # Ensemble runs (líneas naranja cálido tenues, sin saturar hover)
+    for column in ens_cols:
         fig.add_trace(go.Scatter(
             x=data.index, y=data[column],
             mode='lines',
-            line=dict(width=1),
-            opacity=0.6,
-            name=str(column),
+            line=dict(color='rgba(217, 119, 6, 0.22)', width=1),
+            name=f"Miembro {column}",
             showlegend=False,
             hoverinfo='skip'
         ))
 
-    # Actual data
+    # Media Ensemble
     fig.add_trace(go.Scatter(
-        x=data.index, y=data["Actual data"],
+        x=data.index, y=ens_mean,
         mode='lines',
-        line=dict(color='white', width=4),
-        name='Datos Actuales',
-        hovertemplate='%{x|%a %d %H:%M}<br><b>Racha Actual: %{y:.0f} km/h</b><extra></extra>'
+        line=dict(color='#b45309', width=1.5, dash='dot'),
+        name='Media Ensemble',
+        hovertemplate='Media Ens: <b>%{y:.0f} km/h</b><extra></extra>'
     ))
+
+    # Run Control (Ctrl) destacada en Ámbar/Terracota
+    if "Ctrl" in data.columns:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data["Ctrl"],
+            mode='lines',
+            line=dict(color='#d97706', width=2.5, dash='dash'),
+            name='Run Control (Ctrl)',
+            hovertemplate='Control (Ctrl): <b>%{y:.0f} km/h</b><extra></extra>'
+        ))
+
+    # Actual data (Línea destacada carbón/espresso profundo)
+    if "Actual data" in data.columns:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data["Actual data"],
+            mode='lines',
+            line=dict(color='#2a241f', width=3),
+            name='Datos Actuales',
+            hovertemplate='Racha Actual: <b>%{y:.0f} km/h</b><extra></extra>'
+        ))
 
     # Add Max/Min annotations per day
     dates = list(set(data.index.date))
@@ -1332,42 +1173,20 @@ def plot_wind_data(data):
 
             fig.add_annotation(
                 x=idx_min, y=min_temp,
-                text=f"{min_temp:.0f}",
+                text=f"<b>{min_temp:.0f}</b>",
                 showarrow=False,
                 yshift=-15,
-                font=dict(color="#4facfe", size=12, family="Inter", weight="bold")
+                font=dict(color="#0277bd", size=11, family="Plus Jakarta Sans, Inter")
             )
             fig.add_annotation(
                 x=idx_max, y=max_temp,
-                text=f"{max_temp:.0f}",
+                text=f"<b>{max_temp:.0f}</b>",
                 showarrow=False,
                 yshift=15,
-                font=dict(color="#ff6b6b", size=12, family="Inter", weight="bold")
+                font=dict(color="#d93856", size=11, family="Plus Jakarta Sans, Inter")
             )
 
-    fig.update_layout(
-        title=dict(text='Previsión de Viento (Rachas) (48h)', font=dict(color='white', size=18, family="Inter")),
-        xaxis=dict(
-            title='', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)', 
-            tickformat='%a %d\n%H:%M',
-            color='white'
-        ),
-        yaxis=dict(
-            title='Velocidad (km/h)', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)',
-            color='white',
-            rangemode='tozero'
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        hovermode="x unified",
-        margin=dict(l=20, r=20, t=50, b=20),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
-
+    apply_custom_plotly_theme(fig, 'Previsión de Viento (Rachas) (48h)', 'Velocidad (km/h)', hovermode="x unified")
     return fig
 
 
@@ -1380,41 +1199,52 @@ st.plotly_chart(plot_wind_data(wind_gust_data), use_container_width=True)
 def plot_pressure_data(data):
     fig = go.Figure()
 
-    # Iterate over the columns and plot each one
-    for column in data.columns[:-1]:
+    ens_cols = [c for c in data.columns if c not in ["Actual data", "Ctrl"]]
+    ens_data = data[ens_cols]
+    ens_mean = ens_data.mean(axis=1)
+
+    # Ensemble runs (líneas sutiles tono stone, sin saturar hover)
+    for column in ens_cols:
         fig.add_trace(go.Scatter(
             x=data.index, y=data[column],
             mode='lines',
-            line=dict(width=1),
-            opacity=0.6,
-            name=str(column),
+            line=dict(color='rgba(99, 91, 83, 0.22)', width=1),
+            name=f"Miembro {column}",
             showlegend=False,
             hoverinfo='skip'
         ))
 
-    fig.update_layout(
-        title=dict(text='Previsión de Presión Atmosférica (48h)', font=dict(color='white', size=18, family="Inter")),
-        xaxis=dict(
-            title='', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)', 
-            tickformat='%a %d\n%H:%M',
-            color='white'
-        ),
-        yaxis=dict(
-            title='Presión (hPa)', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)',
-            color='white',
-            range=[980, 1040]
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        hovermode="x unified",
-        margin=dict(l=20, r=20, t=50, b=20),
-        showlegend=False
-    )
+    # Media Ensemble
+    fig.add_trace(go.Scatter(
+        x=data.index, y=ens_mean,
+        mode='lines',
+        line=dict(color='#635b53', width=1.5, dash='dot'),
+        name='Media Ensemble',
+        hovertemplate='Media Ens: <b>%{y:.1f} hPa</b><extra></extra>'
+    ))
 
+    # Run Control (Ctrl) destacada en Ámbar/Terracota
+    if "Ctrl" in data.columns:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data["Ctrl"],
+            mode='lines',
+            line=dict(color='#d97706', width=2.5, dash='dash'),
+            name='Run Control (Ctrl)',
+            hovertemplate='Control (Ctrl): <b>%{y:.1f} hPa</b><extra></extra>'
+        ))
+
+    # Actual data (si existiera)
+    if "Actual data" in data.columns:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data["Actual data"],
+            mode='lines',
+            line=dict(color='#2a241f', width=3),
+            name='Datos Actuales',
+            hovertemplate='Presión Actual: <b>%{y:.1f} hPa</b><extra></extra>'
+        ))
+
+    apply_custom_plotly_theme(fig, 'Previsión de Presión Atmosférica (48h)', 'Presión (hPa)', hovermode="x unified")
+    fig.update_layout(yaxis=dict(range=[980, 1040]))
     return fig
 
 
@@ -1427,46 +1257,48 @@ st.plotly_chart(plot_pressure_data(pressure_data), use_container_width=True)
 def plot_mucape_data(data):
     fig = go.Figure()
 
-    # Iterate over the columns and plot each one
-    for column in data.columns[:-1]:
+    ens_cols = [c for c in data.columns if c not in ["Actual data", "Ctrl"]]
+    ens_data = data[ens_cols]
+    ens_mean = ens_data.mean(axis=1)
+    ens_max = ens_data.max(axis=1)
+
+    # Ensemble runs (líneas coral cálido tenues)
+    for column in ens_cols:
         fig.add_trace(go.Scatter(
             x=data.index, y=data[column],
             mode='lines',
-            line=dict(width=1),
-            opacity=0.6,
-            name=str(column),
+            line=dict(color='rgba(225, 29, 72, 0.2)', width=1),
+            name=f"Miembro {column}",
             showlegend=False,
             hoverinfo='skip'
         ))
 
-    # Add danger zones
-    fig.add_hrect(y0=0, y1=300, fillcolor="green", opacity=0.1, line_width=0, layer="below")
-    fig.add_hrect(y0=300, y1=1000, fillcolor="yellow", opacity=0.1, line_width=0, layer="below")
-    fig.add_hrect(y0=1000, y1=3000, fillcolor="red", opacity=0.1, line_width=0, layer="below")
+    # Media Ensemble + Máximo (Resumen activo en hover)
+    fig.add_trace(go.Scatter(
+        x=data.index, y=ens_mean,
+        mode='lines',
+        line=dict(color='#d97706', width=1.5, dash='dot'),
+        name='Media Ens',
+        customdata=ens_max,
+        hovertemplate='Media CAPE: <b>%{y:.0f} J/kg</b><br>Máx Ens: <b>%{customdata:.0f} J/kg</b><extra></extra>'
+    ))
 
-    fig.update_layout(
-        title=dict(text='Potencial de Tormentas (MUCAPE) (48h)', font=dict(color='white', size=18, family="Inter")),
-        xaxis=dict(
-            title='', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)', 
-            tickformat='%a %d\n%H:%M',
-            color='white'
-        ),
-        yaxis=dict(
-            title='J/kg', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)',
-            color='white',
-            rangemode='tozero'
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        hovermode="x unified",
-        margin=dict(l=20, r=20, t=50, b=20),
-        showlegend=False
-    )
+    # Run Control (Ctrl) destacada en Coral/Rojo
+    if "Ctrl" in data.columns:
+        fig.add_trace(go.Scatter(
+            x=data.index, y=data["Ctrl"],
+            mode='lines',
+            line=dict(color='#d93856', width=2.5, dash='dash'),
+            name='Run Control (Ctrl)',
+            hovertemplate='Control (Ctrl): <b>%{y:.0f} J/kg</b><extra></extra>'
+        ))
 
+    # Add danger zones (extremely subtle)
+    fig.add_hrect(y0=0, y1=300, fillcolor="#10b981", opacity=0.04, line_width=0, layer="below")
+    fig.add_hrect(y0=300, y1=1000, fillcolor="#fbbf24", opacity=0.04, line_width=0, layer="below")
+    fig.add_hrect(y0=1000, y1=3000, fillcolor="#ef4444", opacity=0.04, line_width=0, layer="below")
+
+    apply_custom_plotly_theme(fig, 'Potencial de Tormentas (MUCAPE) (48h)', 'J/kg', hovermode="x unified")
     return fig
 
 
@@ -1567,81 +1399,114 @@ import matplotlib.pyplot as plt
 def plot_long_forecast():
     fig = go.Figure()
 
-    # Preparamos fechas para el eje x
     dates_str = pd.to_datetime(data_temp_min.index).strftime('%A %d').tolist()
 
-    # Boxplot Temperaturas Mínimas (Azul)
-    for i in range(8):
-        day_data = data_temp_min.iloc[i,:].dropna()
+    summary_x = []
+    summary_max_val = []
+    summary_max_p20 = []
+    summary_max_p80 = []
+    summary_min_val = []
+    summary_min_p20 = []
+    summary_min_p80 = []
+
+    for i in range(min(8, len(dates_str))):
+        min_day_data = data_temp_min.iloc[i,:].dropna()
+        max_day_data = data_temp_max.iloc[i,:].dropna()
+
+        if min_day_data.empty or max_day_data.empty:
+            continue
+
+        # Mínima Boxplot (sin tooltip ruidoso)
         fig.add_trace(go.Box(
-            y=day_data, x=[dates_str[i]]*len(day_data),
-            name='Min',
-            marker_color='#4facfe',
-            line_color='#4facfe',
-            fillcolor='rgba(77, 171, 247, 0.85)',
+            y=min_day_data, x=[dates_str[i]]*len(min_day_data),
+            name='Mínima',
+            marker_color='#0284c7',
+            line_color='#0284c7',
+            fillcolor='rgba(2, 132, 199, 0.15)',
             boxpoints='outliers',
             offsetgroup='A',
-            showlegend=False,
+            showlegend=(i == 0),
             width=0.35,
-            line_width=2
+            line_width=2,
+            hoverinfo='skip'
         ))
 
-    # Boxplot Temperaturas Máximas (Rojo)
-    for i in range(8):
-        day_data = data_temp_max.iloc[i,:].dropna()
+        # Máxima Boxplot (sin tooltip ruidoso)
         fig.add_trace(go.Box(
-            y=day_data, x=[dates_str[i]]*len(day_data),
-            name='Max',
-            marker_color='#ff6b6b',
-            line_color='#ff6b6b',
-            fillcolor='rgba(255, 107, 107, 0.85)',
+            y=max_day_data, x=[dates_str[i]]*len(max_day_data),
+            name='Máxima',
+            marker_color='#d93856',
+            line_color='#d93856',
+            fillcolor='rgba(217, 56, 86, 0.15)',
             boxpoints='outliers',
             offsetgroup='B',
-            showlegend=False,
+            showlegend=(i == 0),
             width=0.35,
-            line_width=2
+            line_width=2,
+            hoverinfo='skip'
         ))
 
-    # Add Max/Min annotations per day
-    for i in range(min(8, len(dates_str))):
-        min_data = data_temp_min.iloc[i,:].dropna()
-        max_data = data_temp_max.iloc[i,:].dropna()
-        if not min_data.empty:
-            fig.add_annotation(
-                x=dates_str[i], y=min_data.min(),
-                text=f"{min_data.min():.1f}º",
-                showarrow=False,
-                yshift=-15,
-                font=dict(color="#4facfe", size=12, family="Inter", weight="bold")
-            )
-        if not max_data.empty:
-            fig.add_annotation(
-                x=dates_str[i], y=max_data.max(),
-                text=f"{max_data.max():.1f}º",
-                showarrow=False,
-                yshift=15,
-                font=dict(color="#ff6b6b", size=12, family="Inter", weight="bold")
-            )
+        # Valores de Control o Media para anotación y hover
+        max_ctrl = max_day_data["ECMWF"] if "ECMWF" in max_day_data.index and not pd.isna(max_day_data["ECMWF"]) else max_day_data.mean()
+        min_ctrl = min_day_data["ECMWF"] if "ECMWF" in min_day_data.index and not pd.isna(min_day_data["ECMWF"]) else min_day_data.mean()
 
-    # Actualizar diseño
+        max_p20 = max_day_data.quantile(0.20)
+        max_p80 = max_day_data.quantile(0.80)
+        min_p20 = min_day_data.quantile(0.20)
+        min_p80 = min_day_data.quantile(0.80)
+
+        summary_x.append(dates_str[i])
+        summary_max_val.append(max_ctrl)
+        summary_max_p20.append(max_p20)
+        summary_max_p80.append(max_p80)
+        summary_min_val.append(min_ctrl)
+        summary_min_p20.append(min_p20)
+        summary_min_p80.append(min_p80)
+
+        # Anotación ploteada en el gráfico: VALOR DE CONTROL / MEDIA
+        fig.add_annotation(
+            x=dates_str[i], y=min_ctrl,
+            text=f"<b>{min_ctrl:.1f}º</b>",
+            showarrow=False,
+            yshift=-15,
+            font=dict(color="#0284c7", size=10.5, family="Plus Jakarta Sans, Inter")
+        )
+        fig.add_annotation(
+            x=dates_str[i], y=max_ctrl,
+            text=f"<b>{max_ctrl:.1f}º</b>",
+            showarrow=False,
+            yshift=15,
+            font=dict(color="#d93856", size=10.5, family="Plus Jakarta Sans, Inter")
+        )
+
+    # Trazada de resumen para la tarjeta de hover limpia (Máxima y Mínima en la misma tarjeta, solo Control + 20-80%)
+    if summary_x:
+        fig.add_trace(go.Scatter(
+            x=summary_x,
+            y=summary_max_val,
+            mode='markers',
+            marker=dict(size=0.1, color='rgba(0,0,0,0)'),
+            name='Resumen',
+            showlegend=False,
+            customdata=np.stack([
+                summary_max_val, summary_max_p20, summary_max_p80,
+                summary_min_val, summary_min_p20, summary_min_p80
+            ], axis=-1),
+            hovertemplate=(
+                '<b>Máxima:</b> <b>%{customdata[0]:.1f}°C</b> (20-80%: %{customdata[1]:.1f}° - %{customdata[2]:.1f}°C)<br>'
+                '<b>Mínima:</b> <b>%{customdata[3]:.1f}°C</b> (20-80%: %{customdata[4]:.1f}° - %{customdata[5]:.1f}°C)<extra></extra>'
+            )
+        ))
+
+    apply_custom_plotly_theme(fig, 'Evolución Temperaturas (Próxima Semana)', 'Temperatura (°C)')
     fig.update_layout(
-        title=dict(text='Evolución Temperaturas (Próxima Semana)', font=dict(color='white', size=18, family="Inter")),
         boxmode='group',
-        yaxis=dict(
-            title='Temperatura (°C)', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)',
-            color='white'
-        ),
-        xaxis=dict(
-            title='', 
-            showgrid=False,
-            color='white'
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=20, r=20, t=50, b=20),
-        hovermode="x unified"
+        hoverlabel=dict(
+            bgcolor='rgba(247, 244, 238, 0.96)',
+            bordercolor='#d6cfc4',
+            font=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=12),
+            align='left'
+        )
     )
 
     return fig
@@ -1650,61 +1515,76 @@ def plot_long_forecast():
 st.plotly_chart(plot_long_forecast(), use_container_width=True)
 
 
-
 def plot_long_rain_forecast():
     fig = go.Figure()
 
-    data_plotted = (6 * data_preci_df.resample("6H", closed="left", label="left").mean()).dropna(axis=1, how="all").T.iloc[:, :-10]
-    
-    date_list = []
-    for item in data_plotted.columns.date:
-        if item not in date_list:
-            date_list.append(item)
-    dates_str = pd.to_datetime(date_list).strftime('%A %d').tolist()
+    daily_prec = data_preci_df.groupby(data_preci_df.index.date).sum()
+    daily_prec = daily_prec.dropna(how='all')
+    dates_str = pd.to_datetime(daily_prec.index).strftime('%A %d').tolist()
 
-    # Cada iteración crea un boxplot para un bloque de 6 horas
-    for i, col in enumerate(data_plotted.columns):
-        day_date = col.date()
-        date_idx = date_list.index(day_date)
-        day_str = dates_str[date_idx]
-        
-        # Etiqueta por franja horaria
-        hour_label = f"{col.hour:02d}:00"
-        slot_label = f"{day_str}\n{hour_label}"
-        
+    summary_x = []
+    summary_ctrl = []
+    summary_p20 = []
+    summary_p80 = []
+
+    for i in range(len(dates_str)):
+        day_vals = daily_prec.iloc[i].dropna()
+        if day_vals.empty:
+            continue
+
         fig.add_trace(go.Box(
-            y=data_plotted[col].dropna(),
-            x=[slot_label] * len(data_plotted[col].dropna()),
-            name=hour_label,
-            marker_color='#4facfe',
-            line_color='#4facfe',
-            fillcolor='rgba(77, 171, 247, 0.85)',
-            boxpoints='outliers',
+            y=day_vals, x=[dates_str[i]]*len(day_vals),
+            name='Acumulado Lluvia',
+            marker_color='#0284c7',
+            line_color='#0284c7',
+            fillcolor='rgba(2, 132, 199, 0.15)',
+            boxpoints='all',
             showlegend=False,
-            width=0.6,
-            line_width=2
+            width=0.45,
+            line_width=2,
+            hoverinfo='skip'
         ))
 
-    # Actualizar diseño
+        ctrl_val = day_vals["ECMWF"] if "ECMWF" in day_vals.index and not pd.isna(day_vals["ECMWF"]) else day_vals.mean()
+        p20_val = day_vals.quantile(0.20)
+        p80_val = day_vals.quantile(0.80)
+
+        summary_x.append(dates_str[i])
+        summary_ctrl.append(ctrl_val)
+        summary_p20.append(p20_val)
+        summary_p80.append(p80_val)
+
+        # Anotación: Valor de Control / Media
+        if ctrl_val > 0.1:
+            fig.add_annotation(
+                x=dates_str[i], y=ctrl_val,
+                text=f"<b>{ctrl_val:.1f} L/m²</b>",
+                showarrow=False,
+                yshift=14,
+                font=dict(color="#0284c7", size=10.5, family="Plus Jakarta Sans, Inter")
+            )
+
+    if summary_x:
+        fig.add_trace(go.Scatter(
+            x=summary_x,
+            y=summary_ctrl,
+            mode='markers',
+            marker=dict(size=0.1, color='rgba(0,0,0,0)'),
+            name='Resumen Lluvia',
+            showlegend=False,
+            customdata=np.stack([summary_ctrl, summary_p20, summary_p80], axis=-1),
+            hovertemplate='Control/Media: <b>%{customdata[0]:.1f} L/m²</b> (20-80%: %{customdata[1]:.1f} - %{customdata[2]:.1f} L/m²)<extra></extra>'
+        ))
+
+    apply_custom_plotly_theme(fig, 'Evolución Precipitación Diaria (Próxima Semana)', 'Lluvia Acumulada (L/m²)')
     fig.update_layout(
-        title=dict(text='Evolución Precipitación Diaria (Próxima Semana)', font=dict(color='white', size=18, family="Inter")),
         boxmode='group',
-        yaxis=dict(
-            title='Lluvia (L/m2)', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)',
-            color='white',
-            rangemode='tozero'
-        ),
-        xaxis=dict(
-            title='', 
-            showgrid=False,
-            color='white'
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=20, r=20, t=50, b=20),
-        hovermode="x unified"
+        hoverlabel=dict(
+            bgcolor='rgba(247, 244, 238, 0.96)',
+            bordercolor='#d6cfc4',
+            font=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=12),
+            align='left'
+        )
     )
 
     return fig
@@ -1716,55 +1596,72 @@ st.plotly_chart(plot_long_rain_forecast(), use_container_width=True)
 def plot_long_wind_forecast():
     fig = go.Figure()
 
-    data_plotted = data_rachas_df.resample("6H", closed="left", label="left").mean().dropna(axis=1, how="all").T.iloc[:, :-18]
-    
-    date_list = []
-    for item in data_plotted.columns.date:
-        if item not in date_list:
-            date_list.append(item)
-    dates_str = pd.to_datetime(date_list).strftime('%A %d').tolist()
+    daily_wind = data_rachas_df.groupby(data_rachas_df.index.date).max()
+    daily_wind = daily_wind.dropna(how='all')
+    dates_str = pd.to_datetime(daily_wind.index).strftime('%A %d').tolist()
 
-    for i, col in enumerate(data_plotted.columns):
-        day_date = col.date()
-        date_idx = date_list.index(day_date)
-        day_str = dates_str[date_idx]
-        
-        hour_label = f"{col.hour:02d}:00"
-        slot_label = f"{day_str}\n{hour_label}"
-        
+    summary_x = []
+    summary_ctrl = []
+    summary_p20 = []
+    summary_p80 = []
+
+    for i in range(len(dates_str)):
+        day_vals = daily_wind.iloc[i].dropna()
+        if day_vals.empty:
+            continue
+
         fig.add_trace(go.Box(
-            y=data_plotted[col].dropna(),
-            x=[slot_label] * len(data_plotted[col].dropna()),
-            name=hour_label,
-            marker_color='gold',
-            line_color='gold',
-            fillcolor='rgba(255, 215, 0, 0.85)',
-            boxpoints='outliers',
+            y=day_vals, x=[dates_str[i]]*len(day_vals),
+            name='Racha Máxima',
+            marker_color='#ea580c',
+            line_color='#ea580c',
+            fillcolor='rgba(234, 88, 12, 0.15)',
+            boxpoints='all',
             showlegend=False,
-            width=0.6,
-            line_width=2
+            width=0.45,
+            line_width=2,
+            hoverinfo='skip'
         ))
 
-    # Actualizar diseño
+        ctrl_val = day_vals["ECMWF"] if "ECMWF" in day_vals.index and not pd.isna(day_vals["ECMWF"]) else day_vals.mean()
+        p20_val = day_vals.quantile(0.20)
+        p80_val = day_vals.quantile(0.80)
+
+        summary_x.append(dates_str[i])
+        summary_ctrl.append(ctrl_val)
+        summary_p20.append(p20_val)
+        summary_p80.append(p80_val)
+
+        # Anotación: Valor de Control / Media
+        fig.add_annotation(
+            x=dates_str[i], y=ctrl_val,
+            text=f"<b>{ctrl_val:.0f} km/h</b>",
+            showarrow=False,
+            yshift=14,
+            font=dict(color="#ea580c", size=10.5, family="Plus Jakarta Sans, Inter")
+        )
+
+    if summary_x:
+        fig.add_trace(go.Scatter(
+            x=summary_x,
+            y=summary_ctrl,
+            mode='markers',
+            marker=dict(size=0.1, color='rgba(0,0,0,0)'),
+            name='Resumen Viento',
+            showlegend=False,
+            customdata=np.stack([summary_ctrl, summary_p20, summary_p80], axis=-1),
+            hovertemplate='Control/Media: <b>%{customdata[0]:.0f} km/h</b> (20-80%: %{customdata[1]:.0f} - %{customdata[2]:.0f} km/h)<extra></extra>'
+        ))
+
+    apply_custom_plotly_theme(fig, 'Evolución Viento Rachas (Próxima Semana)', 'Racha Máxima (km/h)')
     fig.update_layout(
-        title=dict(text='Evolución Viento Rachas (Próxima Semana)', font=dict(color='white', size=18, family="Inter")),
         boxmode='group',
-        yaxis=dict(
-            title='Velocidad (km/h)', 
-            showgrid=True, 
-            gridcolor='rgba(255,255,255,0.1)',
-            color='white',
-            rangemode='tozero'
-        ),
-        xaxis=dict(
-            title='', 
-            showgrid=False,
-            color='white'
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=20, r=20, t=50, b=20),
-        hovermode="x unified"
+        hoverlabel=dict(
+            bgcolor='rgba(247, 244, 238, 0.96)',
+            bordercolor='#d6cfc4',
+            font=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=12),
+            align='left'
+        )
     )
 
     return fig
@@ -1801,64 +1698,49 @@ fig_hist = px.strip(
     color="Tipo",
     hover_data=["Año"],
     stripmode="overlay",
-    color_discrete_sequence=['#42a5f5', '#ff6b6b'] 
-    # Colores: azul frío y rojo cálido
+    color_discrete_sequence=['#0284c7', '#d93856'] 
 )
 
-# Ajustar las "bolitas" históricas
+# Ajustar las "bolitas" históricas (más discretas)
 fig_hist.update_traces(
     jitter=0.8,
-    opacity=0.35, # algo translúcidas
-    marker=dict(size=8, line=dict(width=0.5, color='white'))
+    opacity=0.35,
+    marker=dict(size=8, line=dict(width=0.5, color='rgba(99, 91, 83, 0.2)')),
+    hovertemplate='<b>Año %{customdata[0]}</b><br>Temp %{x}: <b>%{y:.1f}°C</b><extra></extra>'
 )
 
-# Añadir los valores de Hoy
+# Añadir los valores de Hoy (Esmeralda)
 fig_hist.add_trace(go.Scatter(
     x=['Mínima', 'Máxima'],
     y=[valor_min, valor_max],
     mode='markers+text',
-    name='H: Prev. Hoy',
-    marker=dict(size=18, color=['#00e676', '#00e676'], line=dict(width=2, color='white'), symbol='circle'),
-    text=[f"Hoy: {valor_min}º", f"Hoy: {valor_max}º"],
+    name='Prev. Hoy',
+    marker=dict(size=16, color=['#059669', '#059669'], line=dict(width=2, color='white'), symbol='circle'),
+    text=[f"<b>Hoy: {valor_min}º</b>", f"<b>Hoy: {valor_max}º</b>"],
     textposition='middle left',
-    textfont=dict(color='white', size=13),
-    hoverinfo='skip'
+    textfont=dict(color='#2a241f', size=11, family="Plus Jakarta Sans, Inter"),
+    hovertemplate='<b>Previsión Hoy (%{x}): %{y:.1f}°C</b><extra></extra>'
 ))
 
-# Añadir los valores de Mañana
+# Añadir los valores de Mañana (Ámbar)
 fig_hist.add_trace(go.Scatter(
     x=['Mínima', 'Máxima'],
     y=[valor_min_mañana, valor_max_mañana],
     mode='markers+text',
-    name='M: Prev. Mañana',
-    marker=dict(size=18, color=['#ffeb3b', '#ffeb3b'], line=dict(width=2, color='white'), symbol='diamond'),
-    text=[f"Mañana: {valor_min_mañana}º", f"Mañana: {valor_max_mañana}º"],
+    name='Prev. Mañana',
+    marker=dict(size=16, color=['#d97706', '#d97706'], line=dict(width=2, color='white'), symbol='diamond'),
+    text=[f"<b>Mañana: {valor_min_mañana}º</b>", f"<b>Mañana: {valor_max_mañana}º</b>"],
     textposition='middle right',
-    textfont=dict(color='white', size=13),
-    hoverinfo='skip'
+    textfont=dict(color='#2a241f', size=11, family="Plus Jakarta Sans, Inter"),
+    hovertemplate='<b>Previsión Mañana (%{x}): %{y:.1f}°C</b><extra></extra>'
 ))
 
-fig_hist.update_layout(
-    template='plotly_dark',
-    paper_bgcolor='rgba(0,0,0,0)',
-    plot_bgcolor='rgba(0,0,0,0)',
-    margin=dict(l=20, r=20, t=40, b=20),
-    xaxis_title='',
-    yaxis_title='Temperatura (°C)',
-    legend=dict(
-        orientation="h",
-        yanchor="bottom",
-        y=1.02,
-        xanchor="right",
-        x=1
-    ),
-    hovermode='closest'
-)
+apply_custom_plotly_theme(fig_hist, '', 'Temperatura (°C)', show_legend=True, hovermode='closest')
+fig_hist.update_layout(xaxis=dict(showgrid=False))
 
 st.plotly_chart(fig_hist, use_container_width=True)
 
 st.divider()
-import datetime
 import pytz
 from astral import LocationInfo
 from astral.sun import sun, elevation
@@ -1866,122 +1748,110 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
-    # Define location information
     location = LocationInfo("Custom Location", "Custom Region", timezone_str, latitude, longitude)
-
-    # Get current date and time in the specified timezone
     timezone = pytz.timezone(timezone_str)
-    today = datetime.datetime.now(tz=timezone)
-    yesterday = today - datetime.timedelta(days=1)
+    today = datetime.now(tz=timezone)
+    yesterday = today - timedelta(days=1)
     year, month, day = today.year, today.month, today.day
 
-    # Calculate exact sunrise and sunset times for today and yesterday
     s_today = sun(location.observer, date=today)
     s_yesterday = sun(location.observer, date=yesterday)
 
-    # Convert sunrise and sunset times to local timezone
     sunrise_local = s_today['sunrise'].astimezone(timezone)
     sunset_local = s_today['sunset'].astimezone(timezone)
 
-    # Calculate day length for today and yesterday
     day_length_today = (s_today['sunset'] - s_today['sunrise']).total_seconds()
     day_length_yesterday = (s_yesterday['sunset'] - s_yesterday['sunrise']).total_seconds()
-
-    # Calculate the difference in day length
     day_length_diff = day_length_today - day_length_yesterday
     diff_minutes, diff_seconds = divmod(abs(int(day_length_diff)), 60)
-    daylight_change = f"{diff_minutes} min {diff_seconds} seg {'ganados' if day_length_diff > 0 else 'perdidos'}"
+    daylight_change = f"{diff_minutes} m {diff_seconds} s {'ganados' if day_length_diff > 0 else 'perdidos'}"
 
-    # Convert sunrise and sunset times to indices
     sunrise_index = sunrise_local.hour * 60 + sunrise_local.minute
     sunset_index = sunset_local.hour * 60 + sunset_local.minute
 
-    # Generate datetime objects for every minute of the day
-    listahoras = [timezone.localize(datetime.datetime(year, month, day, hour, minute))
+    listahoras = [timezone.localize(datetime(year, month, day, hour, minute))
                   for hour in range(24) for minute in range(60)]
 
-    # Calculate sun elevation for each minute
     elevaciones = [elevation(location.observer, dt) for dt in listahoras]
-
-    # Find the index of the maximum elevation
     max_elevation_index = np.argmax(elevaciones)
-
-    # Convert the maximum elevation index to a corresponding time
-    max_elevation_time = listahoras[max_elevation_index].strftime('%H:%M')
-
-    # Current time index
     current_time_index = today.hour * 60 + today.minute
-
-    # Convert to numpy array for efficient plotting
     elevaciones_array = np.array(elevaciones)
 
-    # Compute length of the day
     day_length_seconds = (sunset_local - sunrise_local).total_seconds()
-    day_length_hours = int(day_length_seconds // 3600)  # Convert seconds to hours
-    day_length_minutes = int((day_length_seconds % 3600) / 60)  # Extract remaining minutes
+    day_length_hours = int(day_length_seconds // 3600)
+    day_length_minutes = int((day_length_seconds % 3600) / 60)
 
-    # Set up the plot
-    fig, ax = plt.subplots(figsize=(10, 6), facecolor='white')
+    time_labels = [dt.strftime('%H:%M') for dt in listahoras]
 
-    # Plot the sun elevation profile
-    ax.fill_between(np.arange(len(elevaciones)), elevaciones_array, where=elevaciones_array > 0, 
-                    color='peachpuff', alpha=0.5)
-    ax.fill_between(np.arange(len(elevaciones)), elevaciones_array, where=elevaciones_array < 0, 
-                    color='lightblue', alpha=0.5)
+    fig = go.Figure()
 
-    # Mark the current time
+    elev_day = np.where(elevaciones_array >= 0, elevaciones_array, 0)
+    fig.add_trace(go.Scatter(
+        x=time_labels, y=elev_day,
+        mode='lines', fill='tozeroy',
+        fillcolor='rgba(217, 119, 6, 0.18)',
+        line=dict(color='#d97706', width=2.5),
+        name='Día', hoverinfo='skip'
+    ))
+
+    elev_night = np.where(elevaciones_array <= 0, elevaciones_array, 0)
+    fig.add_trace(go.Scatter(
+        x=time_labels, y=elev_night,
+        mode='lines', fill='tozeroy',
+        fillcolor='rgba(2, 119, 189, 0.12)',
+        line=dict(color='#0277bd', width=1.5),
+        name='Noche', hoverinfo='skip'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=time_labels, y=elevaciones_array,
+        mode='lines', line=dict(color='rgba(0,0,0,0)', width=0),
+        name='Elevación Solar',
+        hovertemplate='Hora: <b>%{x}</b><br>Elevación Solar: <b>%{y:.1f}°</b><extra></extra>'
+    ))
+
+    fig.add_hline(y=0, line_dash="dash", line_color="#a89f91", line_width=1)
+
     current_elevation = elevaciones_array[current_time_index]
-    ax.plot(current_time_index, current_elevation, 'o', color='darkblue', markersize=8, label='Current Position')
+    current_time_str = time_labels[current_time_index]
+    fig.add_trace(go.Scatter(
+        x=[current_time_str], y=[current_elevation],
+        mode='markers+text',
+        marker=dict(size=12, color='#0277bd', symbol='circle', line=dict(width=2, color='white')),
+        text=[f"<b>Posición Actual ({current_elevation:.1f}°)</b>"],
+        textposition="top center",
+        textfont=dict(color='#0277bd', size=11, family="Plus Jakarta Sans, Inter"),
+        name='Posición Actual',
+        hovertemplate='Actual (%{x}): <b>%{y:.1f}°</b><extra></extra>'
+    ))
 
-    # Format sunrise, sunset, and max elevation times as hh:mm
-    sunrise_time = f"{sunrise_local.hour:02d}:{sunrise_local.minute:02d}"
-    sunset_time = f"{sunset_local.hour:02d}:{sunset_local.minute:02d}"
+    sunrise_str = time_labels[sunrise_index]
+    sunset_str = time_labels[sunset_index]
+    max_str = time_labels[max_elevation_index]
 
-    # Mark sunrise, sunset, and max elevation with labels
-    ax.plot(sunrise_index, 0, marker='o', color='gold', markersize=10)
-    ax.text(sunrise_index, -10, sunrise_time, ha='center', fontsize=10, color='orange')
+    fig.add_trace(go.Scatter(
+        x=[sunrise_str, max_str, sunset_str],
+        y=[0, elevaciones_array[max_elevation_index], 0],
+        mode='markers+text',
+        marker=dict(size=9, color=['#d97706', '#d93856', '#ea580c']),
+        text=[f"<b>Amanecer {sunrise_str}</b>", f"<b>Cénit {max_str} ({elevaciones_array[max_elevation_index]:.1f}°)</b>", f"<b>Atardecer {sunset_str}</b>"],
+        textposition=['bottom center', 'top center', 'bottom center'],
+        textfont=dict(color='#2a241f', size=10.5, family="Plus Jakarta Sans, Inter"),
+        showlegend=False,
+        hovertemplate='Hito Solar: <b>%{x}</b> (%{y:.1f}°)<extra></extra>'
+    ))
 
-    ax.plot(sunset_index, 0, marker='o', color='darkorange', markersize=10)
-    ax.text(sunset_index, -10, sunset_time, ha='center', fontsize=10, color='darkorange')
+    apply_custom_plotly_theme(
+        fig, 
+        f'Perfil de Elevación Solar | Duración del día: {day_length_hours}h {day_length_minutes}m ({daylight_change})', 
+        'Elevación (°)', 
+        show_legend=False,
+        hovermode="x unified"
+    )
 
-    ax.plot(max_elevation_index, elevaciones_array[max_elevation_index], 'o', color='red', markersize=8)
-    ax.text(max_elevation_index, elevaciones_array[max_elevation_index] + 2, max_elevation_time, ha='center', fontsize=10, color='red')
-
-    # Add labels and title
-    ax.set_xlabel('Time of Day (hours)', fontsize=12, fontweight='light')
-    ax.set_ylabel('Sun Elevation (degrees)', fontsize=12, fontweight='light')
-    ax.set_title(f'Sun Elevation Profile | Date: {today.strftime("%Y-%m-%d")} | Day Length: {day_length_hours}h {day_length_minutes}m', 
-                 fontsize=14, fontweight='bold')
-
-    # Customize the x-axis labels to show hours
-    hours = np.arange(0, len(elevaciones), 60)
-    ax.set_xticks(hours)
-    ax.set_xticklabels([str(i // 60) for i in hours], fontsize=10, fontweight='light')
-
-    # Customize the y-axis labels
-    ax.yaxis.set_tick_params(labelsize=10, labelcolor='grey', width=0.5)
-
-    # Make the grid lines more subtle
-    ax.grid(True, linestyle=':', linewidth=0.5, color='grey', alpha=0.7)
-
-    # Remove unnecessary spines
-    for spine in ['top', 'right']:
-        ax.spines[spine].set_visible(False)
-    for spine in ['left', 'bottom']:
-        ax.spines[spine].set_color('grey')
-        ax.spines[spine].set_linewidth(0.5)
-
-    # Minimalist legend
-    ax.legend(loc='upper left', frameon=False, fontsize=10)
-
-    # Add a text box with daylight change information
-    daylight_change_text = f"Cambio tiempo de luz: {daylight_change}"
-    plt.text(0.02, 0.88, daylight_change_text, transform=ax.transAxes, fontsize=10,
-             verticalalignment='top', bbox=dict(boxstyle='round,pad=0.5', fc='white', ec='grey', alpha=0.7))
-
-    # Display the plot
-    plt.tight_layout()
-
+    tick_indices = list(range(0, 1440, 120))
+    tick_vals = [time_labels[i] for i in tick_indices]
+    fig.update_xaxes(tickvals=tick_vals, tickfont=dict(size=11, color='#2a241f'))
 
     return fig
 
@@ -2054,8 +1924,6 @@ valid_run_gfs = get_last_gfs_run()
 
 def get_temp_data_gfs(valid_run_gfs):
 
-
-
     url ='https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=40.4165&lon=-3.70256&ext=1&mode=7&sort=0'
     url_run = f'{url}&run={valid_run_gfs}'
 
@@ -2090,37 +1958,50 @@ upper_bound_max = daily_data_max[ensemble_cols_max].max(axis=1)
 lower_bound_min = daily_data_min[ensemble_cols_min].min(axis=1)
 upper_bound_min = daily_data_min[ensemble_cols_min].max(axis=1)
 
-fig, ax = plt.subplots(figsize=(12, 6))
+fig, ax = plt.subplots(figsize=(12, 6), facecolor='none')
+ax.set_facecolor('none')
 
 # Plot ensemble envelope for daily maximum temperatures
 ax.fill_between(x, lower_bound_max, upper_bound_max,
-                color="red", alpha=0.1, label="Ensemble Range (daily max)")
+                color="#d93856", alpha=0.1, label="Rango del Ensemble (máximas)")
 # Plot ensemble envelope for daily minimum temperatures
 ax.fill_between(x, lower_bound_min, upper_bound_min,
-                color="lightblue", alpha=0.4, label="Ensemble Range (daily min)")
+                color="#0277bd", alpha=0.12, label="Rango del Ensemble (mínimas)")
 
 # Plot GFS forecast for maximum temperatures
-ax.plot(x, daily_data_max["GFS"], color="red", linewidth=2.5,
-        label="GFS Forecast (daily max)")
+ax.plot(x, daily_data_max["GFS"], color="#d93856", linewidth=2,
+        label="Predicción GFS (máx)")
 # Plot GFS forecast for minimum temperatures
-ax.plot(x, daily_data_min["GFS"], color="lightskyblue", linewidth=2.5,
-        label="GFS Forecast (daily min)")
+ax.plot(x, daily_data_min["GFS"], color="#0277bd", linewidth=2,
+        label="Predicción GFS (mín)")
 
 # Add vertical gridlines for each day
 for day in x:
-    ax.axvline(x=day, color="gray", linestyle="--", alpha=0.5)
+    ax.axvline(x=day, color="#635b53", linestyle="--", alpha=0.15)
 
 # Add small datalabels showing the GFS temperature for each day.
 for day, temp in zip(x, daily_data_max["GFS"]):
-    ax.text(day, temp + 1, f"{temp:.1f}", ha="center", va="bottom", fontsize=8.9, color="red")
+    ax.text(day, temp + 0.8, f"{temp:.1f}", ha="center", va="bottom", fontsize=8.5, color="#9f1239", weight="bold")
 for day, temp in zip(x, daily_data_min["GFS"]):
-    ax.text(day, temp - 1, f"{temp:.1f}", ha="center", va="top", fontsize=8.9, color="steelblue")
+    ax.text(day, temp - 0.8, f"{temp:.1f}", ha="center", va="top", fontsize=8.5, color="#075985", weight="bold")
 
-ax.set_xlabel("Date")
-ax.set_ylabel("Temperature (°C)")
-ax.set_title("Daily Temperature Forecast with Ensemble Envelopes")
-ax.legend()
-ax.grid(True)
+ax.set_xlabel("Fecha", color="#2a241f", fontsize=10, fontweight='bold')
+ax.set_ylabel("Temperatura (°C)", color="#2a241f", fontsize=10, fontweight='bold')
+ax.set_title("Previsión Diaria GFS con Envolventes del Ensemble", color="#2a241f", fontsize=12, fontweight='bold', pad=15)
+
+# Customize tick colors
+ax.tick_params(colors="#2a241f", labelsize=9)
+
+ax.legend(facecolor='none', edgecolor='none', labelcolor='#2a241f', loc='upper right')
+ax.grid(True, linestyle=':', linewidth=0.5, color='#635b53', alpha=0.15)
+
+# Remove unnecessary spines
+for spine in ['top', 'right']:
+    ax.spines[spine].set_visible(False)
+for spine in ['left', 'bottom']:
+    ax.spines[spine].set_color('#a89f91')
+    ax.spines[spine].set_linewidth(0.5)
+
 fig.tight_layout()
 
 st.pyplot(fig)
@@ -2142,18 +2023,11 @@ image_urls = [
 
 # Function to create a 2x2 grid
 def display_images_in_grid(image_urls):
-    # Calculate the number of rows needed (each row has 2 columns)
-    num_images = len(image_urls)
-    num_rows = (num_images + 1) // 2  # Ensure correct number of rows for odd/even number of images
-
-    # Display images in a 2xN grid
-    image_idx = 0
-    for _ in range(num_rows):
-        cols = st.columns(2)
-        for col in cols:
-            if image_idx < num_images:
-                col.image(image_urls[image_idx], use_container_width=True)
-                image_idx += 1
+    html_grid = '<div class="camera-grid">'
+    for url in image_urls:
+        html_grid += f'<div class="camera-card"><img src="{url}" alt="Cámara de tráfico"></div>'
+    html_grid += '</div>'
+    st.markdown(html_grid, unsafe_allow_html=True)
 
 # Display the images
 display_images_in_grid(image_urls)
