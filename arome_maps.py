@@ -1,4 +1,4 @@
-"""Mapas AROME interactivos para la pestaña de Madrid."""
+"""Mapas AROME interactivos para visualización de campos meteorológicos en Meteo Dash."""
 
 from base64 import b64encode
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,17 +17,10 @@ from bs4 import BeautifulSoup
 import streamlit as st
 
 
-CENTER_LAT, CENTER_LON = 40.4623, -3.7004  # Chamartín
-HALF_SIDE_KM = 50
-LAT_HALF_SPAN = HALF_SIDE_KM / 111.32
-LON_HALF_SPAN = HALF_SIDE_KM / (111.32 * np.cos(np.deg2rad(CENTER_LAT)))
-SOUTH, NORTH = CENTER_LAT - LAT_HALF_SPAN, CENTER_LAT + LAT_HALF_SPAN
-WEST, EAST = CENTER_LON - LON_HALF_SPAN, CENTER_LON + LON_HALF_SPAN
 GRID_STEP = 0.05
 MAX_WORKERS = 3
 REQUEST_PAUSE = 0.15
-CACHE_DIR = Path("datos_arome_madrid")
-USER_AGENT = {"User-Agent": "MeteoDash Madrid map (personal use)"}
+USER_AGENT = {"User-Agent": "MeteoDash map viewer (personal use)"}
 
 VARIABLES = {
     "Temperatura": {"mode": 8, "cache": "temperatura", "cmap": "RdYlBu_r", "step": 1, "unit": "°C"},
@@ -35,10 +28,44 @@ VARIABLES = {
     "Precipitación": {"mode": 10, "cache": "precipitacion", "cmap": "PuBuGn", "step": 0.5, "unit": "mm"},
 }
 
+LOCATIONS = {
+    "Madrid": {
+        "name": "Madrid",
+        "center_lat": 40.4623,
+        "center_lon": -3.7004,
+        "half_side_km": 50,  # 100x100 km = 10.000 km²
+        "marker_label": "Chamartín",
+        "cache_dir": Path("datos_arome_madrid"),
+        "zoom": 8.95,
+        "key_prefix": "madrid",
+    },
+    "Torrelavega": {
+        "name": "Torrelavega",
+        "center_lat": 43.35,
+        "center_lon": -4.047,
+        "half_side_km": 25,  # 50x50 km = 2.500 km²
+        "marker_label": "Torrelavega",
+        "cache_dir": Path("datos_arome_torrelavega"),
+        "zoom": 9.95,
+        "key_prefix": "torrelavega",
+    },
+}
 
-def _points():
-    latitudes = np.arange(np.floor(SOUTH / GRID_STEP) * GRID_STEP, NORTH + GRID_STEP / 2, GRID_STEP)
-    longitudes = np.arange(np.floor(WEST / GRID_STEP) * GRID_STEP, EAST + GRID_STEP / 2, GRID_STEP)
+
+def _compute_bounds(center_lat, center_lon, half_side_km):
+    """Calcula los límites geográficos (sur, norte, oeste, este) para el semi-lado en km dado."""
+    lat_half_span = half_side_km / 111.32
+    lon_half_span = half_side_km / (111.32 * np.cos(np.deg2rad(center_lat)))
+    south, north = center_lat - lat_half_span, center_lat + lat_half_span
+    west, east = center_lon - lon_half_span, center_lon + lon_half_span
+    return south, north, west, east
+
+
+def _points(bounds, grid_step=GRID_STEP):
+    """Genera la lista de coordenadas (lat, lon) que cubren los límites dados."""
+    south, north, west, east = bounds
+    latitudes = np.arange(np.floor(south / grid_step) * grid_step, north + grid_step / 2, grid_step)
+    longitudes = np.arange(np.floor(west / grid_step) * grid_step, east + grid_step / 2, grid_step)
     return [(round(lat, 4), round(lon, 4)) for lat in latitudes for lon in longitudes]
 
 
@@ -66,8 +93,8 @@ def _parse(url):
 
 
 @st.cache_data(ttl="30m", show_spinner=False)
-def _latest_run():
-    reference = (CENTER_LAT, CENTER_LON)
+def _latest_run(center_lat, center_lon):
+    reference = (center_lat, center_lon)
     available = {}
     for run in (3, 9, 15, 21):
         try:
@@ -79,8 +106,8 @@ def _latest_run():
     return max(available, key=available.get)
 
 
-def _cache_file(name, run):
-    return CACHE_DIR / f"arome_{name}_run_{run:02d}_square_100km_step_{GRID_STEP:.3f}.pkl"
+def _cache_file(cache_dir, name, run, side_km, step=GRID_STEP):
+    return Path(cache_dir) / f"arome_{name}_run_{run:02d}_square_{int(side_km)}km_step_{step:.3f}.pkl"
 
 
 def _fetch_point(lat, lon, mode, run):
@@ -96,13 +123,14 @@ def _fetch_point(lat, lon, mode, run):
     raise last_error
 
 
-def _download_field(spec, run, progress):
-    CACHE_DIR.mkdir(exist_ok=True)
-    path = _cache_file(spec["cache"], run)
+def _download_field(spec, run, bounds, cache_dir, side_km, progress):
+    cache_dir = Path(cache_dir)
+    cache_dir.mkdir(exist_ok=True)
+    path = _cache_file(cache_dir, spec["cache"], run, side_km)
     if path.exists():
         return pd.read_pickle(path)
 
-    points = _points()
+    points = _points(bounds)
     frames = []
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = [executor.submit(_fetch_point, lat, lon, spec["mode"], run) for lat, lon in points]
@@ -119,8 +147,8 @@ def _download_field(spec, run, progress):
     return field
 
 
-def _load_field(spec, run):
-    path = _cache_file(spec["cache"], run)
+def _load_field(spec, run, cache_dir, side_km):
+    path = _cache_file(cache_dir, spec["cache"], run, side_km)
     return pd.read_pickle(path) if path.exists() else None
 
 
@@ -132,7 +160,8 @@ def _regular_grid(data, timestamp):
     return longitudes, latitudes, values
 
 
-def _weather_image(data, timestamp, cmap, levels):
+def _weather_image(data, timestamp, cmap, levels, bounds):
+    south, north, west, east = bounds
     longitudes, latitudes, values = _regular_grid(data, timestamp)
     figure, axis = plt.subplots(figsize=(8, 6), dpi=125)
     figure.patch.set_alpha(0)
@@ -140,7 +169,7 @@ def _weather_image(data, timestamp, cmap, levels):
     axis.contourf(longitudes, latitudes, values, levels=levels, cmap=cmap, alpha=0.60, extend="both", antialiased=True)
     lines = axis.contour(longitudes, latitudes, values, levels=levels, colors="#202020", linewidths=0.65, alpha=0.82)
     axis.clabel(lines, inline=True, fontsize=7, fmt=lambda value: f"{value:g}")
-    axis.set(xlim=(WEST, EAST), ylim=(SOUTH, NORTH))
+    axis.set(xlim=(west, east), ylim=(south, north))
     axis.axis("off")
     figure.subplots_adjust(left=0, right=1, bottom=0, top=1)
     buffer = BytesIO()
@@ -158,11 +187,12 @@ TOPO_BASE = {
 }
 
 
-def _weather_layer(image):
+def _weather_layer(image, bounds):
+    south, north, west, east = bounds
     return {
         "sourcetype": "image",
         "source": image,
-        "coordinates": [[WEST, NORTH], [EAST, NORTH], [EAST, SOUTH], [WEST, SOUTH]],
+        "coordinates": [[west, north], [east, north], [east, south], [west, south]],
         "below": "traces",
         "opacity": 1,
     }
@@ -180,8 +210,8 @@ def _map_title(title, timestamp):
     return f"<b>{title}</b><br><span style='font-size:12px'>{label}</span>"
 
 
-@st.cache_data(ttl="30m", max_entries=12, show_spinner=False)
-def _build_map(data, title, cmap, interval, minimum=None):
+@st.cache_data(ttl="30m", max_entries=24, show_spinner=False)
+def _build_map(data, title, cmap, interval, bounds, center_lat, center_lon, marker_label, zoom, minimum=None):
     timestamps = sorted(data.time.unique())
     values = data.value.dropna()
     lower = np.floor(values.quantile(0.02) / interval) * interval if minimum is None else minimum
@@ -189,20 +219,20 @@ def _build_map(data, title, cmap, interval, minimum=None):
     if upper <= lower:
         upper = lower + interval
     levels = np.arange(lower, upper + interval * 1.01, interval)
-    images = {timestamp: _weather_image(data, timestamp, cmap, levels) for timestamp in timestamps}
+    images = {timestamp: _weather_image(data, timestamp, cmap, levels, bounds) for timestamp in timestamps}
     steps = [
         {
             "label": pd.Timestamp(timestamp).strftime("%d %b %H:%M"),
             "method": "relayout",
             "args": [{
-                "mapbox.layers": [TOPO_BASE, _weather_layer(images[timestamp])],
+                "mapbox.layers": [TOPO_BASE, _weather_layer(images[timestamp], bounds)],
                 "title.text": _map_title(title, timestamp),
             }],
         }
         for timestamp in timestamps
     ]
     figure = go.Figure(go.Scattermapbox(
-        lat=[CENTER_LAT], lon=[CENTER_LON], mode="markers+text", text=["Chamartín"],
+        lat=[center_lat], lon=[center_lon], mode="markers+text", text=[marker_label],
         textposition="top right", hoverinfo="skip", marker={"size": 8, "color": "#111111"},
         textfont={"color": "#111111", "size": 12}, showlegend=False,
     ))
@@ -210,8 +240,8 @@ def _build_map(data, title, cmap, interval, minimum=None):
         title={"text": _map_title(title, timestamps[0]), "x": 0.5, "xanchor": "center", "y": 0.975},
         height=735,
         mapbox={
-            "style": "white-bg", "center": {"lat": CENTER_LAT, "lon": CENTER_LON}, "zoom": 8.95,
-            "layers": [TOPO_BASE, _weather_layer(images[timestamps[0]])],
+            "style": "white-bg", "center": {"lat": center_lat, "lon": center_lon}, "zoom": zoom,
+            "layers": [TOPO_BASE, _weather_layer(images[timestamps[0]], bounds)],
         },
         sliders=[{"active": 0, "currentvalue": {"prefix": "Hora local: "}, "pad": {"t": 45}, "steps": steps}],
         margin={"l": 0, "r": 0, "t": 58, "b": 8},
@@ -221,25 +251,48 @@ def _build_map(data, title, cmap, interval, minimum=None):
     return figure
 
 
-def render_arome_maps():
-    """Renderiza la pestaña de mapas sin tocar ni recalcular la previsión habitual."""
+def render_arome_maps(location="Madrid"):
+    """Renderiza la pestaña de mapas para la ubicación indicada."""
+    if isinstance(location, str):
+        if location not in LOCATIONS:
+            raise ValueError(f"Ubicación '{location}' no configurada en LOCATIONS ({list(LOCATIONS.keys())})")
+        cfg = LOCATIONS[location]
+    elif isinstance(location, dict):
+        cfg = location
+    else:
+        raise TypeError("El parámetro 'location' debe ser un string o un dict de configuración.")
+
     st.header("Mapas AROME")
-   
+
+    name = cfg["name"]
+    center_lat = cfg["center_lat"]
+    center_lon = cfg["center_lon"]
+    half_side_km = cfg["half_side_km"]
+    side_km = half_side_km * 2
+    marker_label = cfg.get("marker_label", name)
+    cache_dir = Path(cfg["cache_dir"])
+    zoom = cfg.get("zoom", 8.95)
+    key_prefix = cfg.get("key_prefix", name.lower())
+
+    bounds = _compute_bounds(center_lat, center_lon, half_side_km)
+
     try:
-        run = _latest_run()
+        run = _latest_run(center_lat, center_lon)
     except RuntimeError as error:
         st.error(str(error))
         return
 
-    selected = st.segmented_control("Variable", list(VARIABLES), default="Temperatura", key="arome_map_variable")
+    selected = st.segmented_control("Variable", list(VARIABLES), default="Temperatura", key=f"{key_prefix}_arome_map_variable")
+    if not selected:
+        selected = "Temperatura"
     spec = VARIABLES[selected]
-    data = _load_field(spec, run)
+    data = _load_field(spec, run, cache_dir, side_km)
     if data is None:
         st.info(f"Aún no hay una rejilla de {selected.lower()} para la pasada {run:02d}Z.")
-        if st.button("Descargar mapa AROME", icon=":material/download:", type="primary"):
+        if st.button("Descargar mapa AROME", icon=":material/download:", type="primary", key=f"{key_prefix}_download_btn"):
             progress = st.progress(0, text="Preparando descarga…")
             try:
-                data = _download_field(spec, run, progress)
+                data = _download_field(spec, run, bounds, cache_dir, side_km, progress)
             except RuntimeError as error:
                 st.error(str(error))
                 return
@@ -248,11 +301,22 @@ def render_arome_maps():
             st.rerun()
         return
 
-    if st.button("Actualizar esta variable", icon=":material/refresh:"):
-        _cache_file(spec["cache"], run).unlink(missing_ok=True)
+    if st.button("Actualizar esta variable", icon=":material/refresh:", key=f"{key_prefix}_refresh_btn"):
+        _cache_file(cache_dir, spec["cache"], run, side_km).unlink(missing_ok=True)
         _build_map.clear()
         st.rerun()
 
     with st.spinner("Preparando isolíneas…"):
-        figure = _build_map(data, f"AROME · {selected} · entorno de Madrid", spec["cmap"], spec["step"], 0 if selected == "Precipitación" else None)
+        figure = _build_map(
+            data,
+            f"AROME · {selected} · entorno de {name}",
+            spec["cmap"],
+            spec["step"],
+            bounds,
+            center_lat,
+            center_lon,
+            marker_label,
+            zoom,
+            0 if selected == "Precipitación" else None,
+        )
     st.plotly_chart(figure, width="stretch", config={"scrollZoom": True, "displaylogo": False})
