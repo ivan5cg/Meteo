@@ -1858,7 +1858,7 @@ def plot_sun_elevation(latitude, longitude, timezone_str='UTC'):
 #
 fig = plot_sun_elevation(40.41144776110279, -3.6787949052050672, 'Europe/Madrid')
 
-st.pyplot(fig=fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
 
