@@ -92,7 +92,7 @@ def _fetch_point(lat, lon, mode, run):
             return pd.DataFrame({"time": series.index, "lat": lat, "lon": lon, "value": series.values})
         except Exception as error:  # reintento ante respuestas temporales de Meteociel
             last_error = error
-            time.sleep(1.5 * (attempt + 1))
+            time.sleep(0.5 * (attempt + 1))
     raise last_error
 
 
@@ -168,6 +168,18 @@ def _weather_layer(image):
     }
 
 
+def _map_title(title, timestamp):
+    """Devuelve un encabezado compacto con la fecha/hora local de la previsión."""
+    moment = pd.Timestamp(timestamp)
+    weekdays = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
+    months = (
+        "enero", "febrero", "marzo", "abril", "mayo", "junio",
+        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+    )
+    label = f"{weekdays[moment.weekday()]}, {moment.day} de {months[moment.month - 1]} · {moment:%H:%M} h"
+    return f"<b>{title}</b><br><span style='font-size:12px'>{label}</span>"
+
+
 @st.cache_data(ttl="30m", max_entries=12, show_spinner=False)
 def _build_map(data, title, cmap, interval, minimum=None):
     timestamps = sorted(data.time.unique())
@@ -182,7 +194,10 @@ def _build_map(data, title, cmap, interval, minimum=None):
         {
             "label": pd.Timestamp(timestamp).strftime("%d %b %H:%M"),
             "method": "relayout",
-            "args": [{"mapbox.layers": [TOPO_BASE, _weather_layer(images[timestamp])]}],
+            "args": [{
+                "mapbox.layers": [TOPO_BASE, _weather_layer(images[timestamp])],
+                "title.text": _map_title(title, timestamp),
+            }],
         }
         for timestamp in timestamps
     ]
@@ -192,13 +207,16 @@ def _build_map(data, title, cmap, interval, minimum=None):
         textfont={"color": "#111111", "size": 12}, showlegend=False,
     ))
     figure.update_layout(
-        title={"text": title, "x": 0.5}, height=760,
+        title={"text": _map_title(title, timestamps[0]), "x": 0.5, "xanchor": "center", "y": 0.975},
+        height=735,
         mapbox={
             "style": "white-bg", "center": {"lat": CENTER_LAT, "lon": CENTER_LON}, "zoom": 8.95,
             "layers": [TOPO_BASE, _weather_layer(images[timestamps[0]])],
         },
         sliders=[{"active": 0, "currentvalue": {"prefix": "Hora local: "}, "pad": {"t": 45}, "steps": steps}],
-        margin={"l": 0, "r": 0, "t": 75, "b": 20}, paper_bgcolor="white",
+        margin={"l": 0, "r": 0, "t": 58, "b": 8},
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
     )
     return figure
 
@@ -206,7 +224,7 @@ def _build_map(data, title, cmap, interval, minimum=None):
 def render_arome_maps():
     """Renderiza la pestaña de mapas sin tocar ni recalcular la previsión habitual."""
     st.header("Mapas AROME")
-    st.caption("Entorno de 10.000 km² centrado en Chamartín. Fondo topográfico tenue e isolíneas AROME.")
+   
     try:
         run = _latest_run()
     except RuntimeError as error:
