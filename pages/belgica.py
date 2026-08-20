@@ -298,18 +298,22 @@ def plot_rain_chance(chance_prec, avg_prec):
         hovertemplate='Probabilidad: <b>%{y}%</b><extra></extra>'
     ), row=2, col=1)
 
-    dates_unique = list(set(avg_prec.index.date))
-    for date in dates_unique:
-        midnight = datetime.combine(date, datetime.min.time())
-        fig.add_vline(x=midnight, line_width=1, line_color="rgba(60, 50, 40, 0.15)", row='all', col=1)
-
     fig.update_layout(
         title=dict(text='Previsión de Lluvia (48h)', font=dict(color='#2a241f', size=16, family="Plus Jakarta Sans, Inter")),
         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
         hoverlabel=dict(bgcolor='rgba(247, 244, 238, 0.96)', bordercolor='#d6cfc4', font=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=12), align='left'),
         hovermode="x unified", margin=dict(l=10, r=10, t=60, b=10), showlegend=False
     )
-    fig.update_xaxes(showgrid=True, gridcolor='rgba(60, 50, 40, 0.12)', linecolor='rgba(60, 50, 40, 0.25)', color='#2a241f', tickfont=dict(color='#2a241f', size=11), tickformat='%a %d\n%H:%M')
+    fig.update_xaxes(
+        range=[avg_prec.index.min(), avg_prec.index.max()],
+        showgrid=True,
+        gridcolor='rgba(60, 50, 40, 0.12)',
+        linecolor='rgba(60, 50, 40, 0.25)',
+        tickcolor='rgba(60, 50, 40, 0.25)',
+        color='#2a241f',
+        tickfont=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=11),
+        tickformat='%a %d\n%H:%M'
+    )
     fig.update_yaxes(title_text="L/m2", title_font=dict(color='#2a241f', size=11), showgrid=True, gridcolor='rgba(60, 50, 40, 0.12)', linecolor='rgba(60, 50, 40, 0.25)', color='#2a241f', row=1, col=1, rangemode='tozero')
     fig.update_yaxes(title_text="Probabilidad %", title_font=dict(color='#2a241f', size=11), showgrid=True, gridcolor='rgba(60, 50, 40, 0.12)', linecolor='rgba(60, 50, 40, 0.25)', color='#2a241f', range=[0, 105], row=2, col=1)
 

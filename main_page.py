@@ -1085,12 +1085,6 @@ if prevision_tab.open:
                 hovertemplate='Probabilidad: <b>%{y}%</b><extra></extra>'
             ), row=2, col=1)
 
-            # Líneas verticales indicando medianoche (muy tenues)
-            dates_unique = list(set(avg_prec.index.date))
-            for date in dates_unique:
-                midnight = datetime.combine(date, datetime.min.time())
-                fig.add_vline(x=midnight, line_width=1, line_color="rgba(60, 50, 40, 0.15)", row='all', col=1)
-
             fig.update_layout(
                 title=dict(text='Previsión de Lluvia (48h)', font=dict(color='#2a241f', size=16, family="Plus Jakarta Sans, Inter")),
                 plot_bgcolor='rgba(0,0,0,0)',
@@ -1107,6 +1101,7 @@ if prevision_tab.open:
             )
     
             fig.update_xaxes(
+                range=[avg_prec.index.min(), avg_prec.index.max()],
                 showgrid=True, gridcolor='rgba(60, 50, 40, 0.12)',
                 linecolor='rgba(60, 50, 40, 0.25)', tickcolor='rgba(60, 50, 40, 0.25)',
                 color='#2a241f', tickfont=dict(color='#2a241f', family="Plus Jakarta Sans, Inter", size=11),
