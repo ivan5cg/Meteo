@@ -23,8 +23,8 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `meteodash/graficos.py` | Gráficos Plotly |
 | `meteodash/tarjetas.py` | Tarjetas, avisos y tabla de récords |
 | `meteodash/estilo.py` | CSS de la app y tema de los gráficos |
-| `arome_maps.py` | Mapas AROME interactivos (Madrid y Torrelavega) |
-| `datos/` | Históricos diarios de AEMET (Retiro desde 1950, Ávila desde 1990) |
+| `arome_maps.py` | Mapas AROME interactivos (Madrid y Torrelavega); las rejillas se guardan en memoria, compartidas entre visitantes |
+| `datos/` | Históricos diarios de AEMET, solo lectura (Retiro 1950-2022, Ávila 1990-2022) |
 
 ## Añadir una ciudad
 
@@ -52,5 +52,7 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - [Meteociel](https://www.meteociel.fr): ensembles PE-AROME y GEFS (tablas HTML, sin API oficial).
 - [AEMET](https://www.aemet.es): observaciones de las últimas 24 h (XML interno de su web, sin API oficial).
 - [Open-Meteo](https://open-meteo.com): ECMWF, GFS, AROME, ARPEGE e ICON.
+
+La app no escribe nada en disco (en Streamlit Cloud no persiste): todo se cachea en memoria.
 
 Meteociel y AEMET no son APIs estables: si cambian el formato, la página afectada muestra un aviso en lugar de romperse.

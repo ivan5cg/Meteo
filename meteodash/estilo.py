@@ -12,21 +12,12 @@ CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
-/* Fondo intermedio cálido global (Sepia / Arena Lino) y tipografía */
+/* Colores: tema de .streamlit/config.toml. Aquí solo la tipografía y los detalles que el tema no cubre */
 html, body, [data-testid="stAppViewContainer"], .stApp {
     font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-    background-color: #e8e3da !important;
-    color: #2a241f !important;
 }
 
-/* Cabecera superior integrada con el fondo (elimina la barra negra) */
-header[data-testid="stHeader"] {
-    background-color: transparent !important;
-    background: transparent !important;
-}
-header[data-testid="stHeader"] * {
-    color: #2a241f !important;
-}
+/* Sin la franja de color superior de Streamlit */
 [data-testid="stDecoration"] {
     display: none !important;
 }
@@ -40,28 +31,8 @@ hr, [data-testid="stDivider"], .stDivider {
     opacity: 1 !important;
 }
 
-/* Sidebar intermedio cálido */
 section[data-testid="stSidebar"] {
-    background-color: #ded8cd !important;
     border-right: 1px solid #c8c0b2;
-}
-section[data-testid="stSidebar"] h1,
-section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3,
-section[data-testid="stSidebar"] h4,
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] div {
-    color: #2a241f;
-}
-
-/* Controles e Inputs */
-input, textarea, select, button {
-    background-color: #f7f4ee !important;
-    color: #2a241f !important;
-    border: 1px solid #c8c0b2 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
 }
 
 /* Tabla de récords del sidebar */

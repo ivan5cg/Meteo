@@ -1,31 +1,22 @@
+"""Observaciones horarias de las estaciones de AEMET (últimas 24 h)."""
+
 import xml.etree.ElementTree as ET
 
 import pandas as pd
 import requests
 import streamlit as st
 
-MADRID_TZ = "Europe/Madrid"
 USER_AGENT = {"User-Agent": "Mozilla/5.0 (Meteo Dash; Streamlit)"}
 
-# Nombres de columna del antiguo CSV de "últimos datos", que usan las páginas
-COLUMNAS = {
-    "temperatura": "Temperatura (ºC)",
-    "vel_viento": "Velocidad del viento (km/h)",
-    "dir_viento": "Dirección del viento",
-    "vel_racha": "Racha (km/h)",
-    "dir_racha": "Dirección de racha",
-    "precipitacion": "Precipitación (mm)",
-    "presion": "Presión (hPa)",
-    "tendencia": "Tendencia (hPa)",
-    "humedad": "Humedad (%)",
-}
+# Etiqueta del XML -> columna
+VARIABLES = {"temperatura": "temperatura", "vel_racha": "racha"}
 
 
 @st.cache_data(ttl="10m", show_spinner=False)
 def get_aemet_horario(estacion):
-    """Últimas ~24 h de observaciones horarias de una estación de AEMET, de la más reciente a la más antigua.
+    """Observaciones horarias de una estación, ordenadas de la más antigua a la más reciente (hora de Madrid).
 
-    AEMET retiró en 2026 el CSV de "últimos datos"; su web ahora consume este XML.
+    AEMET retiró en 2026 el CSV de "últimos datos"; su web ahora consume este XML (no es una API documentada).
     """
 
     response = requests.get(
@@ -38,22 +29,18 @@ def get_aemet_horario(estacion):
 
     registros = []
     for periodo in root.iter("periodo"):
-        registro = {"Fecha y hora oficial": periodo.get("utc")}
-        for etiqueta, nombre in COLUMNAS.items():
+        registro = {"utc": periodo.get("utc")}
+        for etiqueta, columna in VARIABLES.items():
             nodo = periodo.find(etiqueta)
-            registro[nombre] = nodo.text if nodo is not None else None
+            registro[columna] = nodo.text if nodo is not None else None
         registros.append(registro)
 
     if not registros:
         raise ValueError(f"AEMET no ha devuelto observaciones para la estación {estacion}")
 
-    df = pd.DataFrame(registros).set_index("Fecha y hora oficial")
-    df.index = pd.to_datetime(df.index).tz_localize("UTC").tz_convert(MADRID_TZ)
-
-    numericas = [c for c in COLUMNAS.values() if not c.startswith("Dirección")]
-    df[numericas] = df[numericas].apply(pd.to_numeric, errors="coerce")
-
-    return df.sort_index(ascending=False)
+    df = pd.DataFrame(registros).set_index("utc")
+    df.index = pd.to_datetime(df.index).tz_localize("UTC").tz_convert("Europe/Madrid")
+    return df.apply(pd.to_numeric, errors="coerce").sort_index()
 
 
 def cargar_aemet_horario(estacion, nombre):
@@ -66,45 +53,15 @@ def cargar_aemet_horario(estacion, nombre):
         return None
 
 
-def temperatura_actual_y_ayer(aemet_horario, temp_data):
-    """Temperatura observada más reciente y la de 24 h antes.
+def temperatura_actual_y_ayer(obs):
+    """Temperatura observada más reciente y la de 24 h antes (o la más antigua disponible).
 
-    Sin observaciones (AEMET caído o la estación sin sensor de temperatura), usa la
-    media del ensemble a la hora actual (y delta 0).
+    Devuelve (None, None) si no hay observaciones de temperatura (AEMET caído o la estación sin ese sensor).
     """
 
-    temp_obs = pd.Series(dtype=float)
-    if aemet_horario is not None:
-        temp_obs = aemet_horario["Temperatura (ºC)"].sort_index().dropna()
+    temp = obs["temperatura"].dropna() if obs is not None else pd.Series(dtype=float)
+    if temp.empty:
+        return None, None
 
-    if temp_obs.empty:
-        ahora = pd.Timestamp.now(tz=MADRID_TZ)
-        prevista = temp_data.drop(columns="Actual data", errors="ignore").mean(axis=1).asof(ahora)
-        temp_actual = pd.Series([prevista]).round(1).iloc[0]
-        return temp_actual, temp_actual
-
-    temp_actual = temp_obs.iloc[-1]
-    temp_ayer = temp_obs.asof(temp_obs.index[-1] - pd.Timedelta(hours=24))
-    if pd.isna(temp_ayer):
-        temp_ayer = temp_obs.iloc[0]
-
-    return temp_actual, temp_ayer
-
-
-def acumular_en_excel(estacion, ruta):
-    """Añade las observaciones recientes al Excel histórico de la estación (sin duplicar horas).
-
-    En Streamlit Cloud el disco no es persistente: solo acumula de verdad cuando se ejecuta en local.
-    """
-
-    try:
-        recientes = get_aemet_horario(estacion)
-        acumulado = pd.read_excel(ruta, index_col=0)
-        acumulado.index = acumulado.index.tz_localize(MADRID_TZ, ambiguous="NaT", nonexistent="NaT")
-        acumulado = pd.concat([acumulado[acumulado.index.notna()], recientes])
-        acumulado = acumulado[~acumulado.index.duplicated(keep="first")].sort_index(ascending=False)
-        acumulado.index = acumulado.index.tz_localize(None)
-        acumulado.to_excel(ruta)
-    except Exception:
-        # Es un extra: si falla (AEMET caído, Excel bloqueado...) la página sigue igual
-        pass
+    temp_ayer = temp.asof(temp.index[-1] - pd.Timedelta(hours=24))
+    return temp.iloc[-1], temp_ayer if not pd.isna(temp_ayer) else temp.iloc[0]

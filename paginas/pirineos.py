@@ -1,8 +1,4 @@
-import streamlit as st
-
 from meteodash.ciudad import Ciudad, render_grupo
-
-st.set_page_config(layout="wide")
 
 render_grupo("Pirineos 🏔️", [
     Ciudad(nombre, lat, lon, presion_y_cape=False)

@@ -4,7 +4,7 @@ import streamlit as st
 
 from meteodash.estilo import aplicar_estilos
 
-st.set_page_config(page_title="Meteo Dash", page_icon=":material/partly_cloudy_day:")
+st.set_page_config(page_title="Meteo Dash", page_icon=":material/partly_cloudy_day:", layout="wide")
 
 paginas = st.navigation({
     "España": [

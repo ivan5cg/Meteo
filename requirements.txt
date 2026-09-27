@@ -5,8 +5,6 @@ numpy==1.25.1
 requests==2.31.0
 beautifulsoup4==4.12.2
 plotly==5.20.0
-scipy==1.11.1
 matplotlib==3.7.2  # imágenes de los mapas AROME (arome_maps.py)
 astral==3.2
 pytz==2023.3
-openpyxl==3.1.2  # Excel acumulado de Ávila

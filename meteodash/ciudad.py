@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import streamlit as st
-from scipy.stats import percentileofscore
 
 from . import graficos, tarjetas
 from .aemet import cargar_aemet_horario, temperatura_actual_y_ayer
@@ -41,26 +40,25 @@ def render_ciudad(ciudad, titulo=None):
         st.error("No se ha podido descargar el ensemble AROME de Meteociel. Prueba a recargar en unos minutos.")
         return
 
-    st.sidebar.subheader(f"Previsión más reciente: {hora_local_run(run, ciudad.tz)} horas")
+    st.sidebar.subheader(f"Pase AROME de las {hora_local_run(run, ciudad.tz)} h")
 
     # --- Observaciones ---
     temp = arome["temperatura"]
     rachas = arome["rachas"]
-    obs = None
     temp_actual = temp_ayer = None
 
     if ciudad.estacion_aemet:
         obs = cargar_aemet_horario(ciudad.estacion_aemet, ciudad.nombre)
         if obs is not None:
-            st.sidebar.subheader(f"Datos más recientes: {obs.index[0].hour} horas")
-            temp["Actual data"] = obs["Temperatura (ºC)"]
-            rachas["Actual data"] = obs["Racha (km/h)"]
+            st.sidebar.subheader(f"Observación AEMET de las {obs.index[-1].hour} h")
+            temp["Observado"] = obs["temperatura"]
+            rachas["Observado"] = obs["racha"]
         else:
-            st.sidebar.subheader("Datos más recientes: no disponibles")
-        temp_actual, temp_ayer = temperatura_actual_y_ayer(obs, temp)
+            st.sidebar.subheader("Observación AEMET no disponible")
+        temp_actual, temp_ayer = temperatura_actual_y_ayer(obs)
 
     # --- Previsión a partir del ensemble ---
-    ensemble = temp.drop(columns="Actual data", errors="ignore")
+    ensemble = temp.drop(columns="Observado", errors="ignore")
     media = ensemble.mean(axis=1)
 
     fila_mañana = ensemble.iloc[ensemble.index.get_indexer([mañana.floor("h")], method="nearest")[0]]
@@ -81,8 +79,11 @@ def render_ciudad(ciudad, titulo=None):
         datos_hist, bandas = get_historico(ciudad.historico)
 
         def percentil(fecha, columna, valor):
+            """Porcentaje de años del histórico con un valor inferior (los empates cuentan la mitad)."""
             registros = datos_hist.loc[datos_hist["día_del_año"] == dia_historico(fecha), columna].dropna()
-            return percentileofscore(registros, valor) if len(registros) and not pd.isna(valor) else None
+            if registros.empty or pd.isna(valor):
+                return None
+            return 100 * ((registros < valor).mean() + (registros <= valor).mean()) / 2
 
         percentiles = {
             "max_hoy": percentil(ahora, "tmax", max_hoy),
@@ -111,8 +112,7 @@ def render_ciudad(ciudad, titulo=None):
             st.divider()
 
     # --- 48 h: ensemble AROME ---
-    dia_bandas = dia_historico(temp.index[min(27, len(temp) - 1)]) if bandas is not None else None
-    st.plotly_chart(graficos.temperatura(temp, bandas, dia_bandas), use_container_width=True)
+    st.plotly_chart(graficos.temperatura(temp, bandas, dia_historico(ahora)), use_container_width=True)
     st.plotly_chart(graficos.lluvia(arome["precipitacion"]), use_container_width=True)
     st.plotly_chart(graficos.viento(rachas), use_container_width=True)
     if ciudad.presion_y_cape:

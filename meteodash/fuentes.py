@@ -114,7 +114,6 @@ def get_open_meteo(lat, lon, tz):
         "longitude": lon,
         "hourly": ",".join(variables.values()),
         "timezone": tz,
-        "past_days": 1,
         "models": ",".join(MODELOS_OPEN_METEO),
     }
     response = requests.get("https://api.open-meteo.com/v1/forecast", params=params, timeout=30, headers=USER_AGENT)
@@ -152,7 +151,7 @@ def _dias_historicos(indice):
 def get_historico(ruta_csv):
     """Serie diaria (tmax, tmin, tmed) y bandas habituales (percentiles 15-85 de la media móvil de 15 días)."""
 
-    datos = pd.read_csv(ruta_csv, index_col="fecha", parse_dates=True)
+    datos = pd.read_csv(ruta_csv, usecols=["fecha", "tmed", "tmax", "tmin"], index_col="fecha", parse_dates=True)
     datos = datos[~((datos.index.month == 2) & (datos.index.day == 29))]
     datos["día_del_año"] = _dias_historicos(datos.index)
 

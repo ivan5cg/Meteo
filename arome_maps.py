@@ -3,7 +3,6 @@
 from base64 import b64encode
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
-from pathlib import Path
 import time
 
 import matplotlib
@@ -35,7 +34,6 @@ LOCATIONS = {
         "center_lon": -3.7004,
         "half_side_km": 50,  # 100x100 km = 10.000 km²
         "marker_label": "Chamartín",
-        "cache_dir": Path("datos_arome_madrid"),
         "zoom": 8.95,
         "key_prefix": "madrid",
     },
@@ -45,7 +43,6 @@ LOCATIONS = {
         "center_lon": -4.047,
         "half_side_km": 25,  # 50x50 km = 2.500 km²
         "marker_label": "Torrelavega",
-        "cache_dir": Path("datos_arome_torrelavega"),
         "zoom": 9.95,
         "key_prefix": "torrelavega",
     },
@@ -94,6 +91,7 @@ def _parse(url):
 
 @st.cache_data(ttl="30m", show_spinner=False)
 def _latest_run(center_lat, center_lon):
+    """Pasada más reciente: (hora UTC, último instante previsto). El instante identifica la pasada de ese día."""
     reference = (center_lat, center_lon)
     available = {}
     for run in (3, 9, 15, 21):
@@ -103,11 +101,17 @@ def _latest_run(center_lat, center_lon):
             continue
     if not available:
         raise RuntimeError("No se pudo obtener una pasada AROME disponible")
-    return max(available, key=available.get)
+    run = max(available, key=available.get)
+    return run, available[run]
 
 
-def _cache_file(cache_dir, name, run, side_km, step=GRID_STEP):
-    return Path(cache_dir) / f"arome_{name}_run_{run:02d}_square_{int(side_km)}km_step_{step:.3f}.pkl"
+@st.cache_resource(show_spinner=False)
+def _grids():
+    """Rejillas descargadas, en memoria y compartidas por todas las sesiones mientras la app sigue en marcha.
+
+    Clave: (ubicación, variable, pasada). Solo se guarda la pasada más reciente de cada variable.
+    """
+    return {}
 
 
 def _fetch_point(lat, lon, mode, run):
@@ -123,13 +127,7 @@ def _fetch_point(lat, lon, mode, run):
     raise last_error
 
 
-def _download_field(spec, run, bounds, cache_dir, side_km, progress):
-    cache_dir = Path(cache_dir)
-    cache_dir.mkdir(exist_ok=True)
-    path = _cache_file(cache_dir, spec["cache"], run, side_km)
-    if path.exists():
-        return pd.read_pickle(path)
-
+def _download_field(spec, run, run_id, bounds, location_key, progress):
     points = _points(bounds)
     frames = []
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
@@ -143,13 +141,12 @@ def _download_field(spec, run, bounds, cache_dir, side_km, progress):
     if not frames:
         raise RuntimeError(f"No se obtuvieron datos de {spec['cache']} desde Meteociel")
     field = pd.concat(frames, ignore_index=True)
-    field.to_pickle(path)
+
+    grids = _grids()
+    for key in [k for k in grids if k[:2] == (location_key, spec["cache"])]:
+        del grids[key]
+    grids[(location_key, spec["cache"], run_id)] = field
     return field
-
-
-def _load_field(spec, run, cache_dir, side_km):
-    path = _cache_file(cache_dir, spec["cache"], run, side_km)
-    return pd.read_pickle(path) if path.exists() else None
 
 
 def _regular_grid(data, timestamp):
@@ -268,16 +265,14 @@ def render_arome_maps(location="Madrid"):
     center_lat = cfg["center_lat"]
     center_lon = cfg["center_lon"]
     half_side_km = cfg["half_side_km"]
-    side_km = half_side_km * 2
     marker_label = cfg.get("marker_label", name)
-    cache_dir = Path(cfg["cache_dir"])
     zoom = cfg.get("zoom", 8.95)
     key_prefix = cfg.get("key_prefix", name.lower())
 
     bounds = _compute_bounds(center_lat, center_lon, half_side_km)
 
     try:
-        run = _latest_run(center_lat, center_lon)
+        run, run_id = _latest_run(center_lat, center_lon)
     except RuntimeError as error:
         st.error(str(error))
         return
@@ -286,13 +281,14 @@ def render_arome_maps(location="Madrid"):
     if not selected:
         selected = "Temperatura"
     spec = VARIABLES[selected]
-    data = _load_field(spec, run, cache_dir, side_km)
+    grid_key = (key_prefix, spec["cache"], run_id)
+    data = _grids().get(grid_key)
     if data is None:
         st.info(f"Aún no hay una rejilla de {selected.lower()} para la pasada {run:02d}Z.")
         if st.button("Descargar mapa AROME", icon=":material/download:", type="primary", key=f"{key_prefix}_download_btn"):
             progress = st.progress(0, text="Preparando descarga…")
             try:
-                data = _download_field(spec, run, bounds, cache_dir, side_km, progress)
+                _download_field(spec, run, run_id, bounds, key_prefix, progress)
             except RuntimeError as error:
                 st.error(str(error))
                 return
@@ -302,7 +298,7 @@ def render_arome_maps(location="Madrid"):
         return
 
     if st.button("Actualizar esta variable", icon=":material/refresh:", key=f"{key_prefix}_refresh_btn"):
-        _cache_file(cache_dir, spec["cache"], run, side_km).unlink(missing_ok=True)
+        _grids().pop(grid_key, None)
         _build_map.clear()
         st.rerun()
 

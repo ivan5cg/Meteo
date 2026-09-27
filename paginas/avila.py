@@ -1,11 +1,4 @@
-import streamlit as st
-
-from meteodash.aemet import acumular_en_excel
 from meteodash.ciudad import Ciudad, render_pagina
-
-st.set_page_config(layout="wide")
-
-acumular_en_excel("2444", "Histórico/Acumulado Ávila.xlsx")
 
 render_pagina(Ciudad(
     nombre="Ávila",

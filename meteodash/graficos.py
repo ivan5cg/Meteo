@@ -16,7 +16,7 @@ from .estilo import AMBAR, AZUL, FUENTE, ROJO, TEXTO, tema_plotly
 DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 DIAS_LARGOS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
-COLUMNAS_NO_ENSEMBLE = ["Actual data", "Ctrl"]
+OBSERVADO = "Observado"  # columna que añade ciudad.py con los datos de AEMET
 
 
 def dia_semana(fecha, largo=False):
@@ -37,11 +37,13 @@ def _eje_fechas_es(fig, indice, cada_horas=6):
 
 
 def _ensemble(data):
-    return data[[c for c in data.columns if c not in COLUMNAS_NO_ENSEMBLE]]
+    """Todos los miembros del ensemble, incluido el control."""
+    return data.drop(columns=OBSERVADO, errors="ignore")
 
 
 def _miembros(fig, data, color):
-    for columna in _ensemble(data).columns:
+    # El control se dibuja aparte, destacado
+    for columna in _ensemble(data).columns.drop("Ctrl", errors="ignore"):
         fig.add_trace(go.Scatter(
             x=data.index, y=data[columna], mode="lines",
             line=dict(color=color, width=1),
@@ -60,31 +62,27 @@ def _control(fig, data, color, formato, unidad):
 
 
 def _observado(fig, data, formato, unidad, etiqueta="Observado"):
-    if "Actual data" in data.columns and data["Actual data"].notna().any():
+    if OBSERVADO in data.columns and data[OBSERVADO].notna().any():
         fig.add_trace(go.Scatter(
-            x=data.index, y=data["Actual data"], mode="lines",
+            x=data.index, y=data[OBSERVADO], mode="lines",
             line=dict(color=TEXTO, width=3),
             name="Observado",
             hovertemplate=f"{etiqueta}: <b>%{{y:{formato}}} {unidad}</b><extra></extra>",
         ))
 
 
-def _extremos_diarios(fig, data, formato, sufijo=""):
-    """Anota el máximo y el mínimo de cada día."""
+def _extremos_diarios(fig, media, formato, sufijo=""):
+    """Anota el máximo y el mínimo diarios de la media del ensemble (los mismos valores que las tarjetas)."""
 
-    for fecha in sorted(set(data.index.date)):
-        dia = data.loc[data.index.date == fecha]
-        if dia.dropna(how="all").empty:
+    for fecha in sorted(set(media.index.date)):
+        dia = media[media.index.date == fecha].dropna()
+        if dia.empty:
             continue
-        minimo, maximo = dia.min().min(), dia.max().max()
-        fig.add_annotation(
-            x=dia.min(axis=1).idxmin(), y=minimo, text=f"<b>{minimo:{formato}}{sufijo}</b>",
-            showarrow=False, yshift=-15, font=dict(color=AZUL, size=11, family=FUENTE),
-        )
-        fig.add_annotation(
-            x=dia.max(axis=1).idxmax(), y=maximo, text=f"<b>{maximo:{formato}}{sufijo}</b>",
-            showarrow=False, yshift=15, font=dict(color=ROJO, size=11, family=FUENTE),
-        )
+        for momento, color, desplazamiento in [(dia.idxmin(), AZUL, -15), (dia.idxmax(), ROJO, 15)]:
+            fig.add_annotation(
+                x=momento, y=dia[momento], text=f"<b>{dia[momento]:{formato}}{sufijo}</b>",
+                showarrow=False, yshift=desplazamiento, font=dict(color=color, size=11, family=FUENTE),
+            )
 
 
 # ---------------------------------------------------------------- Ensemble AROME (48 h)
@@ -120,7 +118,7 @@ def temperatura(data, bandas=None, dia_bandas=None):
                 name=nombre, hoverinfo="skip",
             ))
 
-    _extremos_diarios(fig, data, ".1f", "º")
+    _extremos_diarios(fig, ens.mean(axis=1), ".1f", "º")
     tema_plotly(fig, "Previsión de Temperaturas (48h)", "Temperatura (°C)")
     _eje_fechas_es(fig, data.index)
     return fig
@@ -166,7 +164,7 @@ def viento(data):
     ))
     _control(fig, data, AMBAR, ".0f", "km/h")
     _observado(fig, data, ".0f", "km/h", etiqueta="Racha observada")
-    _extremos_diarios(fig, data, ".0f")
+    _extremos_diarios(fig, _ensemble(data).mean(axis=1), ".0f")
     tema_plotly(fig, "Previsión de Viento (Rachas) (48h)", "Velocidad (km/h)")
     _eje_fechas_es(fig, data.index)
     return fig
