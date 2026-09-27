@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+METEO_ROOT = Path(__file__).resolve().parent.parent
+if str(METEO_ROOT) not in sys.path:
+    sys.path.append(str(METEO_ROOT))
+
+from aemet import cargar_aemet_horario, temperatura_actual_y_ayer
 from urllib import response
 import requests
 from bs4 import BeautifulSoup
@@ -216,24 +224,23 @@ valid_run = get_last_arome_run()
 st.header("Ávila")
 
 
-aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_2444_datos-horarios.csv?k=mad&l=2444&datos=det&w=0&f=temperatura&x=h24" ,
-                            encoding="latin-1",skiprows=2,parse_dates=True,index_col=0,dayfirst=True)
-aemet_horario.index = aemet_horario.index.tz_localize('Europe/Madrid')
+aemet_horario = cargar_aemet_horario("2444", "Ávila")
 
 
 
-aemet_horario_acumulado = pd.read_excel("Histórico/Acumulado Ávila.xlsx",index_col=0)
-aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize('Europe/Madrid')
+if aemet_horario is not None:
+    aemet_horario_acumulado = pd.read_excel("Histórico/Acumulado Ávila.xlsx",index_col=0)
+    aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize('Europe/Madrid')
 
-aemet_horario_acumulado = pd.concat([aemet_horario_acumulado,aemet_horario])
+    aemet_horario_acumulado = pd.concat([aemet_horario_acumulado,aemet_horario])
 
-aemet_horario_acumulado = aemet_horario_acumulado[~aemet_horario_acumulado.index.duplicated(keep='first')]
+    aemet_horario_acumulado = aemet_horario_acumulado[~aemet_horario_acumulado.index.duplicated(keep='first')]
 
-aemet_horario_acumulado = aemet_horario_acumulado.sort_index(ascending=False)
+    aemet_horario_acumulado = aemet_horario_acumulado.sort_index(ascending=False)
 
-aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize(None)
+    aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize(None)
 
-aemet_horario_acumulado.to_excel("Histórico/Acumulado Ávila.xlsx")
+    aemet_horario_acumulado.to_excel("Histórico/Acumulado Ávila.xlsx")
 
 
 
@@ -344,14 +351,14 @@ records_dia = records_dia.style.apply(lambda x: ['background-color: rgba(255, 20
 
 st.sidebar.subheader("Previsión más reciente: "+str(valid_run+2)+" horas")
 
-st.sidebar.subheader("Datos más recientes: "+str(aemet_horario.index[0].hour)+" horas")
-
-
 temp_data = get_temp_data(valid_run)
-temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
+if aemet_horario is not None:
+    st.sidebar.subheader("Datos más recientes: " + str(aemet_horario.index[0].hour) + " horas")
+    temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
+else:
+    st.sidebar.subheader("Datos más recientes: no disponibles")
 
-temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
-temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
+temp_actual, temp_ayer = temperatura_actual_y_ayer(aemet_horario, temp_data)
 
 dia_mañana = (datetime.now() + timedelta(hours=26)).day
 hora = (datetime.now() + timedelta(hours=2)).hour
@@ -913,7 +920,8 @@ st.plotly_chart(plot_rain_chance(chance_prec, avg_prec), use_container_width=Tru
 st.divider()
 
 wind_data = get_wind_gust_data(valid_run)
-wind_data["Actual data"] = aemet_horario["Racha (km/h)"]
+if aemet_horario is not None:
+    wind_data["Actual data"] = aemet_horario["Racha (km/h)"]
 
 def plot_wind_data(data):
     fig = go.Figure()

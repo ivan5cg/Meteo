@@ -1,5 +1,4 @@
 import requests
-import xml.etree.ElementTree as ET
 from io import StringIO
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -12,6 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from arome_maps import render_arome_maps
+from aemet import cargar_aemet_horario, temperatura_actual_y_ayer
 
 #st.set_option('deprecation.showPyplotGlobalUse', False)
 
@@ -145,7 +145,6 @@ st.markdown(
 
 MADRID_TZ = "Europe/Madrid"
 USER_AGENT = {"User-Agent": "Mozilla/5.0 (Meteo Dash; Streamlit)"}
-AEMET_ESTACION_RETIRO = "3195"
 
 
 def descargar(url, timeout=30):
@@ -209,50 +208,6 @@ def get_historico_retiro():
     return pd.read_csv("retiro 1950.csv", index_col="fecha", parse_dates=True)
 
 
-@st.cache_data(ttl="10m", show_spinner=False)
-def get_aemet_horario(estacion=AEMET_ESTACION_RETIRO):
-    """Últimas ~24 h de observaciones horarias de AEMET, de la más reciente a la más antigua.
-
-    AEMET retiró en 2026 el CSV de "últimos datos"; la web ahora consume este XML.
-    Se mantienen los nombres de columna del antiguo CSV.
-    """
-
-    response = descargar(f"https://www.aemet.es/es/api-eltiempo/udat/tablas-graficas/horario/9/{estacion}")
-    root = ET.fromstring(response.content)
-
-    columnas = {
-        "temperatura": "Temperatura (ºC)",
-        "vel_viento": "Velocidad del viento (km/h)",
-        "dir_viento": "Dirección del viento",
-        "vel_racha": "Racha (km/h)",
-        "dir_racha": "Dirección de racha",
-        "precipitacion": "Precipitación (mm)",
-        "presion": "Presión (hPa)",
-        "tendencia": "Tendencia (hPa)",
-        "humedad": "Humedad (%)",
-    }
-
-    registros = []
-    for periodo in root.iter("periodo"):
-        registro = {"Fecha y hora oficial": periodo.get("utc")}
-        for etiqueta, nombre in columnas.items():
-            nodo = periodo.find(etiqueta)
-            registro[nombre] = nodo.text if nodo is not None else None
-        registros.append(registro)
-
-    if not registros:
-        raise ValueError("AEMET no ha devuelto observaciones")
-
-    df = pd.DataFrame(registros).set_index("Fecha y hora oficial")
-    df.index = pd.to_datetime(df.index).tz_localize("UTC").tz_convert(MADRID_TZ)
-
-    numericas = [c for c in columnas.values() if not c.startswith("Dirección")]
-    df[numericas] = df[numericas].apply(pd.to_numeric, errors="coerce")
-
-    return df.sort_index(ascending=False)
-
-
-
 prevision_tab, mapas_tab = st.tabs(
     [":material/dashboard: Previsión", ":material/map: Mapas AROME"],
     key="madrid_view",
@@ -272,11 +227,7 @@ if prevision_tab.open:
 
         ###############
 
-        try:
-            aemet_horario = get_aemet_horario()
-        except Exception:
-            aemet_horario = None
-            st.warning("No se han podido descargar las observaciones de AEMET (Retiro). Se muestra solo la previsión.")
+        aemet_horario = cargar_aemet_horario("3195", "Retiro")
 
 
         #####################################################
@@ -398,23 +349,13 @@ if prevision_tab.open:
 
         st.sidebar.subheader("Previsión más reciente: "+str(hora_run_local)+" horas")
 
-        # Previsión media del ensemble a la hora actual, como respaldo si falta la observación
-        temp_prevista_ahora = temp_data.mean(axis=1).asof(ahora)
-
         if aemet_horario is not None:
             st.sidebar.subheader("Datos más recientes: "+str(aemet_horario.index[0].hour)+" horas")
-
-            temp_obs = aemet_horario["Temperatura (ºC)"].sort_index().dropna()
-            temp_data["Actual data"] = temp_obs
-
-            temp_actual = temp_obs.iloc[-1]
-            temp_ayer = temp_obs.asof(temp_obs.index[-1] - pd.Timedelta(hours=24))
-            if pd.isna(temp_ayer):
-                temp_ayer = temp_obs.iloc[0]
+            temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
         else:
             st.sidebar.subheader("Datos más recientes: no disponibles")
-            temp_actual = round(float(temp_prevista_ahora), 1)
-            temp_ayer = temp_actual
+
+        temp_actual, temp_ayer = temperatura_actual_y_ayer(aemet_horario, temp_data)
 
         misma_hora_mañana = (temp_data.index.hour == mañana.hour) & (temp_data.index.date == mañana.date())
         ensemble_mañana = temp_data.loc[misma_hora_mañana].drop(columns="Actual data", errors="ignore")

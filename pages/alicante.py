@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+METEO_ROOT = Path(__file__).resolve().parent.parent
+if str(METEO_ROOT) not in sys.path:
+    sys.path.append(str(METEO_ROOT))
+
+from aemet import cargar_aemet_horario, temperatura_actual_y_ayer
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -170,9 +178,7 @@ valid_run = get_last_arome_run()
 
 st.header("Alicante")
 
-aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_8025_datos-horarios.csv?k=val&l=8025&datos=det&w=0&f=temperatura&x=",
-                            encoding="latin-1", skiprows=2, parse_dates=True, index_col=0, dayfirst=True)
-aemet_horario.index = aemet_horario.index.tz_localize('Europe/Madrid')
+aemet_horario = cargar_aemet_horario("8025", "Alicante")
 
 def get_temp_data(valid_run):
     url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=38.346&lon=-0.48&mode=8&sort=0'
@@ -195,13 +201,14 @@ def get_prec_data(valid_run):
     return get_arome_data(f'{url}&run={valid_run}')
 
 st.sidebar.subheader("Previsión más reciente: "+str(valid_run+2)+" horas")
-st.sidebar.subheader("Datos más recientes: "+str(aemet_horario.index[0].hour)+" horas")
-
 temp_data = get_temp_data(valid_run)
-temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
+if aemet_horario is not None:
+    st.sidebar.subheader("Datos más recientes: " + str(aemet_horario.index[0].hour) + " horas")
+    temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
+else:
+    st.sidebar.subheader("Datos más recientes: no disponibles")
 
-temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
-temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
+temp_actual, temp_ayer = temperatura_actual_y_ayer(aemet_horario, temp_data)
 
 dia_mañana = (datetime.now() + timedelta(hours=26)).day
 hora = (datetime.now() + timedelta(hours=2)).hour
@@ -495,7 +502,8 @@ def plot_rain_chance(chance_prec, avg_prec):
 st.plotly_chart(plot_rain_chance(chance_prec, avg_prec), use_container_width=True)
 
 wind_gust_data = get_wind_gust_data(valid_run)
-wind_gust_data["Actual data"] = aemet_horario["Racha (km/h)"]
+if aemet_horario is not None:
+    wind_gust_data["Actual data"] = aemet_horario["Racha (km/h)"]
 
 def plot_wind_data(data):
     fig = go.Figure()
