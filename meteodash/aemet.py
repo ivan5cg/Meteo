@@ -89,3 +89,22 @@ def temperatura_actual_y_ayer(aemet_horario, temp_data):
         temp_ayer = temp_obs.iloc[0]
 
     return temp_actual, temp_ayer
+
+
+def acumular_en_excel(estacion, ruta):
+    """Añade las observaciones recientes al Excel histórico de la estación (sin duplicar horas).
+
+    En Streamlit Cloud el disco no es persistente: solo acumula de verdad cuando se ejecuta en local.
+    """
+
+    try:
+        recientes = get_aemet_horario(estacion)
+        acumulado = pd.read_excel(ruta, index_col=0)
+        acumulado.index = acumulado.index.tz_localize(MADRID_TZ, ambiguous="NaT", nonexistent="NaT")
+        acumulado = pd.concat([acumulado[acumulado.index.notna()], recientes])
+        acumulado = acumulado[~acumulado.index.duplicated(keep="first")].sort_index(ascending=False)
+        acumulado.index = acumulado.index.tz_localize(None)
+        acumulado.to_excel(ruta)
+    except Exception:
+        # Es un extra: si falla (AEMET caído, Excel bloqueado...) la página sigue igual
+        pass

@@ -1,3 +1,23 @@
+# Python
+__pycache__/
+*.pyc
 
+# Secretos de Streamlit (nunca al repo)
+.streamlit/secrets.toml
+
+# Cachés locales
+.cache.sqlite
+datos_arome_*/*.pkl
+
+# Notebooks y pruebas de visualización (pesados y con salidas)
+*.ipynb
+.ipynb_checkpoints/
+vista_previa_*.html
+ensemble_temperature.html
+temperature_ensemble.html
+temperature_responsive.html
+animacion_madrid.gif
+
+# Scripts locales antiguos
 TELEGRAM.py
 TELEGRAM2.py

@@ -1,0 +1,150 @@
+"""Tarjetas de métricas, avisos y tabla de récords (HTML con las clases de estilo.CSS)."""
+
+import pandas as pd
+import streamlit as st
+
+from .estilo import AZUL, ROJO
+
+TEXTO_PERCENTIL = (
+    "El percentil indica cómo es la temperatura frente a los registros históricos: un valor cercano a 100 "
+    "indica un registro extremadamente alto y uno cercano a 0, extremadamente bajo."
+)
+
+SVG = {
+    "calor": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+    "frio": '<line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/><path d="M20 12h-8M4 12h8M12 4v8M12 20v-8M16.39 8.39l-6.39 6.39M7.61 15.61l6.39-6.39M16.39 15.61L10 10M7.61 8.39L14 14"/>',
+    "sube": '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+    "baja": '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>',
+}
+
+
+def tono_temperatura(t):
+    """Tono HSL según la temperatura: -10 ºC azul (240) ... 45 ºC rojo (0)."""
+
+    if pd.isna(t):
+        return 220
+    return int(240 * (1 - max(0, min(1, (t + 10) / 55))))
+
+
+def _html(contenido, destino=st):
+    # Sin sangría: Markdown trataría las líneas sangradas como bloque de código
+    destino.markdown("\n".join(linea.strip() for linea in contenido.splitlines()), unsafe_allow_html=True)
+
+
+def _delta(valor, nota):
+    if valor == 0:
+        return f'<div class="metric-delta" style="color: #635b53">= 0º <span class="nota">{nota}</span></div>'
+    color = ROJO if valor > 0 else AZUL
+    flecha = "▲" if valor > 0 else "▼"
+    return f'<div class="metric-delta" style="color: {color}">{flecha} {abs(valor)}º <span class="nota">{nota}</span></div>'
+
+
+def principales(temp_mañana, fiabilidad, temp_actual=None, temp_ayer=None):
+    """Temperatura actual (si hay observación), la de mañana a esta hora y la fiabilidad del ensemble."""
+
+    tarjetas = ""
+    if temp_actual is not None:
+        tarjetas += f"""
+        <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(temp_actual)};">
+        <div class="metric-label">Actual</div>
+        <div class="metric-value">{temp_actual}º</div>
+        {_delta(round(float(temp_actual - temp_ayer), 1), "vs ayer")}
+        </div>"""
+
+    delta_mañana = _delta(round(float(temp_mañana - temp_actual), 1), "previsto") if temp_actual is not None else ""
+    tarjetas += f"""
+    <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(temp_mañana)};">
+    <div class="metric-label">Mañana a esta hora</div>
+    <div class="metric-value">{temp_mañana}º</div>
+    {delta_mañana}
+    </div>
+    <div class="metric-card static-card" title="Coincidencia entre los miembros del ensemble para la temperatura de mañana a esta hora">
+    <div class="metric-label">Fiabilidad</div>
+    <div class="metric-value">{fiabilidad}<span class="unidad"> / 10</span></div>
+    <div class="progress-bg"><div class="progress-fill" style="width: {fiabilidad * 10}%;"></div></div>
+    </div>"""
+
+    _html(f'<div class="weather-grid">{tarjetas}</div>')
+
+
+def extremos(tarjetas):
+    """Máximas y mínimas previstas. Cada tarjeta: dict(label, temp, perc=None)."""
+
+    html = ""
+    for tarjeta in tarjetas:
+        percentil = tarjeta.get("perc")
+        barra, titulo = "", ""
+        if percentil is not None and not pd.isna(percentil):
+            valor = int(round(percentil))
+            # El degradado se escala a la inversa para que no se comprima con barras cortas
+            tamaño_fondo = 100 / max(1, valor) * 100
+            barra = f"""
+            <div class="perc-row">
+            <div class="perc-text">{valor}<span>perc</span></div>
+            <div class="perc-track"><div class="perc-fill" style="width: {valor}%; background-size: {tamaño_fondo:.0f}% 100%;"></div></div>
+            </div>"""
+            titulo = f' title="{TEXTO_PERCENTIL}"'
+
+        html += f"""
+        <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(tarjeta['temp'])};"{titulo}>
+        <div class="metric-label">{tarjeta['label']}</div>
+        <div class="metric-value">{tarjeta['temp']}º</div>
+        {barra}
+        </div>"""
+
+    _html(f'<div class="weather-grid">{html}</div>')
+
+
+def avisos(perc_max_hoy, perc_max_mañana):
+    """Avisos de calor o frío anómalos según los percentiles históricos de las máximas."""
+
+    lista = []
+    if perc_max_hoy > 80:
+        lista.append(("calor", "calor", "Hoy hará mucho calor"))
+    elif perc_max_hoy < 20:
+        lista.append(("frio", "frio", "Hoy hará mucho frío"))
+
+    if perc_max_mañana > 80:
+        lista.append(("calor", "calor", "Mañana hará mucho calor"))
+    elif perc_max_mañana < 20:
+        lista.append(("frio", "frio", "Mañana hará mucho frío"))
+
+    if perc_max_mañana - perc_max_hoy > 50:
+        lista.append(("calor", "sube", "Mañana subirán mucho las temperaturas"))
+    elif perc_max_hoy - perc_max_mañana > 50:
+        lista.append(("frio", "baja", "Mañana bajarán mucho las temperaturas"))
+
+    if not lista:
+        return False
+
+    html = ""
+    for tipo, icono, texto in lista:
+        clase = "alert-warm" if tipo == "calor" else "alert-cold"
+        svg = (f'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" '
+               f'stroke-linecap="round" stroke-linejoin="round">{SVG[icono]}</svg>')
+        html += f'<div class="alert-item {clase}"><span class="alert-icon-container">{svg}</span><span class="alert-text">{texto}</span></div>'
+
+    _html(f'<div class="alerts-container">{html}</div>')
+    return True
+
+
+def records(del_dia):
+    """Tabla de récords del día en el sidebar a partir de las filas históricas de ese día del año."""
+
+    def celda(columna, funcion, clase):
+        serie = del_dia[columna].dropna()
+        if serie.empty:
+            return f'<td class="{clase}">–</td>'
+        fecha = serie.idxmax() if funcion == "max" else serie.idxmin()
+        return f'<td class="{clase}">{serie[fecha]}º <span style="font-size: 0.85em; opacity: 0.5;">({fecha.year})</span></td>'
+
+    st.sidebar.markdown("### Récords para hoy")
+    _html(f"""
+    <table class="records-table">
+    <thead><tr><th>Récord</th><th>T. Máx</th><th>T. Mín</th></tr></thead>
+    <tbody>
+    <tr><td>Calor</td>{celda("tmax", "max", "temp-max")}{celda("tmin", "max", "temp-min")}</tr>
+    <tr><td>Frío</td>{celda("tmax", "min", "temp-max")}{celda("tmin", "min", "temp-min")}</tr>
+    </tbody>
+    </table>
+    """, destino=st.sidebar)

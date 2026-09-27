@@ -1,11 +1,12 @@
-requests
-beautifulsoup4==4.12.2
+# Versiones probadas en local con Python 3.11 (la misma que usa Streamlit Cloud)
+streamlit==1.60.0
 pandas==2.0.3
 numpy==1.25.1
-matplotlib
-scipy
-openpyxl
-pytz
-astral
-python-telegram-bot
-plotly
+requests==2.31.0
+beautifulsoup4==4.12.2
+plotly==5.20.0
+scipy==1.11.1
+matplotlib==3.7.2  # imágenes de los mapas AROME (arome_maps.py)
+astral==3.2
+pytz==2023.3
+openpyxl==3.1.2  # Excel acumulado de Ávila
