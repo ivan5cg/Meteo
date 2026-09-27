@@ -1,4 +1,6 @@
 import requests
+import xml.etree.ElementTree as ET
+from io import StringIO
 from bs4 import BeautifulSoup
 import pandas as pd
 import numpy as np
@@ -6,8 +8,6 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from datetime import datetime,timedelta
 from scipy.stats import percentileofscore
-import asyncio
-import json
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -143,89 +143,113 @@ st.markdown(
 )
 
 
-import requests
-import telegram
+MADRID_TZ = "Europe/Madrid"
+USER_AGENT = {"User-Agent": "Mozilla/5.0 (Meteo Dash; Streamlit)"}
+AEMET_ESTACION_RETIRO = "3195"
 
 
+def descargar(url, timeout=30):
+    response = requests.get(url, timeout=timeout, headers=USER_AGENT)
+    response.raise_for_status()
+    return response
 
 
-#TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
-#TELEGRAM_CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
+@st.cache_data(ttl="30m", show_spinner=False)
+def get_meteociel_table(url):
+    """Descarga una tabla de ensemble de Meteociel (AROME o GEFS) como DataFrame."""
 
+    soup = BeautifulSoup(descargar(url).text, "html.parser")
 
+    table = soup.find("table", {"class": "gefs"})
+    if table is None:
+        raise ValueError(f"Meteociel no ha devuelto la tabla esperada: {url}")
 
+    rows = table.find_all("tr")
+    headers = [header.get_text(strip=True) for header in rows[0].find_all("td")]
+    data = [[column.get_text(strip=True) for column in row.find_all("td")] for row in rows[1:]]
 
-
-#bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
-
-#async def send_telegram_message(message):
- #   await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-
-
-#def send_telegram_message_sync(message):
- #   asyncio.run(send_telegram_message(message))
-
-
-#async def main():
-#    await send_telegram_message(output_str)
-
-
-
-def get_arome_data(url):
-
-#url = 'https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.658&run=9&mode=8&sort=0'  # Replace this with the URL containing the table
-
-    url = url
-
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    # Find the table element with class "gefs"
-    table = soup.find('table', {'class': 'gefs'})
-
-    # Get table rows
-    rows = table.find_all('tr')
-
-    # Extract headers from the first row
-    headers = [header.get_text(strip=True) for header in rows[0].find_all('td')]
-
-    # Extract data from the remaining rows
-    data = []
-    for row in rows[1:]:
-        columns = row.find_all('td')
-        row_data = [column.get_text(strip=True) for column in columns]
-        data.append(row_data)
-
-    # Create a DataFrame from the data
     df = pd.DataFrame(data, columns=headers)
-    df.index = pd.to_datetime(df["Date"])
-
-    df.index = df.index.tz_convert('Europe/Madrid')
-    df = df.drop("Date",axis=1)
-    df = df.drop("Ech.",axis=1)
+    df.index = pd.DatetimeIndex(pd.to_datetime(df["Date"])).tz_convert(MADRID_TZ)
+    df = df.drop(["Date", "Ech."], axis=1)
     df = df.astype("float")
 
     return df
 
 
-def get_last_arome_run():
+def get_arome_data(url):
+    return get_meteociel_table(url)
 
-    runs = [3, 9, 15, 21]
-    url ='https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=43.35&lon=-4.047&mode=8&sort=0'
 
-    first_index = pd.Timestamp(year=2017, month=1, day=1,tz="UTC")
+def get_last_run(url, runs):
+    """Devuelve el pase más reciente (el que empieza más tarde) de los disponibles en Meteociel."""
+
+    first_index = pd.Timestamp(year=2017, month=1, day=1, tz="UTC")
+    valid_run = runs[0]
 
     for run in runs:
-        url_run = f'{url}&run={run}'
-        first_index_run = get_arome_data(url_run).index[0]
+        try:
+            first_index_run = get_meteociel_table(f"{url}&run={run}").index[0]
+        except Exception:
+            continue
 
         if first_index_run > first_index:
             first_index = first_index_run
             valid_run = run
-        else:
-            pass
 
     return valid_run
+
+
+def get_last_arome_run():
+    url = "https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat=40.41&lon=-3.659&mode=8&sort=0"
+    return get_last_run(url, [3, 9, 15, 21])
+
+
+@st.cache_data(show_spinner=False)
+def get_historico_retiro():
+    return pd.read_csv("retiro 1950.csv", index_col="fecha", parse_dates=True)
+
+
+@st.cache_data(ttl="10m", show_spinner=False)
+def get_aemet_horario(estacion=AEMET_ESTACION_RETIRO):
+    """Últimas ~24 h de observaciones horarias de AEMET, de la más reciente a la más antigua.
+
+    AEMET retiró en 2026 el CSV de "últimos datos"; la web ahora consume este XML.
+    Se mantienen los nombres de columna del antiguo CSV.
+    """
+
+    response = descargar(f"https://www.aemet.es/es/api-eltiempo/udat/tablas-graficas/horario/9/{estacion}")
+    root = ET.fromstring(response.content)
+
+    columnas = {
+        "temperatura": "Temperatura (ºC)",
+        "vel_viento": "Velocidad del viento (km/h)",
+        "dir_viento": "Dirección del viento",
+        "vel_racha": "Racha (km/h)",
+        "dir_racha": "Dirección de racha",
+        "precipitacion": "Precipitación (mm)",
+        "presion": "Presión (hPa)",
+        "tendencia": "Tendencia (hPa)",
+        "humedad": "Humedad (%)",
+    }
+
+    registros = []
+    for periodo in root.iter("periodo"):
+        registro = {"Fecha y hora oficial": periodo.get("utc")}
+        for etiqueta, nombre in columnas.items():
+            nodo = periodo.find(etiqueta)
+            registro[nombre] = nodo.text if nodo is not None else None
+        registros.append(registro)
+
+    if not registros:
+        raise ValueError("AEMET no ha devuelto observaciones")
+
+    df = pd.DataFrame(registros).set_index("Fecha y hora oficial")
+    df.index = pd.to_datetime(df.index).tz_localize("UTC").tz_convert(MADRID_TZ)
+
+    numericas = [c for c in columnas.values() if not c.startswith("Dirección")]
+    df[numericas] = df[numericas].apply(pd.to_numeric, errors="coerce")
+
+    return df.sort_index(ascending=False)
 
 
 
@@ -239,30 +263,20 @@ if prevision_tab.open:
     with prevision_tab:
         st.header("Madrid")
 
+        ahora = pd.Timestamp.now(tz=MADRID_TZ)
+        mañana = ahora + pd.Timedelta(days=1)
 
         valid_run = get_last_arome_run()
+        hora_run_local = (ahora.tz_convert("UTC").normalize() + pd.Timedelta(hours=valid_run)).tz_convert(MADRID_TZ).hour
 
 
         ###############
 
-        aemet_horario = pd.read_csv("https://www.aemet.es/es/eltiempo/observacion/ultimosdatos_3195_datos-horarios.csv?k=mad&l=3195&datos=det&w=0&f=temperatura&x=h24" ,
-                                    encoding="latin-1",skiprows=2,parse_dates=True,index_col=0,dayfirst=True)
-        aemet_horario.index = aemet_horario.index.tz_localize('Europe/Madrid')
-
-
-
-        aemet_horario_acumulado = pd.read_excel("Histórico/Acumulado Madrid.xlsx",index_col=0)
-        aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize('Europe/Madrid')
-
-        aemet_horario_acumulado = pd.concat([aemet_horario_acumulado,aemet_horario])
-
-        aemet_horario_acumulado = aemet_horario_acumulado[~aemet_horario_acumulado.index.duplicated(keep='first')]
-
-        aemet_horario_acumulado = aemet_horario_acumulado.sort_index(ascending=False)
-
-        aemet_horario_acumulado.index = aemet_horario_acumulado.index.tz_localize(None)
-
-        #aemet_horario_acumulado.to_excel("Histórico/Acumulado Madrid.xlsx")
+        try:
+            aemet_horario = get_aemet_horario()
+        except Exception:
+            aemet_horario = None
+            st.warning("No se han podido descargar las observaciones de AEMET (Retiro). Se muestra solo la previsión.")
 
 
         #####################################################
@@ -312,11 +326,15 @@ if prevision_tab.open:
 
             return prec_data
 
-        temp_data = get_temp_data(valid_run)
-        wind_gust_data = get_wind_gust_data(valid_run)
-        pressure_data = get_pressure_data(valid_run)
-        mucape_data = get_mucape_data(valid_run)
-        prec_data = get_prec_data(valid_run)
+        try:
+            temp_data = get_temp_data(valid_run)
+            wind_gust_data = get_wind_gust_data(valid_run)
+            pressure_data = get_pressure_data(valid_run)
+            mucape_data = get_mucape_data(valid_run)
+            prec_data = get_prec_data(valid_run)
+        except Exception:
+            st.error("No se ha podido descargar el ensemble AROME de Meteociel. Prueba a recargar en unos minutos.")
+            st.stop()
 
 
 
@@ -326,7 +344,7 @@ if prevision_tab.open:
 
         #####################################################
 
-        datos_df_global = pd.read_csv("retiro 1950.csv",index_col="fecha",parse_dates=True)
+        datos_df_global = get_historico_retiro()
 
         datos_df_global = datos_df_global[~((datos_df_global.index.month == 2) & (datos_df_global.index.day == 29) & datos_df_global.index.is_leap_year)]
 
@@ -352,17 +370,20 @@ if prevision_tab.open:
 
         #####################################################
 
-        año_max_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].idxmax().year
-        año_min_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].idxmax().year
+        # El histórico elimina el 29 de febrero, así que en años bisiestos se desplaza desde marzo
+        dia_año_records = ahora.dayofyear - (1 if ahora.is_leap_year and ahora.month >= 3 else 0)
 
-        año_min_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].idxmin().year
-        año_max_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].idxmin().year
+        año_max_maxima = datos_df_global[datos_df_global["día_del_año"]==dia_año_records]["tmax"].idxmax().year
+        año_min_maxima = datos_df_global[datos_df_global["día_del_año"]==dia_año_records]["tmin"].idxmax().year
 
-        max_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].max()
-        min_maxima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].max()
+        año_min_minima = datos_df_global[datos_df_global["día_del_año"]==dia_año_records]["tmin"].idxmin().year
+        año_max_minima = datos_df_global[datos_df_global["día_del_año"]==dia_año_records]["tmax"].idxmin().year
 
-        min_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmin"].min()
-        max_minima = datos_df_global[datos_df_global["día_del_año"]==int(datetime.today().strftime("%j"))]["tmax"].min()
+        max_maxima = datos_df_global[datos_df_global["día_del_año"]==dia_año_records]["tmax"].max()
+        min_maxima = datos_df_global[datos_df_global["día_del_año"]==dia_año_records]["tmin"].max()
+
+        min_minima = datos_df_global[datos_df_global["día_del_año"]==dia_año_records]["tmin"].min()
+        max_minima = datos_df_global[datos_df_global["día_del_año"]==dia_año_records]["tmax"].min()
 
         records_dia = pd.DataFrame(columns=["T. max","T. min"],index=["Record calor","Record frío"])
         records_dia["T. max"] = ["{} ({})".format(max_maxima, año_max_maxima),"{} ({})".format(max_minima, año_max_minima)]
@@ -375,24 +396,31 @@ if prevision_tab.open:
 
      
 
-        st.sidebar.subheader("Previsión más reciente: "+str(valid_run+2)+" horas")
+        st.sidebar.subheader("Previsión más reciente: "+str(hora_run_local)+" horas")
 
-        st.sidebar.subheader("Datos más recientes: "+str(aemet_horario.index[0].hour)+" horas")
+        # Previsión media del ensemble a la hora actual, como respaldo si falta la observación
+        temp_prevista_ahora = temp_data.mean(axis=1).asof(ahora)
 
+        if aemet_horario is not None:
+            st.sidebar.subheader("Datos más recientes: "+str(aemet_horario.index[0].hour)+" horas")
 
+            temp_obs = aemet_horario["Temperatura (ºC)"].sort_index().dropna()
+            temp_data["Actual data"] = temp_obs
 
+            temp_actual = temp_obs.iloc[-1]
+            temp_ayer = temp_obs.asof(temp_obs.index[-1] - pd.Timedelta(hours=24))
+            if pd.isna(temp_ayer):
+                temp_ayer = temp_obs.iloc[0]
+        else:
+            st.sidebar.subheader("Datos más recientes: no disponibles")
+            temp_actual = round(float(temp_prevista_ahora), 1)
+            temp_ayer = temp_actual
 
-        temp_data = get_temp_data(valid_run)
-        temp_data["Actual data"] = aemet_horario["Temperatura (ºC)"]
+        misma_hora_mañana = (temp_data.index.hour == mañana.hour) & (temp_data.index.date == mañana.date())
+        ensemble_mañana = temp_data.loc[misma_hora_mañana].drop(columns="Actual data", errors="ignore")
 
-        temp_actual = aemet_horario["Temperatura (ºC)"].iloc[0]
-        temp_ayer = aemet_horario.iloc[-1]["Temperatura (ºC)"]
-
-        dia_mañana = (datetime.now() + timedelta(hours=26)).day
-        hora = (datetime.now() + timedelta(hours=2)).hour
-
-        temp_mañana = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].mean(axis=1)[0].round(1)
-        desv_temp = temp_data.loc[temp_data.index[(temp_data.index.hour==hora) & (temp_data.index.day ==dia_mañana)]].std(axis=1).round(1)[0]
+        temp_mañana = ensemble_mañana.mean(axis=1).iloc[0].round(1)
+        desv_temp = ensemble_mañana.std(axis=1).round(1).iloc[0]
 
         fiabilidad = 10*np.exp(-0.05*desv_temp**2.5)
 
@@ -404,8 +432,8 @@ if prevision_tab.open:
 
 
         # --- CÁLCULOS DE LÓGICA ---
-        delta_hoy = (temp_actual - temp_ayer).round(1)
-        delta_manana = (temp_mañana - temp_actual).round(1)
+        delta_hoy = round(float(temp_actual - temp_ayer), 1)
+        delta_manana = round(float(temp_mañana - temp_actual), 1)
         fiab_val = fiabilidad.round(1)
 
         # Lógica de Delta (Colores e Iconos Cálidos)
@@ -578,11 +606,11 @@ if prevision_tab.open:
 
         ########################################################
 
-        día_año_hoy = (datetime.now()+timedelta(hours=2)).timetuple().tm_yday
+        día_año_hoy = ahora.dayofyear
 
         día_año_mañana = día_año_hoy + 1 #(datetime.now()+timedelta(hours=0)).timetuple().tm_yday
 
-        hora_día = (datetime.now()+timedelta(hours=2)).hour
+        hora_día = ahora.hour
 
 
 
@@ -1117,7 +1145,8 @@ if prevision_tab.open:
 
         #######################################################
         #wind_data = get_wind_gust_data(valid_run)
-        wind_gust_data["Actual data"] = aemet_horario["Racha (km/h)"]
+        if aemet_horario is not None:
+            wind_gust_data["Actual data"] = aemet_horario["Racha (km/h)"]
 
         def plot_wind_data(data):
             fig = go.Figure()
@@ -1317,7 +1346,7 @@ if prevision_tab.open:
 
         @st.cache_data(ttl=60*60)
         def get_forecast_data():
-             data = pd.read_json("https://api.open-meteo.com/v1/forecast?latitude=40.41&longitude=-3.659&hourly=temperature_2m,precipitation,pressure_msl,cloudcover,windspeed_10m,windgusts_10m,cape&current_weather=true&timezone=Europe%2FBerlin&past_days=1&models=ecmwf_ifs04,gfs_global,icon_eu,meteofrance_arpege_europe,meteofrance_arome_france_hd")
+             data = pd.read_json(StringIO(descargar("https://api.open-meteo.com/v1/forecast?latitude=40.41&longitude=-3.659&hourly=temperature_2m,precipitation,pressure_msl,cloudcover,windspeed_10m,windgusts_10m,cape&current_weather=true&timezone=Europe%2FBerlin&past_days=1&models=ecmwf_ifs04,gfs_global,icon_eu,meteofrance_arpege_europe,meteofrance_arome_france_hd").text))
              return data
 
         data = get_forecast_data()
@@ -1870,59 +1899,12 @@ if prevision_tab.open:
 
 
         def get_gfs_data(url):
-
-        #url = 'https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=40.4165&lon=-3.70256&run=12&ext=1&mode=7&sort=2'  # Replace this with the URL containing the table
-
-            url = url
-
-            response = requests.get(url)
-            soup = BeautifulSoup(response.text, 'html.parser')
-
-            # Find the table element with class "gefs"
-            table = soup.find('table', {'class': 'gefs'})
-
-            # Get table rows
-            rows = table.find_all('tr')
-
-            # Extract headers from the first row
-            headers = [header.get_text(strip=True) for header in rows[0].find_all('td')]
-
-            # Extract data from the remaining rows
-            data = []
-            for row in rows[1:]:
-                columns = row.find_all('td')
-                row_data = [column.get_text(strip=True) for column in columns]
-                data.append(row_data)
-
-            # Create a DataFrame from the data
-            df = pd.DataFrame(data, columns=headers)
-            df.index = pd.to_datetime(df["Date"])
-
-            df.index = df.index.tz_convert('Europe/Madrid')
-            df = df.drop("Date",axis=1)
-            df = df.drop("Ech.",axis=1)
-            df = df.astype("float")
-
-            return df
+            return get_meteociel_table(url)
 
         def get_last_gfs_run():
-
-            runs = [0, 6, 12, 18]  # GFS runs at 00, 06, 12, and 18 UTC
-            url ='https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=40.4165&lon=-3.70256&ext=1&mode=7&sort=2'
-
-            first_index = pd.Timestamp(year=2017, month=1, day=1,tz="UTC")
-
-            for run in runs:
-                url_run = f'{url}&run={run}'
-                first_index_run = get_gfs_data(url_run).index[0]
-
-                if first_index_run > first_index:
-                    first_index = first_index_run
-                    valid_run = run
-                else:
-                    pass
-
-            return valid_run
+            # GFS runs at 00, 06, 12, and 18 UTC
+            url ='https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat=40.4165&lon=-3.70256&ext=1&mode=7&sort=0'
+            return get_last_run(url, [0, 6, 12, 18])
 
 
         valid_run_gfs = get_last_gfs_run()
@@ -2060,274 +2042,6 @@ if prevision_tab.open:
                 }
             </style>
             """, unsafe_allow_html=True)
-
-
-
-
-        string_update = "Datos de las " + str(valid_run+2)  +  " horas \n"
-
-        def generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data):
-            today = pd.Timestamp.now(tz='Europe/Madrid').floor('D')
-            tomorrow = today + timedelta(days=1)
-    
-            def get_day_data(df, day):
-                return df[df.index.date == day.date()]
-    
-            def describe_temperature_pattern(temp_df):
-                ctrl_temp = temp_df['Ctrl']
-                ensemble_temps = temp_df.iloc[:, 1:]
-        
-                max_temp = ctrl_temp.max()
-                min_temp = ctrl_temp.min()
-                max_temp_time = ctrl_temp.idxmax().strftime('%H:%M')
-        
-                ensemble_max = ensemble_temps.max().max()
-                ensemble_min = ensemble_temps.min().min()
-        
-                temp_range = max_temp - min_temp
-                ensemble_range = ensemble_max - ensemble_min
-        
-                story = f"The control forecast suggests temperatures will range from {min_temp:.1f}°C to {max_temp:.1f}°C, peaking around {max_temp_time}. "
-        
-                if ensemble_range > temp_range + 5:
-                    story += f"However, some models show a wider range of {ensemble_min:.1f}°C to {ensemble_max:.1f}°C, indicating uncertainty in the forecast. "
-        
-                if temp_range < 5:
-                    story += "Overall, we're looking at a day of stable temperatures. "
-                elif temp_range < 10:
-                    story += "Expect a mild day with noticeable but not extreme temperature changes. "
-                else:
-                    story += "Prepare for significant temperature swings throughout the day. "
-        
-                return story
-
-            def describe_wind_conditions(wind_df):
-                ctrl_wind = wind_df['Ctrl']
-                ensemble_winds = wind_df.iloc[:, 1:]
-        
-                max_wind = ctrl_wind.max()
-                avg_wind = ctrl_wind.mean()
-                max_wind_time = ctrl_wind.idxmax().strftime('%H:%M')
-        
-                ensemble_max = ensemble_winds.max().max()
-        
-                story = f"The primary forecast shows wind gusts peaking at {max_wind:.1f} km/h around {max_wind_time}. "
-        
-                if ensemble_max > max_wind + 10:
-                    story += f"Some models suggest gusts could reach as high as {ensemble_max:.1f} km/h. "
-        
-                if max_wind < 20:
-                    story += "Overall, expect gentle breezes throughout most of the day. "
-                elif max_wind < 40:
-                    story += "Be prepared for some lively winds that might rustle leaves and affect loose objects. "
-                else:
-                    story += "It's going to be a blustery day! Secure any loose items outdoors. "
-        
-                return story
-
-            def describe_pressure_trend(pressure_df):
-                ctrl_pressure = pressure_df['Ctrl']
-                ensemble_pressures = pressure_df.iloc[:, 1:]
-        
-                start_pressure = ctrl_pressure.iloc[0]
-                end_pressure = ctrl_pressure.iloc[-1]
-                pressure_change = end_pressure - start_pressure
-        
-                ensemble_change = ensemble_pressures.iloc[-1] - ensemble_pressures.iloc[0]
-                max_change = ensemble_change.max()
-                min_change = ensemble_change.min()
-        
-                story = f"Barometric pressure is expected to {'rise' if pressure_change > 0 else 'fall'} by about {abs(pressure_change):.1f} hPa over the day."
-        
-                if abs(max_change - min_change) > 2:
-                    story += "However, there's some disagreement between models on the extent of this change. "
-        
-                if abs(pressure_change) < 2:
-                    story += "This suggests relatively stable weather conditions. "
-                elif pressure_change > 0:
-                    story += "Rising pressure often indicates improving weather. "
-                else:
-                    story += "Falling pressure might bring some changes, possibly unsettled conditions. "
-        
-                return story
-
-            def describe_thunderstorm_potential(mucape_df):
-                ctrl_mucape = mucape_df['Ctrl']
-                ensemble_mucape = mucape_df.iloc[:, 1:]
-        
-                max_mucape = ctrl_mucape.max()
-                max_mucape_time = ctrl_mucape.idxmax().strftime('%H:%M')
-        
-                ensemble_max = ensemble_mucape.max().max()
-        
-                story = f"The control forecast shows a peak MUCAPE value of {max_mucape:.0f} J/kg around {max_mucape_time}. "
-        
-                if ensemble_max > max_mucape + 500:
-                    story += f"Some models suggest it could reach as high as {ensemble_max:.0f} J/kg. "
-        
-                if max_mucape < 500:
-                    story += "The atmosphere appears stable, with clear skies likely to dominate. "
-                elif max_mucape < 1000:
-                    story += "There's a slight chance of some dramatic clouds forming, but thunderstorms are unlikely. "
-                elif max_mucape < 2000:
-                    story += "Keep an ear out for thunder - there's potential for some storms to develop. "
-                else:
-                    story += "The ingredients are there for some impressive thunderstorms. Keep an eye on the sky! "
-        
-                return story
-
-            def describe_precipitation(prec_df):
-                ctrl_prec = prec_df['Ctrl']
-                ensemble_prec = prec_df.iloc[:, 1:]
-        
-                total_prec = ctrl_prec.sum()
-                max_hourly_prec = ctrl_prec.max()
-                max_prec_time = ctrl_prec.idxmax().strftime('%H:%M')
-        
-                ensemble_total = ensemble_prec.sum()
-                max_ensemble_total = ensemble_total.max()
-        
-                story = f"The main forecast predicts a total of {total_prec:.1f}mm of rain, with the heaviest period around {max_prec_time}. "
-        
-                if max_ensemble_total > total_prec + 5:
-                    story += f"However, some models suggest we could see up to {max_ensemble_total:.1f}mm. "
-        
-                if total_prec == 0:
-                    story += "It looks like it's going to be a dry day in Madrid. "
-                elif total_prec < 5:
-                    story += "You might want to pack a light umbrella - we could see some sprinkles throughout the day. "
-                elif max_hourly_prec > 10:
-                    story += f"Prepare for a good soaking! Heavy rain is expected, particularly around {max_prec_time}. "
-                else:
-                    story += "Expect some wet weather spread throughout the day. "
-        
-                prob_rain = (ensemble_prec.sum() > 0.1).mean() * 100
-                story += f"The probability of measurable rain is about {prob_rain:.0f}%. "
-        
-                return story
-
-            story = []
-            for day, day_name in [(today, "Today"), (tomorrow, "Tomorrow")]:
-                day_temp = get_day_data(temp_data, day)
-                day_wind = get_day_data(wind_gust_data, day)
-                day_pressure = get_day_data(pressure_data, day)
-                day_mucape = get_day_data(mucape_data, day)
-                day_prec = get_day_data(prec_data, day)
-        
-                day_story = f"Weather Story for Madrid - {day_name}, {day.strftime('%B %d')}:\n\n"
-                day_story += describe_temperature_pattern(day_temp) + "\n\n"
-                day_story += describe_wind_conditions(day_wind) + "\n\n"
-                day_story += describe_pressure_trend(day_pressure) + "\n\n"
-                day_story += describe_thunderstorm_potential(day_mucape) + "\n\n"
-                day_story += describe_precipitation(day_prec) + "\n\n"
-        
-                # Add a summary of the day's weather
-                day_story += "In summary: "
-                if day_prec['Ctrl'].sum() > 5:
-                    day_story += "A wet day with periods of rain. "
-                elif day_wind['Ctrl'].max() > 40:
-                    day_story += "A windy day with strong gusts. "
-                elif day_temp['Ctrl'].max() - day_temp['Ctrl'].min() > 15:
-                    day_story += "A day of significant temperature changes. "
-                else:
-                    day_story += "A relatively stable day weather-wise. "
-        
-                if day_mucape['Ctrl'].max() > 1500:
-                    day_story += "Keep an eye out for potential thunderstorms."
-        
-                story.append(day_story)
-    
-            return "\n\n".join(story)
-
-
-        #temp_data = get_temp_data(valid_run)
-        #wind_gust_data = get_wind_gust_data(valid_run)
-        #pressure_data = get_pressure_data(valid_run)
-        #mucape_data = get_mucape_data(valid_run)
-        #prec_data = get_prec_data(valid_run)
-
-        #commentary = generate_ensemble_weather_story(temp_data, wind_gust_data, pressure_data, mucape_data, prec_data)
-
-
-
-
-        def process_multi_model_dataframe(df):
-            """Process a dataframe with timestamp index and 17 forecast columns."""
-            processed_data = []
-            for timestamp, row in df.iterrows():
-                forecasts = row.tolist()
-                processed_data.append({
-                    'timestamp': timestamp.strftime('%Y-%m-%d %H:%M:%S'),  # Convert timestamp to string
-                    'forecasts': forecasts
-                })
-            return processed_data
-
-
-        weather_data = {
-            'temperature': process_multi_model_dataframe(temp_data),
-            'wind': process_multi_model_dataframe(wind_gust_data),
-            'precipitation': process_multi_model_dataframe(prec_data),
-            'pressure': process_multi_model_dataframe(pressure_data),
-            'mucape': process_multi_model_dataframe(mucape_data)
-        }
-
-        weather_json = json.dumps(weather_data)
-
-        def generate_llm_input(weather_json):
-            # Load the meteorological data
-            meteo_data = weather_json
-
-            # Define the prompt
-            prompt = """ PROVIDE THE WHOLE RESPONSE IN SPANISH FROM SPAIN. THE FORECAST IS FOR MADRID, SPAIN. USE THIS AS CLIMATE CONTEXT FOR YOUR ANSWERS.
-
-        You are a professional meteorologist tasked with analyzing and commenting on weather forecast data for the next 48 hours. The data provided includes hourly information on temperature, wind, precipitation, pressure, and MUCAPE (Most Unstable Convective Available Potential Energy).
-
-        ## Data Analysis Tasks:
-
-        1. Summarize the overall weather pattern for the 48-hour period.
-
-        2. Identify and report on key data points:
-           - Temperature: Highlight daily highs and lows, and any significant temperature changes.
-           - Wind: Report on average wind speeds, signalling hazardous values.
-           - Precipitation: Summarize total expected precipitation and identify periods of heaviest rainfall.
-           - MUCAPE: Interpret MUCAPE values to assess the potential for thunderstorm development. For your analysis, take into account only those values higher than 250. Consider that severe thunderstorm only develop when MUCAPE is at least 1000.
-
-        3. Model Alignment:
-           - Analyze the consistency of the data across different weather models.
-           - Highlight any significant discrepancies between models and explain their potential implications.
-
-        4. Risk Assessment:
-           - Identify any potential weather risks or hazards, such as:
-             - Extreme temperatures (heat waves or cold snaps)
-             - Strong winds or wind gusts
-             - Heavy precipitation leading to flooding risks
-             - Severe thunderstorm potential based on MUCAPE values and other factors
-           - Provide a severity rating for each identified risk (e.g., low, moderate, high, extreme). 
-
-        5. Special Weather Phenomena:
-           - Note any unusual or noteworthy weather patterns or events that may occur during this period. 
-
-        ## Output Format:
-
-        1. Executive Summary (2-3 sentences overview)
-        2. Detailed Analysis (broken down by weather component). Include emojis identifying every field.
-        3. Model Comparison and Uncertainty Discussion
-        4. Risk Assessment and Warnings. Include emojis identifying every field. Organize this information in a table.
-
-
-        Please provide your analysis in clear, concise language suitable for both meteorological professionals and informed members of the public. Use meteorological terminology where appropriate, but explain complex concepts when necessary.
-
-        ## Meteorological Data:
-        """
-
-            # Combine the prompt and the data
-            combined_input = f"{prompt}\n\n{json.dumps(meteo_data, indent=2)}"
-
-            return combined_input
-
-
-
-
 
 
 if mapas_tab.open:
