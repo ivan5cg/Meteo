@@ -10,7 +10,7 @@ from meteodash.fuentes import get_meteociel_table, get_open_meteo
 # La caché es común a todos los visitantes: como mucho una actualización forzada cada tanto
 INTERVALO_ACTUALIZAR = pd.Timedelta(minutes=5)
 
-st.set_page_config(page_title="Meteo Dash", page_icon=":material/partly_cloudy_day:", layout="wide")
+st.set_page_config(page_title="Meteo Dash", page_icon=":material/partly_cloudy_day:", layout="centered")
 
 paginas = st.navigation({
     "España": [
