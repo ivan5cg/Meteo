@@ -1,12 +1,13 @@
 """Gráficos Plotly comunes a todas las páginas."""
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import pytz
+import streamlit as st
 from astral import LocationInfo
 from astral.sun import elevation, sun
 from plotly.subplots import make_subplots
@@ -71,24 +72,35 @@ def _observado(fig, data, formato, unidad, etiqueta="Observado"):
         ))
 
 
-def _extremos_diarios(fig, media, formato, sufijo=""):
-    """Anota el máximo y el mínimo diarios de la media del ensemble (los mismos valores que las tarjetas)."""
+def _extremos_diarios(fig, media, formato, sufijo="", valores=None):
+    """Anota el máximo y el mínimo diarios en el momento en que los alcanza la media del ensemble.
 
+    `valores` ({fecha: (mínima, máxima)}) sustituye el texto de esos días para que coincida con las tarjetas;
+    sin él, se anotan los extremos de la propia media.
+    """
+
+    valores = valores or {}
     for fecha in sorted(set(media.index.date)):
         dia = media[media.index.date == fecha].dropna()
         if dia.empty:
             continue
-        for momento, color, desplazamiento in [(dia.idxmin(), AZUL, -15), (dia.idxmax(), ROJO, 15)]:
+        minimo, maximo = valores.get(fecha, (dia.min(), dia.max()))
+        for momento, valor, color, desplazamiento in [(dia.idxmin(), minimo, AZUL, -15), (dia.idxmax(), maximo, ROJO, 15)]:
+            if pd.isna(valor):
+                continue
             fig.add_annotation(
-                x=momento, y=dia[momento], text=f"<b>{dia[momento]:{formato}}{sufijo}</b>",
+                x=momento, y=dia[momento], text=f"<b>{valor:{formato}}{sufijo}</b>",
                 showarrow=False, yshift=desplazamiento, font=dict(color=color, size=11, family=FUENTE),
             )
 
 
 # ---------------------------------------------------------------- Ensemble AROME (48 h)
 
-def temperatura(data, bandas=None, dia_bandas=None):
-    """Ensemble de temperatura; con histórico, añade los rangos habituales de máxima y mínima."""
+def temperatura(data, bandas=None, dia_bandas=None, extremos=None):
+    """Ensemble de temperatura; con histórico, añade los rangos habituales de máxima y mínima.
+
+    `extremos` ({fecha: (mínima, máxima)}) son los valores de las tarjetas, que se anotan en el gráfico.
+    """
 
     fig = go.Figure()
     ens = _ensemble(data)
@@ -118,7 +130,7 @@ def temperatura(data, bandas=None, dia_bandas=None):
                 name=nombre, hoverinfo="skip",
             ))
 
-    _extremos_diarios(fig, ens.mean(axis=1), ".1f", "º")
+    _extremos_diarios(fig, ens.mean(axis=1), ".1f", "º", extremos)
     tema_plotly(fig, "Previsión de Temperaturas (48h)", "Temperatura (°C)")
     _eje_fechas_es(fig, data.index)
     return fig
@@ -127,8 +139,8 @@ def temperatura(data, bandas=None, dia_bandas=None):
 def lluvia(prec_data):
     """Probabilidad de lluvia (miembros con precipitación) y cantidad media cuando llueve."""
 
-    llueve = prec_data != 0
-    probabilidad = 100 * llueve.sum(axis=1) / len(prec_data.columns)
+    llueve = prec_data > 0  # un dato ausente (NaN) no cuenta como lluvia
+    probabilidad = 100 * llueve.sum(axis=1) / prec_data.notna().sum(axis=1).replace(0, np.nan)
     media = prec_data.where(llueve).mean(axis=1).fillna(0).round(1)
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.5, 0.5], vertical_spacing=0.1)
@@ -180,7 +192,9 @@ def presion(data):
     ))
     _control(fig, data, AMBAR, ".1f", "hPa")
     tema_plotly(fig, "Previsión de Presión Atmosférica (48h)", "Presión (hPa)")
-    fig.update_layout(yaxis=dict(range=[980, 1040]))
+    # Escala fija para comparar entre días, ampliada si una borrasca o un anticiclón se sale de ella
+    ens = _ensemble(data)
+    fig.update_layout(yaxis=dict(range=[min(980, ens.min().min() - 5), max(1040, ens.max().max() + 5)]))
     _eje_fechas_es(fig, data.index)
     return fig
 
@@ -226,18 +240,12 @@ def _resumen_hover(fig, x, columnas, plantilla):
         ))
 
 
-def _dias_completos(df):
-    """Agrupa por día descartando los días a los que les falta alguna hora."""
-
-    por_dia = df.groupby(df.index.date)
-    completos = por_dia.apply(lambda g: g.notnull().all())
-    return por_dia, completos
-
-
 def semana_temperatura(temp_df):
-    por_dia, completos = _dias_completos(temp_df)
-    maximas = (por_dia.max() * completos[completos]).dropna(how="all")
-    minimas = (por_dia.min() * completos[completos]).dropna(how="all")
+    # Máximas y mínimas de cada modelo por día, solo si el modelo tiene todas las horas de ese día
+    por_dia = temp_df.groupby(temp_df.index.date)
+    completo = por_dia.count() == por_dia.size().to_numpy()[:, None]
+    maximas = por_dia.max().where(completo).dropna(how="all")
+    minimas = por_dia.min().where(completo).dropna(how="all")
 
     fig = go.Figure()
     resumen = {k: [] for k in ["x", "max", "max20", "max80", "min", "min20", "min80"]}
@@ -412,13 +420,20 @@ def historico_vs_prevision(datos, dia, hoy, mañana):
     return fig
 
 
-def elevacion_solar(latitud, longitud, zona="UTC"):
-    location = LocationInfo("Ubicación", "Región", zona, latitud, longitud)
-    timezone = pytz.timezone(zona)
-    hoy = datetime.now(tz=timezone)
+@st.cache_data(show_spinner=False, max_entries=50)
+def _curva_solar(latitud, longitud, zona, dia):
+    """Elevación del sol minuto a minuto (1440 valores) y horas de salida y puesta de `dia` y del día anterior."""
 
-    sol_hoy = sun(location.observer, date=hoy, tzinfo=timezone)
-    sol_ayer = sun(location.observer, date=hoy - timedelta(days=1), tzinfo=timezone)
+    observador = LocationInfo("Ubicación", "Región", zona, latitud, longitud).observer
+    timezone = ZoneInfo(zona)
+    minutos = [datetime(dia.year, dia.month, dia.day, h, m, tzinfo=timezone) for h in range(24) for m in range(60)]
+    elevaciones = np.array([elevation(observador, dt) for dt in minutos])
+    return elevaciones, sun(observador, date=dia, tzinfo=timezone), sun(observador, date=dia - timedelta(days=1), tzinfo=timezone)
+
+
+def elevacion_solar(latitud, longitud, zona="UTC"):
+    hoy = datetime.now(tz=ZoneInfo(zona))
+    elevaciones, sol_hoy, sol_ayer = _curva_solar(latitud, longitud, zona, date(hoy.year, hoy.month, hoy.day))
     amanecer, atardecer = sol_hoy["sunrise"], sol_hoy["sunset"]
 
     diferencia = (atardecer - amanecer).total_seconds() - (sol_ayer["sunset"] - sol_ayer["sunrise"]).total_seconds()
@@ -428,9 +443,7 @@ def elevacion_solar(latitud, longitud, zona="UTC"):
     duracion = (atardecer - amanecer).total_seconds()
     horas_dia, minutos_dia = int(duracion // 3600), int((duracion % 3600) / 60)
 
-    minutos = [timezone.localize(datetime(hoy.year, hoy.month, hoy.day, h, m)) for h in range(24) for m in range(60)]
-    elevaciones = np.array([elevation(location.observer, dt) for dt in minutos])
-    etiquetas = [dt.strftime("%H:%M") for dt in minutos]
+    etiquetas = [f"{h:02d}:{m:02d}" for h in range(24) for m in range(60)]
 
     i_amanecer = amanecer.hour * 60 + amanecer.minute
     i_atardecer = atardecer.hour * 60 + atardecer.minute

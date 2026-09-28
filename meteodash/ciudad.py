@@ -1,5 +1,6 @@
 """Página de previsión de una ciudad, montada según las fuentes de datos que tenga configuradas."""
 
+import logging
 from dataclasses import dataclass
 
 import numpy as np
@@ -9,6 +10,8 @@ import streamlit as st
 from . import graficos, tarjetas
 from .aemet import cargar_aemet_horario, temperatura_actual_y_ayer
 from .fuentes import dia_historico, get_ensemble_arome, get_ensemble_gefs, get_historico, get_open_meteo, hora_local_run
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -23,7 +26,32 @@ class Ciudad:
     semana: bool = False  # previsión multimodelo de Open-Meteo para 7 días
     gefs: bool = False  # ensemble GFS a 15 días
     camaras: tuple[str, ...] = ()
-    mapas_arome: str | None = None  # clave de arome_maps.LOCATIONS
+    mapas_arome: str | None = None  # clave de mapas.LOCATIONS
+
+
+def extremos_del_dia(ensemble, fecha, observado=None):
+    """(mínima, máxima) de un día: la mediana de las mínimas y máximas de cada miembro del ensemble.
+
+    La mediana de los extremos de cada miembro, y no el extremo de la media, porque la media suaviza los picos
+    y daría máximas demasiado bajas y mínimas demasiado altas frente a los registros históricos.
+    Con observaciones, las horas ya pasadas del día son las observadas y el ensemble solo cubre las que faltan.
+    """
+
+    previsto = ensemble[ensemble.index.date == fecha.date()]
+    observado_dia = pd.Series(dtype=float)
+    if observado is not None:
+        observado_dia = observado[observado.index.date == fecha.date()]
+        if not observado_dia.empty:
+            previsto = previsto[previsto.index > observado_dia.index[-1]]
+
+    resultado = []
+    for funcion, combinar in [("min", np.fmin), ("max", np.fmax)]:
+        por_miembro = getattr(previsto, funcion)()  # NaN en todos los miembros si no quedan horas previstas
+        if not observado_dia.empty:
+            por_miembro = combinar(por_miembro, getattr(observado_dia, funcion)())
+        por_miembro = por_miembro.dropna()
+        resultado.append(round(por_miembro.median(), 1) if not por_miembro.empty else np.nan)
+    return tuple(resultado)
 
 
 def render_ciudad(ciudad, titulo=None):
@@ -33,10 +61,11 @@ def render_ciudad(ciudad, titulo=None):
     ahora = pd.Timestamp.now(tz=ciudad.tz)
     mañana = ahora + pd.Timedelta(days=1)
 
-    variables = ["temperatura", "precipitacion", "rachas"] + (["presion", "mucape"] if ciudad.presion_y_cape else [])
+    variables = ("temperatura", "precipitacion", "rachas") + (("presion", "mucape") if ciudad.presion_y_cape else ())
     try:
         run, arome = get_ensemble_arome(ciudad.lat, ciudad.lon, ciudad.tz, variables)
     except Exception:
+        logger.exception("Ensemble AROME de %s", ciudad.nombre)
         st.error("No se ha podido descargar el ensemble AROME de Meteociel. Prueba a recargar en unos minutos.")
         return
 
@@ -45,6 +74,7 @@ def render_ciudad(ciudad, titulo=None):
     # --- Observaciones ---
     temp = arome["temperatura"]
     rachas = arome["rachas"]
+    obs = None
     temp_actual = temp_ayer = None
 
     if ciudad.estacion_aemet:
@@ -59,18 +89,14 @@ def render_ciudad(ciudad, titulo=None):
 
     # --- Previsión a partir del ensemble ---
     ensemble = temp.drop(columns="Observado", errors="ignore")
-    media = ensemble.mean(axis=1)
 
     fila_mañana = ensemble.iloc[ensemble.index.get_indexer([mañana.floor("h")], method="nearest")[0]]
     temp_mañana = round(fila_mañana.mean(), 1)
     fiabilidad = round(10 * np.exp(-0.05 * round(fila_mañana.std(), 1) ** 2.5), 1)
 
-    def extremo(fecha, funcion):
-        del_dia = media[media.index.date == fecha.date()]
-        return round(getattr(del_dia, funcion)(), 1) if not del_dia.empty else np.nan
-
-    max_hoy, min_hoy = extremo(ahora, "max"), extremo(ahora, "min")
-    max_mañana, min_mañana = extremo(mañana, "max"), extremo(mañana, "min")
+    temp_observada = obs["temperatura"].dropna() if obs is not None else None
+    min_hoy, max_hoy = extremos_del_dia(ensemble, ahora, temp_observada)
+    min_mañana, max_mañana = extremos_del_dia(ensemble, mañana)
 
     # --- Histórico ---
     datos_hist = bandas = None
@@ -102,7 +128,8 @@ def render_ciudad(ciudad, titulo=None):
         {"label": "Mínima mañana", "temp": min_mañana, "perc": percentiles.get("min_mañana")},
         {"label": "Máxima mañana", "temp": max_mañana, "perc": percentiles.get("max_mañana")},
     ]
-    if ahora.hour < 9:
+    # Sin observaciones, la mínima de hoy solo es fiable de madrugada: después el pase ya no cubre esas horas
+    if (temp_observada is not None and not temp_observada.empty) or ahora.hour < 9:
         extremos.insert(0, {"label": "Mínima hoy", "temp": min_hoy, "perc": percentiles.get("min_hoy")})
     tarjetas.extremos(extremos)
     st.divider()
@@ -112,12 +139,13 @@ def render_ciudad(ciudad, titulo=None):
             st.divider()
 
     # --- 48 h: ensemble AROME ---
-    st.plotly_chart(graficos.temperatura(temp, bandas, dia_historico(ahora)), use_container_width=True)
-    st.plotly_chart(graficos.lluvia(arome["precipitacion"]), use_container_width=True)
-    st.plotly_chart(graficos.viento(rachas), use_container_width=True)
+    extremos_grafico = {ahora.date(): (min_hoy, max_hoy), mañana.date(): (min_mañana, max_mañana)}
+    st.plotly_chart(graficos.temperatura(temp, bandas, dia_historico(ahora), extremos_grafico), width="stretch")
+    st.plotly_chart(graficos.lluvia(arome["precipitacion"]), width="stretch")
+    st.plotly_chart(graficos.viento(rachas), width="stretch")
     if ciudad.presion_y_cape:
-        st.plotly_chart(graficos.presion(arome["presion"]), use_container_width=True)
-        st.plotly_chart(graficos.mucape(arome["mucape"]), use_container_width=True)
+        st.plotly_chart(graficos.presion(arome["presion"]), width="stretch")
+        st.plotly_chart(graficos.mucape(arome["mucape"]), width="stretch")
     st.divider()
 
     # --- Semana: multimodelo Open-Meteo ---
@@ -125,11 +153,12 @@ def render_ciudad(ciudad, titulo=None):
         try:
             semana = get_open_meteo(ciudad.lat, ciudad.lon, ciudad.tz)
         except Exception:
+            logger.exception("Open-Meteo de %s", ciudad.nombre)
             st.warning("No se ha podido descargar la previsión semanal de Open-Meteo.")
         else:
-            st.plotly_chart(graficos.semana_temperatura(semana["temperatura"]), use_container_width=True)
-            st.plotly_chart(graficos.semana_lluvia(semana["precipitacion"]), use_container_width=True)
-            st.plotly_chart(graficos.semana_viento(semana["rachas"]), use_container_width=True)
+            st.plotly_chart(graficos.semana_temperatura(semana["temperatura"]), width="stretch")
+            st.plotly_chart(graficos.semana_lluvia(semana["precipitacion"]), width="stretch")
+            st.plotly_chart(graficos.semana_viento(semana["rachas"]), width="stretch")
         st.divider()
 
     # --- Histórico frente a la previsión ---
@@ -139,17 +168,18 @@ def render_ciudad(ciudad, titulo=None):
         st.markdown(f"Distribución de las temperaturas registradas un día como hoy desde {desde}. "
                     "Los puntos destacados indican la previsión para hoy y mañana.")
         fig = graficos.historico_vs_prevision(datos_hist, dia_historico(ahora), (min_hoy, max_hoy), (min_mañana, max_mañana))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.divider()
 
-    st.plotly_chart(graficos.elevacion_solar(ciudad.lat, ciudad.lon, ciudad.tz), use_container_width=True)
+    st.plotly_chart(graficos.elevacion_solar(ciudad.lat, ciudad.lon, ciudad.tz), width="stretch")
 
     # --- 15 días: GEFS ---
     if ciudad.gefs:
         st.divider()
         try:
-            st.plotly_chart(graficos.gefs(get_ensemble_gefs(ciudad.lat, ciudad.lon, ciudad.tz)), use_container_width=True)
+            st.plotly_chart(graficos.gefs(get_ensemble_gefs(ciudad.lat, ciudad.lon, ciudad.tz)), width="stretch")
         except Exception:
+            logger.exception("Ensemble GEFS de %s", ciudad.nombre)
             st.warning("No se ha podido descargar el ensemble GEFS de Meteociel.")
 
     # --- Cámaras ---
@@ -172,7 +202,7 @@ def render_pagina(ciudad, titulo=None):
         render_ciudad(ciudad, titulo)
         return
 
-    from arome_maps import render_arome_maps
+    from .mapas import render_arome_maps
 
     prevision, mapas = st.tabs(
         [":material/dashboard: Previsión", ":material/map: Mapas AROME"],

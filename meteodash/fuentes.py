@@ -1,9 +1,14 @@
 """Descarga y preparación de datos: Meteociel (AROME y GEFS), Open-Meteo e históricos locales."""
 
+import logging
+from concurrent.futures import ThreadPoolExecutor
+
 import pandas as pd
 import requests
 import streamlit as st
 from bs4 import BeautifulSoup
+
+logger = logging.getLogger(__name__)
 
 USER_AGENT = {"User-Agent": "Mozilla/5.0 (Meteo Dash; Streamlit)"}
 
@@ -28,13 +33,33 @@ def descargar(url, timeout=30):
     return response
 
 
+def en_paralelo(funcion, argumentos, hilos=4):
+    """Aplica `funcion` a cada tupla de `argumentos` en varios hilos.
+
+    Devuelve los resultados en el mismo orden; si una llamada falla, en su lugar va la excepción.
+    """
+
+    def protegida(args):
+        try:
+            return funcion(*args)
+        except Exception as error:
+            logger.debug("Fallo en %s%s: %s", funcion.__name__, args, error)
+            return error
+
+    with ThreadPoolExecutor(max_workers=hilos) as executor:
+        return list(executor.map(protegida, argumentos))
+
+
 # ---------------------------------------------------------------- Meteociel
 
-@st.cache_data(ttl="30m", show_spinner=False)
-def get_meteociel_table(url, tz="Europe/Madrid"):
-    """Descarga una tabla de ensemble de Meteociel (AROME o GEFS) como DataFrame."""
+def leer_tabla_meteociel(url, tz="Europe/Madrid", timeout=30):
+    """Descarga una tabla de ensemble de Meteociel (AROME o GEFS) como DataFrame, una columna por miembro.
 
-    soup = BeautifulSoup(descargar(url).text, "html.parser")
+    Sin caché: se llama desde hilos, donde st.cache_data no está disponible.
+    Las celdas que no son números (vacías, "-") quedan como NaN en lugar de romper la tabla entera.
+    """
+
+    soup = BeautifulSoup(descargar(url, timeout).text, "html.parser")
 
     table = soup.find("table", {"class": "gefs"})
     if table is None:
@@ -45,54 +70,60 @@ def get_meteociel_table(url, tz="Europe/Madrid"):
     data = [[column.get_text(strip=True) for column in row.find_all("td")] for row in rows[1:]]
 
     df = pd.DataFrame(data, columns=headers)
-    df.index = pd.DatetimeIndex(pd.to_datetime(df["Date"])).tz_convert(tz)
-    df = df.drop(["Date", "Ech."], axis=1)
-    df = df.astype("float")
-
-    return df
+    df.index = pd.DatetimeIndex(pd.to_datetime(df["Date"], utc=True)).tz_convert(tz)
+    df.index.name = None
+    return df.drop(columns=["Date", "Ech."]).apply(pd.to_numeric, errors="coerce")
 
 
-def get_last_run(url, runs, tz="Europe/Madrid"):
-    """Devuelve el pase más reciente (el que empieza más tarde) de los disponibles en Meteociel."""
+def ultimo_pase(url, runs, tz="Europe/Madrid"):
+    """Descarga en paralelo todos los pases de una tabla y devuelve (pase, tabla) del más reciente.
 
-    first_index = pd.Timestamp(year=2017, month=1, day=1, tz="UTC")
-    valid_run = None
+    El más reciente es el que empieza más tarde: a primera hora el pase de las 21 UTC es el de ayer.
+    """
 
-    for run in runs:
-        try:
-            first_index_run = get_meteociel_table(f"{url}&run={run}", tz).index[0]
-        except Exception:
-            continue
-
-        if first_index_run > first_index:
-            first_index = first_index_run
-            valid_run = run
-
-    if valid_run is None:
+    tablas = en_paralelo(leer_tabla_meteociel, [(f"{url}&run={run}", tz) for run in runs])
+    disponibles = {
+        run: tabla for run, tabla in zip(runs, tablas)
+        if isinstance(tabla, pd.DataFrame) and not tabla.empty
+    }
+    if not disponibles:
         raise ConnectionError(f"Ningún pase disponible en Meteociel: {url}")
 
-    return valid_run
+    run = max(disponibles, key=lambda r: disponibles[r].index[0])
+    return run, disponibles[run]
 
 
-def url_arome(lat, lon, modo):
-    return f"https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat={lat}&lon={lon}&mode={modo}&sort=0"
+def url_arome(lat, lon, modo, run=None):
+    url = f"https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat={lat}&lon={lon}&mode={modo}&sort=0"
+    return f"{url}&run={run}" if run is not None else url
 
 
 def url_gefs(lat, lon):
     return f"https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat={lat}&lon={lon}&ext=1&mode=7&sort=0"
 
 
+@st.cache_data(ttl="30m", show_spinner=False)
 def get_ensemble_arome(lat, lon, tz, variables):
-    """Pase más reciente del ensemble PE-AROME y sus tablas para las variables pedidas."""
+    """Pase más reciente del ensemble PE-AROME y sus tablas para las variables pedidas.
 
-    run = get_last_run(url_arome(lat, lon, MODOS_AROME["temperatura"]), RUNS_AROME, tz)
-    datos = {var: get_meteociel_table(f"{url_arome(lat, lon, MODOS_AROME[var])}&run={run}", tz) for var in variables}
+    El pase se elige con la temperatura; el resto de variables se descargan a la vez.
+    """
+
+    run, temperatura = ultimo_pase(url_arome(lat, lon, MODOS_AROME["temperatura"]), RUNS_AROME, tz)
+    resto = [var for var in variables if var != "temperatura"]
+    tablas = en_paralelo(leer_tabla_meteociel, [(url_arome(lat, lon, MODOS_AROME[var], run), tz) for var in resto])
+
+    datos = {"temperatura": temperatura}
+    for var, tabla in zip(resto, tablas):
+        if isinstance(tabla, Exception):
+            raise tabla
+        datos[var] = tabla
     return run, datos
 
 
+@st.cache_data(ttl="30m", show_spinner=False)
 def get_ensemble_gefs(lat, lon, tz):
-    run = get_last_run(url_gefs(lat, lon), RUNS_GEFS, tz)
-    return get_meteociel_table(f"{url_gefs(lat, lon)}&run={run}", tz)
+    return ultimo_pase(url_gefs(lat, lon), RUNS_GEFS, tz)[1]
 
 
 def hora_local_run(run_utc, tz):

@@ -1,9 +1,11 @@
-"""Mapas AROME interactivos para visualización de campos meteorológicos en Meteo Dash."""
+"""Mapas AROME interactivos: rejillas de puntos del ensemble PE-AROME de Meteociel dibujadas con isolíneas."""
 
+import logging
+import threading
+import time
 from base64 import b64encode
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
-import time
 
 import matplotlib
 matplotlib.use("Agg")
@@ -11,20 +13,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import requests
-from bs4 import BeautifulSoup
 import streamlit as st
 
+from .fuentes import MODOS_AROME, RUNS_AROME, leer_tabla_meteociel, ultimo_pase, url_arome
+
+logger = logging.getLogger(__name__)
 
 GRID_STEP = 0.05
 MAX_WORKERS = 3
 REQUEST_PAUSE = 0.15
-USER_AGENT = {"User-Agent": "MeteoDash map viewer (personal use)"}
 
+# "cache" es también la clave de fuentes.MODOS_AROME
 VARIABLES = {
-    "Temperatura": {"mode": 8, "cache": "temperatura", "cmap": "RdYlBu_r", "step": 1, "unit": "°C"},
-    "Rachas": {"mode": 13, "cache": "rachas", "cmap": "YlOrRd", "step": 5, "unit": "km/h"},
-    "Precipitación": {"mode": 10, "cache": "precipitacion", "cmap": "PuBuGn", "step": 0.5, "unit": "mm"},
+    "Temperatura": {"cache": "temperatura", "cmap": "RdYlBu_r", "step": 1, "unit": "°C"},
+    "Rachas": {"cache": "rachas", "cmap": "YlOrRd", "step": 5, "unit": "km/h"},
+    "Precipitación": {"cache": "precipitacion", "cmap": "PuBuGn", "step": 0.5, "unit": "mm"},
 }
 
 LOCATIONS = {
@@ -66,43 +69,14 @@ def _points(bounds, grid_step=GRID_STEP):
     return [(round(lat, 4), round(lon, 4)) for lat in latitudes for lon in longitudes]
 
 
-def _url(lat, lon, mode, run=None):
-    url = (
-        "https://www.meteociel.fr/modeles/pe-arome_table.php?"
-        f"x=0&y=0&lat={lat:.4f}&lon={lon:.4f}&mode={mode}&sort=0"
-    )
-    return f"{url}&run={run}" if run is not None else url
-
-
-def _parse(url):
-    response = requests.get(url, timeout=45, headers=USER_AGENT)
-    response.raise_for_status()
-    table = BeautifulSoup(response.text, "html.parser").find("table", {"class": "gefs"})
-    if table is None:
-        raise ValueError("Meteociel no devolvió la tabla AROME esperada")
-    rows = table.find_all("tr")
-    headers = [cell.get_text(strip=True) for cell in rows[0].find_all("td")]
-    records = [[cell.get_text(strip=True) for cell in row.find_all("td")] for row in rows[1:]]
-    data = pd.DataFrame(records, columns=headers)
-    data["Date"] = pd.to_datetime(data["Date"], utc=True).dt.tz_convert("Europe/Madrid")
-    data = data.set_index("Date").drop(columns="Ech.").apply(pd.to_numeric, errors="coerce")
-    return data.mean(axis=1).rename("value")
-
-
 @st.cache_data(ttl="30m", show_spinner=False)
 def _latest_run(center_lat, center_lon):
-    """Pasada más reciente: (hora UTC, último instante previsto). El instante identifica la pasada de ese día."""
-    reference = (center_lat, center_lon)
-    available = {}
-    for run in (3, 9, 15, 21):
-        try:
-            available[run] = _parse(_url(*reference, mode=8, run=run)).index.max()
-        except Exception:
-            continue
-    if not available:
-        raise RuntimeError("No se pudo obtener una pasada AROME disponible")
-    run = max(available, key=available.get)
-    return run, available[run]
+    """Pasada más reciente: (hora UTC, último instante previsto). El instante identifica la pasada de ese día.
+
+    Mismo criterio que la página de previsión (fuentes.ultimo_pase), así ambas muestran la misma pasada.
+    """
+    run, table = ultimo_pase(url_arome(center_lat, center_lon, MODOS_AROME["temperatura"]), RUNS_AROME)
+    return run, table.index.max()
 
 
 @st.cache_resource(show_spinner=False)
@@ -114,11 +88,17 @@ def _grids():
     return {}
 
 
-def _fetch_point(lat, lon, mode, run):
+@st.cache_resource(show_spinner=False)
+def _download_lock():
+    """Evita que dos pestañas abiertas a la vez descarguen la misma rejilla en paralelo."""
+    return threading.Lock()
+
+
+def _fetch_point(lat, lon, variable, run):
     last_error = None
     for attempt in range(3):
         try:
-            series = _parse(_url(lat, lon, mode, run))
+            series = leer_tabla_meteociel(url_arome(lat, lon, MODOS_AROME[variable], run), timeout=45).mean(axis=1)
             time.sleep(REQUEST_PAUSE)
             return pd.DataFrame({"time": series.index, "lat": lat, "lon": lon, "value": series.values})
         except Exception as error:  # reintento ante respuestas temporales de Meteociel
@@ -131,12 +111,12 @@ def _download_field(spec, run, run_id, bounds, location_key, progress):
     points = _points(bounds)
     frames = []
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = [executor.submit(_fetch_point, lat, lon, spec["mode"], run) for lat, lon in points]
+        futures = [executor.submit(_fetch_point, lat, lon, spec["cache"], run) for lat, lon in points]
         for number, future in enumerate(as_completed(futures), start=1):
             try:
                 frames.append(future.result())
-            except Exception:
-                pass
+            except Exception as error:
+                logger.warning("Punto AROME sin datos: %s", error)
             progress.progress(number / len(points), text=f"Descargando {spec['cache']}: {number}/{len(points)} puntos")
     if not frames:
         raise RuntimeError(f"No se obtuvieron datos de {spec['cache']} desde Meteociel")
@@ -249,15 +229,8 @@ def _build_map(data, title, cmap, interval, bounds, center_lat, center_lon, mark
 
 
 def render_arome_maps(location="Madrid"):
-    """Renderiza la pestaña de mapas para la ubicación indicada."""
-    if isinstance(location, str):
-        if location not in LOCATIONS:
-            raise ValueError(f"Ubicación '{location}' no configurada en LOCATIONS ({list(LOCATIONS.keys())})")
-        cfg = LOCATIONS[location]
-    elif isinstance(location, dict):
-        cfg = location
-    else:
-        raise TypeError("El parámetro 'location' debe ser un string o un dict de configuración.")
+    """Renderiza la pestaña de mapas para la ubicación indicada (clave de LOCATIONS)."""
+    cfg = LOCATIONS[location]
 
     st.header("Mapas AROME")
 
@@ -273,8 +246,9 @@ def render_arome_maps(location="Madrid"):
 
     try:
         run, run_id = _latest_run(center_lat, center_lon)
-    except RuntimeError as error:
-        st.error(str(error))
+    except Exception:
+        logger.exception("Pasada AROME para los mapas de %s", name)
+        st.error("No se pudo obtener una pasada AROME disponible en Meteociel.")
         return
 
     selected = st.segmented_control("Variable", list(VARIABLES), default="Temperatura", key=f"{key_prefix}_arome_map_variable")
@@ -288,7 +262,10 @@ def render_arome_maps(location="Madrid"):
         if st.button("Descargar mapa AROME", icon=":material/download:", type="primary", key=f"{key_prefix}_download_btn"):
             progress = st.progress(0, text="Preparando descarga…")
             try:
-                _download_field(spec, run, run_id, bounds, key_prefix, progress)
+                with _download_lock():
+                    # Otra pestaña puede haberla descargado mientras esta esperaba
+                    if grid_key not in _grids():
+                        _download_field(spec, run, run_id, bounds, key_prefix, progress)
             except RuntimeError as error:
                 st.error(str(error))
                 return

@@ -25,7 +25,7 @@ paginas = st.navigation({
 aplicar_estilos()
 
 with st.sidebar:
-    if st.button("Actualizar datos", icon=":material/refresh:", use_container_width=True,
+    if st.button("Actualizar datos", icon=":material/refresh:", width="stretch",
                  help="Vuelve a descargar todas las previsiones y observaciones"):
         st.cache_data.clear()
         st.rerun()

@@ -1,12 +1,14 @@
 """Observaciones horarias de las estaciones de AEMET (últimas 24 h)."""
 
+import logging
 import xml.etree.ElementTree as ET
 
 import pandas as pd
-import requests
 import streamlit as st
 
-USER_AGENT = {"User-Agent": "Mozilla/5.0 (Meteo Dash; Streamlit)"}
+from .fuentes import descargar
+
+logger = logging.getLogger(__name__)
 
 # Etiqueta del XML -> columna
 VARIABLES = {"temperatura": "temperatura", "vel_racha": "racha"}
@@ -19,12 +21,7 @@ def get_aemet_horario(estacion):
     AEMET retiró en 2026 el CSV de "últimos datos"; su web ahora consume este XML (no es una API documentada).
     """
 
-    response = requests.get(
-        f"https://www.aemet.es/es/api-eltiempo/udat/tablas-graficas/horario/9/{estacion}",
-        timeout=30,
-        headers=USER_AGENT,
-    )
-    response.raise_for_status()
+    response = descargar(f"https://www.aemet.es/es/api-eltiempo/udat/tablas-graficas/horario/9/{estacion}")
     root = ET.fromstring(response.content)
 
     registros = []
@@ -49,6 +46,7 @@ def cargar_aemet_horario(estacion, nombre):
     try:
         return get_aemet_horario(estacion)
     except Exception:
+        logger.exception("Observaciones de AEMET de %s (%s)", nombre, estacion)
         st.warning(f"No se han podido descargar las observaciones de AEMET ({nombre}). Se muestra solo la previsión.")
         return None
 

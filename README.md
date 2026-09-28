@@ -18,12 +18,12 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `main_page.py` | Punto de entrada: navegación entre páginas, estilo y botón de actualizar |
 | `paginas/` | Una página por ciudad o grupo; cada una es solo su configuración |
 | `meteodash/ciudad.py` | `Ciudad` (configuración) y `render_ciudad`, que monta la página completa |
-| `meteodash/fuentes.py` | Descarga y caché de Meteociel (AROME, GEFS), Open-Meteo e históricos |
+| `meteodash/fuentes.py` | Descarga y caché de Meteociel (AROME, GEFS), Open-Meteo e históricos; las tablas de Meteociel se descargan en paralelo |
 | `meteodash/aemet.py` | Observaciones horarias de AEMET |
 | `meteodash/graficos.py` | Gráficos Plotly |
 | `meteodash/tarjetas.py` | Tarjetas, avisos y tabla de récords |
 | `meteodash/estilo.py` | CSS de la app y tema de los gráficos |
-| `arome_maps.py` | Mapas AROME interactivos (Madrid y Torrelavega); las rejillas se guardan en memoria, compartidas entre visitantes |
+| `meteodash/mapas.py` | Mapas AROME interactivos (Madrid y Torrelavega); las rejillas se guardan en memoria, compartidas entre visitantes |
 | `datos/` | Históricos diarios de AEMET, solo lectura (Retiro 1950-2022, Ávila 1990-2022) |
 
 ## Añadir una ciudad
@@ -44,7 +44,7 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - `gefs`: tendencia a 15 días del ensemble GFS.
 - `presion_y_cape`: gráficos de presión y MUCAPE (activado por defecto).
 - `camaras`: URLs de cámaras.
-- `mapas_arome`: clave de `arome_maps.LOCATIONS` para añadir la pestaña de mapas.
+- `mapas_arome`: clave de `meteodash/mapas.py:LOCATIONS` para añadir la pestaña de mapas.
 - `tz`: zona horaria (por defecto `Europe/Madrid`).
 
 ## Fuentes de datos
@@ -55,4 +55,4 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 
 La app no escribe nada en disco (en Streamlit Cloud no persiste): todo se cachea en memoria.
 
-Meteociel y AEMET no son APIs estables: si cambian el formato, la página afectada muestra un aviso en lugar de romperse.
+Meteociel y AEMET no son APIs estables: si cambian el formato, la página afectada muestra un aviso en lugar de romperse, y el error completo queda en los logs de Streamlit.
