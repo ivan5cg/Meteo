@@ -22,17 +22,19 @@ MODELOS_OPEN_METEO = {
 }
 
 
-def descargar(url, timeout=30):
-    response = requests.get(url, timeout=timeout, headers=USER_AGENT)
+def descargar(url, timeout=30, params=None):
+    response = requests.get(url, params=params, timeout=timeout, headers=USER_AGENT)
     response.raise_for_status()
     return response
 
 
 # ---------------------------------------------------------------- Meteociel
 
-@st.cache_data(ttl="30m", show_spinner=False)
-def get_meteociel_table(url, tz="Europe/Madrid"):
-    """Descarga una tabla de ensemble de Meteociel (AROME o GEFS) como DataFrame."""
+def leer_tabla_meteociel(url, tz="Europe/Madrid"):
+    """Descarga una tabla de ensemble de Meteociel (AROME o GEFS) como DataFrame, sin caché.
+
+    Las celdas no numéricas (vacías, "-") quedan como NaN en lugar de invalidar toda la tabla.
+    """
 
     soup = BeautifulSoup(descargar(url).text, "html.parser")
 
@@ -45,15 +47,18 @@ def get_meteociel_table(url, tz="Europe/Madrid"):
     data = [[column.get_text(strip=True) for column in row.find_all("td")] for row in rows[1:]]
 
     df = pd.DataFrame(data, columns=headers)
-    df.index = pd.DatetimeIndex(pd.to_datetime(df["Date"])).tz_convert(tz)
+    df.index = pd.DatetimeIndex(pd.to_datetime(df["Date"], utc=True)).tz_convert(tz)
     df = df.drop(["Date", "Ech."], axis=1)
-    df = df.astype("float")
+    return df.apply(pd.to_numeric, errors="coerce")
 
-    return df
+
+@st.cache_data(ttl="30m", show_spinner=False)
+def get_meteociel_table(url, tz="Europe/Madrid"):
+    return leer_tabla_meteociel(url, tz)
 
 
 def get_last_run(url, runs, tz="Europe/Madrid"):
-    """Devuelve el pase más reciente (el que empieza más tarde) de los disponibles en Meteociel."""
+    """Pase más reciente (el que empieza más tarde) de los disponibles en Meteociel: (hora UTC, instante inicial)."""
 
     first_index = pd.Timestamp(year=2017, month=1, day=1, tz="UTC")
     valid_run = None
@@ -71,7 +76,7 @@ def get_last_run(url, runs, tz="Europe/Madrid"):
     if valid_run is None:
         raise ConnectionError(f"Ningún pase disponible en Meteociel: {url}")
 
-    return valid_run
+    return valid_run, first_index
 
 
 def url_arome(lat, lon, modo):
@@ -85,13 +90,13 @@ def url_gefs(lat, lon):
 def get_ensemble_arome(lat, lon, tz, variables):
     """Pase más reciente del ensemble PE-AROME y sus tablas para las variables pedidas."""
 
-    run = get_last_run(url_arome(lat, lon, MODOS_AROME["temperatura"]), RUNS_AROME, tz)
+    run, _ = get_last_run(url_arome(lat, lon, MODOS_AROME["temperatura"]), RUNS_AROME, tz)
     datos = {var: get_meteociel_table(f"{url_arome(lat, lon, MODOS_AROME[var])}&run={run}", tz) for var in variables}
     return run, datos
 
 
 def get_ensemble_gefs(lat, lon, tz):
-    run = get_last_run(url_gefs(lat, lon), RUNS_GEFS, tz)
+    run, _ = get_last_run(url_gefs(lat, lon), RUNS_GEFS, tz)
     return get_meteociel_table(f"{url_gefs(lat, lon)}&run={run}", tz)
 
 
@@ -116,9 +121,7 @@ def get_open_meteo(lat, lon, tz):
         "timezone": tz,
         "models": ",".join(MODELOS_OPEN_METEO),
     }
-    response = requests.get("https://api.open-meteo.com/v1/forecast", params=params, timeout=30, headers=USER_AGENT)
-    response.raise_for_status()
-    horario = response.json()["hourly"]
+    horario = descargar("https://api.open-meteo.com/v1/forecast", params=params).json()["hourly"]
     indice = pd.to_datetime(horario["time"])
 
     datos = {}

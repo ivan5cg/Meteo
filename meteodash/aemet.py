@@ -3,10 +3,9 @@
 import xml.etree.ElementTree as ET
 
 import pandas as pd
-import requests
 import streamlit as st
 
-USER_AGENT = {"User-Agent": "Mozilla/5.0 (Meteo Dash; Streamlit)"}
+from .fuentes import descargar
 
 # Etiqueta del XML -> columna
 VARIABLES = {"temperatura": "temperatura", "vel_racha": "racha"}
@@ -19,12 +18,7 @@ def get_aemet_horario(estacion):
     AEMET retiró en 2026 el CSV de "últimos datos"; su web ahora consume este XML (no es una API documentada).
     """
 
-    response = requests.get(
-        f"https://www.aemet.es/es/api-eltiempo/udat/tablas-graficas/horario/9/{estacion}",
-        timeout=30,
-        headers=USER_AGENT,
-    )
-    response.raise_for_status()
+    response = descargar(f"https://www.aemet.es/es/api-eltiempo/udat/tablas-graficas/horario/9/{estacion}")
     root = ET.fromstring(response.content)
 
     registros = []

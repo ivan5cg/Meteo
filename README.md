@@ -15,7 +15,7 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 
 | Ruta | Qué hay |
 | --- | --- |
-| `main_page.py` | Punto de entrada: navegación entre páginas, estilo y botón de actualizar |
+| `main_page.py` | Punto de entrada: navegación entre páginas, estilo y botón de actualizar (como mucho una vez cada 5 min, porque la caché es común a todos) |
 | `paginas/` | Una página por ciudad o grupo; cada una es solo su configuración |
 | `meteodash/ciudad.py` | `Ciudad` (configuración) y `render_ciudad`, que monta la página completa |
 | `meteodash/fuentes.py` | Descarga y caché de Meteociel (AROME, GEFS), Open-Meteo e históricos |
@@ -23,7 +23,7 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `meteodash/graficos.py` | Gráficos Plotly |
 | `meteodash/tarjetas.py` | Tarjetas, avisos y tabla de récords |
 | `meteodash/estilo.py` | CSS de la app y tema de los gráficos |
-| `arome_maps.py` | Mapas AROME interactivos (Madrid y Torrelavega); las rejillas se guardan en memoria, compartidas entre visitantes |
+| `meteodash/mapas_arome.py` | Mapas AROME interactivos (Madrid y Torrelavega); las rejillas se descargan en segundo plano y se guardan en memoria, compartidas entre visitantes |
 | `datos/` | Históricos diarios de AEMET, solo lectura (Retiro 1950-2022, Ávila 1990-2022) |
 
 ## Añadir una ciudad
@@ -44,7 +44,7 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - `gefs`: tendencia a 15 días del ensemble GFS.
 - `presion_y_cape`: gráficos de presión y MUCAPE (activado por defecto).
 - `camaras`: URLs de cámaras.
-- `mapas_arome`: clave de `arome_maps.LOCATIONS` para añadir la pestaña de mapas.
+- `mapas_arome`: clave de `meteodash.mapas_arome.LOCATIONS` para añadir la pestaña de mapas.
 - `tz`: zona horaria (por defecto `Europe/Madrid`).
 
 ## Fuentes de datos

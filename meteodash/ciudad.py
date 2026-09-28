@@ -23,7 +23,18 @@ class Ciudad:
     semana: bool = False  # previsión multimodelo de Open-Meteo para 7 días
     gefs: bool = False  # ensemble GFS a 15 días
     camaras: tuple[str, ...] = ()
-    mapas_arome: str | None = None  # clave de arome_maps.LOCATIONS
+    mapas_arome: str | None = None  # clave de mapas_arome.LOCATIONS
+
+
+def extremos_del_dia(serie, fecha):
+    """Máxima y mínima horarias de un día y, si la serie no lo cubre entero, las horas cubiertas ("17-23 h")."""
+
+    del_dia = serie[serie.index.date == fecha.date()].dropna()
+    if del_dia.empty:
+        return np.nan, np.nan, None
+    desde, hasta = del_dia.index[0].hour, del_dia.index[-1].hour
+    horas = None if (desde, hasta) == (0, 23) else f"{desde}-{hasta} h"
+    return round(del_dia.max(), 1), round(del_dia.min(), 1), horas
 
 
 def render_ciudad(ciudad, titulo=None):
@@ -46,6 +57,7 @@ def render_ciudad(ciudad, titulo=None):
     temp = arome["temperatura"]
     rachas = arome["rachas"]
     temp_actual = temp_ayer = None
+    obs = None
 
     if ciudad.estacion_aemet:
         obs = cargar_aemet_horario(ciudad.estacion_aemet, ciudad.nombre)
@@ -65,12 +77,14 @@ def render_ciudad(ciudad, titulo=None):
     temp_mañana = round(fila_mañana.mean(), 1)
     fiabilidad = round(10 * np.exp(-0.05 * round(fila_mañana.std(), 1) ** 2.5), 1)
 
-    def extremo(fecha, funcion):
-        del_dia = media[media.index.date == fecha.date()]
-        return round(getattr(del_dia, funcion)(), 1) if not del_dia.empty else np.nan
+    # El pase empieza a su hora UTC: las horas de hoy anteriores se completan con lo observado
+    serie = media
+    if obs is not None and obs["temperatura"].notna().any():
+        observado = obs["temperatura"].dropna().tz_convert(ciudad.tz)
+        serie = pd.concat([observado, media[media.index > observado.index[-1]]])
 
-    max_hoy, min_hoy = extremo(ahora, "max"), extremo(ahora, "min")
-    max_mañana, min_mañana = extremo(mañana, "max"), extremo(mañana, "min")
+    max_hoy, min_hoy, horas_hoy = extremos_del_dia(serie, ahora)
+    max_mañana, min_mañana, horas_mañana = extremos_del_dia(serie, mañana)
 
     # --- Histórico ---
     datos_hist = bandas = None
@@ -78,18 +92,21 @@ def render_ciudad(ciudad, titulo=None):
     if ciudad.historico:
         datos_hist, bandas = get_historico(ciudad.historico)
 
-        def percentil(fecha, columna, valor):
-            """Porcentaje de años del histórico con un valor inferior (los empates cuentan la mitad)."""
+        def percentil(fecha, columna, valor, horas):
+            """Porcentaje de años del histórico con un valor inferior (los empates cuentan la mitad).
+
+            Solo con el día completo: un extremo de unas pocas horas no es comparable con el histórico.
+            """
             registros = datos_hist.loc[datos_hist["día_del_año"] == dia_historico(fecha), columna].dropna()
-            if registros.empty or pd.isna(valor):
+            if registros.empty or pd.isna(valor) or horas:
                 return None
             return 100 * ((registros < valor).mean() + (registros <= valor).mean()) / 2
 
         percentiles = {
-            "max_hoy": percentil(ahora, "tmax", max_hoy),
-            "min_hoy": percentil(ahora, "tmin", min_hoy),
-            "max_mañana": percentil(mañana, "tmax", max_mañana),
-            "min_mañana": percentil(mañana, "tmin", min_mañana),
+            "max_hoy": percentil(ahora, "tmax", max_hoy, horas_hoy),
+            "min_hoy": percentil(ahora, "tmin", min_hoy, horas_hoy),
+            "max_mañana": percentil(mañana, "tmax", max_mañana, horas_mañana),
+            "min_mañana": percentil(mañana, "tmin", min_mañana, horas_mañana),
         }
         tarjetas.records(datos_hist[datos_hist["día_del_año"] == dia_historico(ahora)])
 
@@ -98,26 +115,25 @@ def render_ciudad(ciudad, titulo=None):
     st.divider()
 
     extremos = [
-        {"label": "Máxima hoy", "temp": max_hoy, "perc": percentiles.get("max_hoy")},
-        {"label": "Mínima mañana", "temp": min_mañana, "perc": percentiles.get("min_mañana")},
-        {"label": "Máxima mañana", "temp": max_mañana, "perc": percentiles.get("max_mañana")},
+        {"label": "Máxima hoy", "temp": max_hoy, "perc": percentiles.get("max_hoy"), "horas": horas_hoy},
+        {"label": "Mínima mañana", "temp": min_mañana, "perc": percentiles.get("min_mañana"), "horas": horas_mañana},
+        {"label": "Máxima mañana", "temp": max_mañana, "perc": percentiles.get("max_mañana"), "horas": horas_mañana},
     ]
     if ahora.hour < 9:
-        extremos.insert(0, {"label": "Mínima hoy", "temp": min_hoy, "perc": percentiles.get("min_hoy")})
-    tarjetas.extremos(extremos)
+        extremos.insert(0, {"label": "Mínima hoy", "temp": min_hoy, "perc": percentiles.get("min_hoy"), "horas": horas_hoy})
+    tarjetas.extremos([e for e in extremos if not pd.isna(e["temp"])])
     st.divider()
 
-    if percentiles.get("max_hoy") is not None and percentiles.get("max_mañana") is not None:
-        if tarjetas.avisos(percentiles["max_hoy"], percentiles["max_mañana"]):
-            st.divider()
+    if tarjetas.avisos(percentiles.get("max_hoy"), percentiles.get("max_mañana")):
+        st.divider()
 
     # --- 48 h: ensemble AROME ---
-    st.plotly_chart(graficos.temperatura(temp, bandas, dia_historico(ahora)), use_container_width=True)
-    st.plotly_chart(graficos.lluvia(arome["precipitacion"]), use_container_width=True)
-    st.plotly_chart(graficos.viento(rachas), use_container_width=True)
+    st.plotly_chart(graficos.temperatura(temp, bandas, dia_historico(ahora)))
+    st.plotly_chart(graficos.lluvia(arome["precipitacion"]))
+    st.plotly_chart(graficos.viento(rachas))
     if ciudad.presion_y_cape:
-        st.plotly_chart(graficos.presion(arome["presion"]), use_container_width=True)
-        st.plotly_chart(graficos.mucape(arome["mucape"]), use_container_width=True)
+        st.plotly_chart(graficos.presion(arome["presion"]))
+        st.plotly_chart(graficos.mucape(arome["mucape"]))
     st.divider()
 
     # --- Semana: multimodelo Open-Meteo ---
@@ -127,9 +143,9 @@ def render_ciudad(ciudad, titulo=None):
         except Exception:
             st.warning("No se ha podido descargar la previsión semanal de Open-Meteo.")
         else:
-            st.plotly_chart(graficos.semana_temperatura(semana["temperatura"]), use_container_width=True)
-            st.plotly_chart(graficos.semana_lluvia(semana["precipitacion"]), use_container_width=True)
-            st.plotly_chart(graficos.semana_viento(semana["rachas"]), use_container_width=True)
+            st.plotly_chart(graficos.semana_temperatura(semana["temperatura"]))
+            st.plotly_chart(graficos.semana_lluvia(semana["precipitacion"]))
+            st.plotly_chart(graficos.semana_viento(semana["rachas"]))
         st.divider()
 
     # --- Histórico frente a la previsión ---
@@ -138,17 +154,19 @@ def render_ciudad(ciudad, titulo=None):
         st.subheader("Temperaturas Históricas vs. Previsión")
         st.markdown(f"Distribución de las temperaturas registradas un día como hoy desde {desde}. "
                     "Los puntos destacados indican la previsión para hoy y mañana.")
-        fig = graficos.historico_vs_prevision(datos_hist, dia_historico(ahora), (min_hoy, max_hoy), (min_mañana, max_mañana))
-        st.plotly_chart(fig, use_container_width=True)
+        prev_hoy = (np.nan, np.nan) if horas_hoy else (min_hoy, max_hoy)
+        prev_mañana = (np.nan, np.nan) if horas_mañana else (min_mañana, max_mañana)
+        fig = graficos.historico_vs_prevision(datos_hist, dia_historico(ahora), prev_hoy, prev_mañana)
+        st.plotly_chart(fig)
         st.divider()
 
-    st.plotly_chart(graficos.elevacion_solar(ciudad.lat, ciudad.lon, ciudad.tz), use_container_width=True)
+    st.plotly_chart(graficos.elevacion_solar(ciudad.lat, ciudad.lon, ciudad.tz))
 
     # --- 15 días: GEFS ---
     if ciudad.gefs:
         st.divider()
         try:
-            st.plotly_chart(graficos.gefs(get_ensemble_gefs(ciudad.lat, ciudad.lon, ciudad.tz)), use_container_width=True)
+            st.plotly_chart(graficos.gefs(get_ensemble_gefs(ciudad.lat, ciudad.lon, ciudad.tz)))
         except Exception:
             st.warning("No se ha podido descargar el ensemble GEFS de Meteociel.")
 
@@ -172,7 +190,7 @@ def render_pagina(ciudad, titulo=None):
         render_ciudad(ciudad, titulo)
         return
 
-    from arome_maps import render_arome_maps
+    from .mapas_arome import render_arome_maps
 
     prevision, mapas = st.tabs(
         [":material/dashboard: Previsión", ":material/map: Mapas AROME"],

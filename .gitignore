@@ -8,11 +8,7 @@ __pycache__/
 # Caché local antigua
 .cache.sqlite
 
-# Notebooks y pruebas de visualización (pesados y con salidas)
+# Notebooks, prototipos y vistas previas (pesados y con salidas)
+borradores/
 *.ipynb
 .ipynb_checkpoints/
-vista_previa_*.html
-ensemble_temperature.html
-temperature_ensemble.html
-temperature_responsive.html
-animacion_madrid.gif

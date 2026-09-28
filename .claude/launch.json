@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "meteodash",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "streamlit", "run", "main_page.py", "--server.headless", "true", "--server.port", "8501"],
+      "port": 8501
+    }
+  ]
+}

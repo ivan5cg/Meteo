@@ -31,7 +31,13 @@ def _html(contenido, destino=st):
     destino.markdown("\n".join(linea.strip() for linea in contenido.splitlines()), unsafe_allow_html=True)
 
 
+def _grados(t):
+    return "–" if t is None or pd.isna(t) else f"{t}º"
+
+
 def _delta(valor, nota):
+    if pd.isna(valor):
+        return ""
     if valor == 0:
         return f'<div class="metric-delta" style="color: #635b53">= 0º <span class="nota">{nota}</span></div>'
     color = ROJO if valor > 0 else AZUL
@@ -47,7 +53,7 @@ def principales(temp_mañana, fiabilidad, temp_actual=None, temp_ayer=None):
         tarjetas += f"""
         <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(temp_actual)};">
         <div class="metric-label">Actual</div>
-        <div class="metric-value">{temp_actual}º</div>
+        <div class="metric-value">{_grados(temp_actual)}</div>
         {_delta(round(float(temp_actual - temp_ayer), 1), "vs ayer")}
         </div>"""
 
@@ -55,7 +61,7 @@ def principales(temp_mañana, fiabilidad, temp_actual=None, temp_ayer=None):
     tarjetas += f"""
     <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(temp_mañana)};">
     <div class="metric-label">Mañana a esta hora</div>
-    <div class="metric-value">{temp_mañana}º</div>
+    <div class="metric-value">{_grados(temp_mañana)}</div>
     {delta_mañana}
     </div>
     <div class="metric-card static-card" title="Coincidencia entre los miembros del ensemble para la temperatura de mañana a esta hora">
@@ -68,12 +74,19 @@ def principales(temp_mañana, fiabilidad, temp_actual=None, temp_ayer=None):
 
 
 def extremos(tarjetas):
-    """Máximas y mínimas previstas. Cada tarjeta: dict(label, temp, perc=None)."""
+    """Máximas y mínimas previstas. Cada tarjeta: dict(label, temp, perc=None, horas=None).
+
+    `horas` indica que el día no está completo en los datos ("17-23 h"): se muestra junto a la etiqueta.
+    """
 
     html = ""
     for tarjeta in tarjetas:
         percentil = tarjeta.get("perc")
         barra, titulo = "", ""
+        etiqueta = tarjeta["label"]
+        if tarjeta.get("horas"):
+            etiqueta += f' <span style="text-transform: none; opacity: 0.7">({tarjeta["horas"]})</span>'
+            titulo = ' title="El pase del modelo no cubre el día entero: el valor solo tiene en cuenta estas horas"'
         if percentil is not None and not pd.isna(percentil):
             valor = int(round(percentil))
             # El degradado se escala a la inversa para que no se comprima con barras cortas
@@ -87,8 +100,8 @@ def extremos(tarjetas):
 
         html += f"""
         <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(tarjeta['temp'])};"{titulo}>
-        <div class="metric-label">{tarjeta['label']}</div>
-        <div class="metric-value">{tarjeta['temp']}º</div>
+        <div class="metric-label">{etiqueta}</div>
+        <div class="metric-value">{_grados(tarjeta['temp'])}</div>
         {barra}
         </div>"""
 
@@ -96,23 +109,22 @@ def extremos(tarjetas):
 
 
 def avisos(perc_max_hoy, perc_max_mañana):
-    """Avisos de calor o frío anómalos según los percentiles históricos de las máximas."""
+    """Avisos de calor o frío anómalos según los percentiles históricos de las máximas (None: sin dato)."""
 
     lista = []
-    if perc_max_hoy > 80:
-        lista.append(("calor", "calor", "Hoy hará mucho calor"))
-    elif perc_max_hoy < 20:
-        lista.append(("frio", "frio", "Hoy hará mucho frío"))
+    for percentil, dia in [(perc_max_hoy, "Hoy"), (perc_max_mañana, "Mañana")]:
+        if percentil is None:
+            continue
+        if percentil > 80:
+            lista.append(("calor", "calor", f"{dia} hará mucho calor"))
+        elif percentil < 20:
+            lista.append(("frio", "frio", f"{dia} hará mucho frío"))
 
-    if perc_max_mañana > 80:
-        lista.append(("calor", "calor", "Mañana hará mucho calor"))
-    elif perc_max_mañana < 20:
-        lista.append(("frio", "frio", "Mañana hará mucho frío"))
-
-    if perc_max_mañana - perc_max_hoy > 50:
-        lista.append(("calor", "sube", "Mañana subirán mucho las temperaturas"))
-    elif perc_max_hoy - perc_max_mañana > 50:
-        lista.append(("frio", "baja", "Mañana bajarán mucho las temperaturas"))
+    if perc_max_hoy is not None and perc_max_mañana is not None:
+        if perc_max_mañana - perc_max_hoy > 50:
+            lista.append(("calor", "sube", "Mañana subirán mucho las temperaturas"))
+        elif perc_max_hoy - perc_max_mañana > 50:
+            lista.append(("frio", "baja", "Mañana bajarán mucho las temperaturas"))
 
     if not lista:
         return False

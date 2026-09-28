@@ -7,6 +7,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import pytz
+import streamlit as st
 from astral import LocationInfo
 from astral.sun import elevation, sun
 from plotly.subplots import make_subplots
@@ -127,8 +128,8 @@ def temperatura(data, bandas=None, dia_bandas=None):
 def lluvia(prec_data):
     """Probabilidad de lluvia (miembros con precipitación) y cantidad media cuando llueve."""
 
-    llueve = prec_data != 0
-    probabilidad = 100 * llueve.sum(axis=1) / len(prec_data.columns)
+    llueve = prec_data > 0  # los miembros sin dato (NaN) no cuentan como lluvia
+    probabilidad = 100 * llueve.sum(axis=1) / prec_data.notna().sum(axis=1)
     media = prec_data.where(llueve).mean(axis=1).fillna(0).round(1)
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.5, 0.5], vertical_spacing=0.1)
@@ -377,7 +378,7 @@ def gefs(temp_gefs):
 def historico_vs_prevision(datos, dia, hoy, mañana):
     """Temperaturas registradas un día como hoy frente a la previsión de hoy y mañana.
 
-    `hoy` y `mañana` son tuplas (mínima, máxima).
+    `hoy` y `mañana` son tuplas (mínima, máxima); los valores NaN no se dibujan.
     """
 
     del_dia = datos[datos["día_del_año"] == dia]
@@ -398,11 +399,14 @@ def historico_vs_prevision(datos, dia, hoy, mañana):
         (hoy, "Hoy", "#059669", "circle", "middle left"),
         (mañana, "Mañana", AMBAR, "diamond", "middle right"),
     ]:
+        puntos = [(tipo, valor) for tipo, valor in [("Mínima", minima), ("Máxima", maxima)] if not pd.isna(valor)]
+        if not puntos:
+            continue
         fig.add_trace(go.Scatter(
-            x=["Mínima", "Máxima"], y=[minima, maxima], mode="markers+text",
+            x=[tipo for tipo, _ in puntos], y=[valor for _, valor in puntos], mode="markers+text",
             name=f"Prev. {nombre}",
             marker=dict(size=16, color=color, line=dict(width=2, color="white"), symbol=simbolo),
-            text=[f"<b>{nombre}: {minima}º</b>", f"<b>{nombre}: {maxima}º</b>"], textposition=posicion,
+            text=[f"<b>{nombre}: {valor}º</b>" for _, valor in puntos], textposition=posicion,
             textfont=dict(color=TEXTO, size=11, family=FUENTE),
             hovertemplate=f"<b>Previsión {nombre} (%{{x}}): %{{y:.1f}}°C</b><extra></extra>",
         ))
@@ -412,13 +416,15 @@ def historico_vs_prevision(datos, dia, hoy, mañana):
     return fig
 
 
-def elevacion_solar(latitud, longitud, zona="UTC"):
+@st.cache_data(max_entries=50, show_spinner=False)
+def _curva_solar(latitud, longitud, zona, fecha):
+    """Elevación solar minuto a minuto de un día, con amanecer, atardecer y el cambio de duración frente a ayer."""
+
     location = LocationInfo("Ubicación", "Región", zona, latitud, longitud)
     timezone = pytz.timezone(zona)
-    hoy = datetime.now(tz=timezone)
 
-    sol_hoy = sun(location.observer, date=hoy, tzinfo=timezone)
-    sol_ayer = sun(location.observer, date=hoy - timedelta(days=1), tzinfo=timezone)
+    sol_hoy = sun(location.observer, date=fecha, tzinfo=timezone)
+    sol_ayer = sun(location.observer, date=fecha - timedelta(days=1), tzinfo=timezone)
     amanecer, atardecer = sol_hoy["sunrise"], sol_hoy["sunset"]
 
     diferencia = (atardecer - amanecer).total_seconds() - (sol_ayer["sunset"] - sol_ayer["sunrise"]).total_seconds()
@@ -428,12 +434,19 @@ def elevacion_solar(latitud, longitud, zona="UTC"):
     duracion = (atardecer - amanecer).total_seconds()
     horas_dia, minutos_dia = int(duracion // 3600), int((duracion % 3600) / 60)
 
-    minutos = [timezone.localize(datetime(hoy.year, hoy.month, hoy.day, h, m)) for h in range(24) for m in range(60)]
+    minutos = [timezone.localize(datetime(fecha.year, fecha.month, fecha.day, h, m)) for h in range(24) for m in range(60)]
     elevaciones = np.array([elevation(location.observer, dt) for dt in minutos])
     etiquetas = [dt.strftime("%H:%M") for dt in minutos]
 
     i_amanecer = amanecer.hour * 60 + amanecer.minute
     i_atardecer = atardecer.hour * 60 + atardecer.minute
+    titulo = f"Perfil de Elevación Solar | Duración del día: {horas_dia}h {minutos_dia}m ({cambio})"
+    return etiquetas, elevaciones, i_amanecer, i_atardecer, titulo
+
+
+def elevacion_solar(latitud, longitud, zona="UTC"):
+    hoy = datetime.now(tz=pytz.timezone(zona))
+    etiquetas, elevaciones, i_amanecer, i_atardecer, titulo = _curva_solar(latitud, longitud, zona, hoy.date())
     i_cenit = int(np.argmax(elevaciones))
     i_ahora = hoy.hour * 60 + hoy.minute
 
@@ -472,7 +485,6 @@ def elevacion_solar(latitud, longitud, zona="UTC"):
         hovertemplate="Hito Solar: <b>%{x}</b> (%{y:.1f}°)<extra></extra>",
     ))
 
-    tema_plotly(fig, f"Perfil de Elevación Solar | Duración del día: {horas_dia}h {minutos_dia}m ({cambio})",
-                "Elevación (°)", leyenda=False)
+    tema_plotly(fig, titulo, "Elevación (°)", leyenda=False)
     fig.update_xaxes(tickvals=[etiquetas[i] for i in range(0, 1440, 120)], tickfont=dict(size=11, color=TEXTO))
     return fig
