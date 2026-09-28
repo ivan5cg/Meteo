@@ -1,9 +1,13 @@
 """Descarga y preparación de datos: Meteociel (AROME y GEFS), Open-Meteo e históricos locales."""
 
+from concurrent.futures import ThreadPoolExecutor
+import threading
+
 import pandas as pd
 import requests
 import streamlit as st
 from bs4 import BeautifulSoup
+from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
 
 USER_AGENT = {"User-Agent": "Mozilla/5.0 (Meteo Dash; Streamlit)"}
 
@@ -20,6 +24,23 @@ MODELOS_OPEN_METEO = {
     "meteofrance_arpege_europe": "ARPEGE",
     "icon_eu": "ICON",
 }
+
+
+# Descargas en paralelo. La caché de Streamlit tiene un cerrojo por clave: si el hilo principal pide un valor
+# que un hilo del pool ya está descargando, espera a que termine en lugar de repetir la petición.
+_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="meteodash")
+
+
+def en_paralelo(funcion, *args):
+    """Lanza `funcion(*args)` en el pool con el contexto de la sesión actual; devuelve el Future."""
+
+    ctx = get_script_run_ctx()
+
+    def tarea():
+        add_script_run_ctx(threading.current_thread(), ctx)
+        return funcion(*args)
+
+    return _POOL.submit(tarea)
 
 
 def descargar(url, timeout=30, params=None):
@@ -63,9 +84,10 @@ def get_last_run(url, runs, tz="Europe/Madrid"):
     first_index = pd.Timestamp(year=2017, month=1, day=1, tz="UTC")
     valid_run = None
 
-    for run in runs:
+    tablas = {run: en_paralelo(get_meteociel_table, f"{url}&run={run}", tz) for run in runs}
+    for run, tabla in tablas.items():
         try:
-            first_index_run = get_meteociel_table(f"{url}&run={run}", tz).index[0]
+            first_index_run = tabla.result().index[0]
         except Exception:
             continue
 
@@ -91,8 +113,9 @@ def get_ensemble_arome(lat, lon, tz, variables):
     """Pase más reciente del ensemble PE-AROME y sus tablas para las variables pedidas."""
 
     run, _ = get_last_run(url_arome(lat, lon, MODOS_AROME["temperatura"]), RUNS_AROME, tz)
-    datos = {var: get_meteociel_table(f"{url_arome(lat, lon, MODOS_AROME[var])}&run={run}", tz) for var in variables}
-    return run, datos
+    tablas = {var: en_paralelo(get_meteociel_table, f"{url_arome(lat, lon, MODOS_AROME[var])}&run={run}", tz)
+              for var in variables}
+    return run, {var: tabla.result() for var, tabla in tablas.items()}
 
 
 def get_ensemble_gefs(lat, lon, tz):

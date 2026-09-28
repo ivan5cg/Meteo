@@ -7,8 +7,9 @@ import pandas as pd
 import streamlit as st
 
 from . import graficos, tarjetas
-from .aemet import cargar_aemet_horario, temperatura_actual_y_ayer
-from .fuentes import dia_historico, get_ensemble_arome, get_ensemble_gefs, get_historico, get_open_meteo, hora_local_run
+from .aemet import cargar_aemet_horario, get_aemet_horario, temperatura_actual_y_ayer
+from .fuentes import (RUNS_GEFS, dia_historico, en_paralelo, get_ensemble_arome, get_ensemble_gefs, get_historico,
+                      get_meteociel_table, get_open_meteo, hora_local_run, url_gefs)
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,15 @@ def render_ciudad(ciudad, titulo=None):
 
     ahora = pd.Timestamp.now(tz=ciudad.tz)
     mañana = ahora + pd.Timedelta(days=1)
+
+    # Las demás fuentes se descargan mientras llega AROME; luego se leen de la caché (los errores se ven al leerlas)
+    if ciudad.estacion_aemet:
+        en_paralelo(get_aemet_horario, ciudad.estacion_aemet)
+    if ciudad.semana:
+        en_paralelo(get_open_meteo, ciudad.lat, ciudad.lon, ciudad.tz)
+    if ciudad.gefs:  # las tablas de cada pase, no get_ensemble_gefs: una tarea del pool no debe esperar a otras
+        for run in RUNS_GEFS:
+            en_paralelo(get_meteociel_table, f"{url_gefs(ciudad.lat, ciudad.lon)}&run={run}", ciudad.tz)
 
     variables = ["temperatura", "precipitacion", "rachas"] + (["presion", "mucape"] if ciudad.presion_y_cape else [])
     try:
