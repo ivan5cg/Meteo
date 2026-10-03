@@ -5,9 +5,6 @@ __pycache__/
 # Secretos de Streamlit (nunca al repo)
 .streamlit/secrets.toml
 
-# Caché local antigua
-.cache.sqlite
-
 # Notebooks, prototipos y vistas previas (pesados y con salidas)
 borradores/
 *.ipynb

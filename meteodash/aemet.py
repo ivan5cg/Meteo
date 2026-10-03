@@ -8,7 +8,8 @@ import streamlit as st
 from .fuentes import descargar
 
 # Etiqueta del XML -> columna
-VARIABLES = {"temperatura": "temperatura", "vel_racha": "racha"}
+VARIABLES = {"temperatura": "temperatura", "vel_racha": "racha", "precipitacion": "precipitacion", "humedad": "humedad"}
+TEXTOS = {"dir_racha": "dir_racha"}  # se quedan como texto (puntos cardinales)
 
 
 @st.cache_data(ttl="10m", show_spinner=False)
@@ -24,7 +25,7 @@ def get_aemet_horario(estacion):
     registros = []
     for periodo in root.iter("periodo"):
         registro = {"utc": periodo.get("utc")}
-        for etiqueta, columna in VARIABLES.items():
+        for etiqueta, columna in (VARIABLES | TEXTOS).items():
             nodo = periodo.find(etiqueta)
             registro[columna] = nodo.text if nodo is not None else None
         registros.append(registro)
@@ -34,7 +35,9 @@ def get_aemet_horario(estacion):
 
     df = pd.DataFrame(registros).set_index("utc")
     df.index = pd.to_datetime(df.index).tz_localize("UTC").tz_convert("Europe/Madrid")
-    return df.apply(pd.to_numeric, errors="coerce").sort_index()
+    numericas = list(VARIABLES.values())
+    df[numericas] = df[numericas].apply(pd.to_numeric, errors="coerce")
+    return df.sort_index()
 
 
 def cargar_aemet_horario(estacion, nombre):

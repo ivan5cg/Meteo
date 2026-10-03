@@ -229,25 +229,18 @@ def _map_title(title, timestamp):
 
 # ---------------------------------------------------------------- Página
 
-def render_arome_maps(location="Madrid"):
-    """Renderiza la pestaña de mapas para la ubicación indicada."""
-    if isinstance(location, str):
-        if location not in LOCATIONS:
-            raise ValueError(f"Ubicación '{location}' no configurada en LOCATIONS ({list(LOCATIONS.keys())})")
-        cfg = LOCATIONS[location]
-    elif isinstance(location, dict):
-        cfg = location
-    else:
-        raise TypeError("El parámetro 'location' debe ser un string o un dict de configuración.")
+def render_arome_maps(location):
+    """Renderiza la pestaña de mapas para una ubicación de LOCATIONS."""
+    cfg = LOCATIONS[location]
 
     st.header("Mapas AROME")
 
     name = cfg["name"]
     center_lat = cfg["center_lat"]
     center_lon = cfg["center_lon"]
-    marker_label = cfg.get("marker_label", name)
-    zoom = cfg.get("zoom", 8.95)
-    key_prefix = cfg.get("key_prefix", name.lower())
+    marker_label = cfg["marker_label"]
+    zoom = cfg["zoom"]
+    key_prefix = cfg["key_prefix"]
 
     bounds = _compute_bounds(center_lat, center_lon, cfg["half_side_km"])
 
@@ -271,7 +264,7 @@ def render_arome_maps(location="Madrid"):
             return
         st.info(f"Aún no hay una rejilla de {selected.lower()} para la pasada {run:02d}Z.")
         if st.button("Descargar mapa AROME", icon=":material/download:", type="primary", key=f"{key_prefix}_download_btn"):
-            _start_download(grid_key, MODOS_AROME[spec["cache"]], run, _points(bounds, cfg.get("grid_step", 0.05)))
+            _start_download(grid_key, MODOS_AROME[spec["cache"]], run, _points(bounds, cfg["grid_step"]))
             st.rerun()
         return
 
@@ -296,7 +289,7 @@ def render_arome_maps(location="Madrid"):
     with st.spinner("Preparando isolíneas…"):
         image = _weather_image(grid_key, data, moment, spec["cmap"], levels, bounds)
 
-    figure = go.Figure(go.Scattermapbox(
+    figure = go.Figure(go.Scattermap(
         lat=[center_lat], lon=[center_lon], mode="markers+text", text=[marker_label],
         textposition="top right", hoverinfo="skip", marker={"size": 8, "color": "#111111"},
         textfont={"color": "#111111", "size": 12}, showlegend=False,
@@ -304,7 +297,7 @@ def render_arome_maps(location="Madrid"):
     figure.update_layout(
         title={"text": _map_title(f"AROME · {selected} · entorno de {name}", moment), "x": 0.5, "xanchor": "center", "y": 0.975},
         height=700,
-        mapbox={
+        map={
             "style": "white-bg", "center": {"lat": center_lat, "lon": center_lon}, "zoom": zoom,
             "layers": [TOPO_BASE, _weather_layer(image, bounds)],
         },

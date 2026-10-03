@@ -8,6 +8,8 @@ render_pagina(Ciudad(
     historico="datos/retiro_1950.csv",
     semana=True,
     gefs=True,
+    ens_ecmwf=True,
+    zonas_aviso=("ES219",),  # Metropolitana y Henares
     camaras=tuple(
         f"https://informo.madrid.es/cameras/Camara{codigo}.jpg"
         for codigo in ["03310", "14303", "01304", "07306", "04301", "12305"]

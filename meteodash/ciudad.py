@@ -8,8 +8,13 @@ import streamlit as st
 
 from . import graficos, tarjetas
 from .aemet import cargar_aemet_horario, get_aemet_horario, temperatura_actual_y_ayer
-from .fuentes import (RUNS_GEFS, dia_historico, en_paralelo, get_ensemble_arome, get_ensemble_gefs, get_historico,
-                      get_meteociel_table, get_open_meteo, hora_local_run, url_gefs)
+from .avisos import avisos_vigentes, get_avisos
+from .fuentes import (POLENES, RUNS_GEFS, dia_historico, en_paralelo, get_calidad_aire, get_ensemble_arome,
+                      get_ensemble_ecmwf, get_ensemble_gefs, get_historico, get_meteociel_table, get_open_meteo,
+                      get_open_meteo_detalle, hora_local_run, probabilidad_lluvia, url_gefs)
+from .radar import render_radar
+
+MESES_NIEVE = {11, 12, 1, 2, 3, 4}
 
 
 @dataclass(frozen=True)
@@ -23,6 +28,12 @@ class Ciudad:
     presion_y_cape: bool = True
     semana: bool = False  # previsión multimodelo de Open-Meteo para 7 días
     gefs: bool = False  # ensemble GFS a 15 días
+    ens_ecmwf: bool = False  # ensemble ECMWF a 15 días (Open-Meteo)
+    nieve: bool = False  # nieve prevista, espesor y cota de nieve (solo en MESES_NIEVE)
+    nieve_fuera_de_temporada: bool = False  # también fuera de MESES_NIEVE si se prevé nieve en la semana
+    calidad_aire: bool = True  # índice europeo de calidad del aire y polen
+    pais: str = "spain"  # feed de avisos de Meteoalarm
+    zonas_aviso: tuple[str, ...] = ()  # códigos o nombres de las zonas de aviso de Meteoalarm
     camaras: tuple[str, ...] = ()
     mapas_arome: str | None = None  # clave de mapas_arome.LOCATIONS
 
@@ -38,6 +49,85 @@ def extremos_del_dia(serie, fecha):
     return round(del_dia.max(), 1), round(del_dia.min(), 1), horas
 
 
+def _o_none(funcion, *args):
+    """Resultado de una fuente secundaria, o None si falla (su sección simplemente no se muestra)."""
+
+    try:
+        return funcion(*args)
+    except Exception:
+        return None
+
+
+def _hora_actual(df, ahora):
+    """Fila de un DataFrame horario de Open-Meteo (índice en hora local sin zona) más cercana a `ahora`."""
+
+    return df.iloc[df.index.get_indexer([ahora.tz_localize(None).floor("h")], method="nearest")[0]]
+
+
+def mostrar_nieve(ciudad, ahora, detalle):
+    """Nieve de noviembre a abril; fuera de esos meses, solo si la ciudad lo pide y se prevé nieve en la semana."""
+
+    if not ciudad.nieve or detalle is None:
+        return False
+    if ahora.month in MESES_NIEVE:
+        return True
+    proximas = detalle["horario"].loc[ahora.tz_localize(None).floor("h"):, "nieve"]
+    return ciudad.nieve_fuera_de_temporada and proximas.sum() >= 1
+
+
+def _texto_nubes(nubes):
+    for limite, texto in [(20, "Despejado"), (50, "Poco nuboso"), (85, "Nuboso")]:
+        if nubes < limite:
+            return texto
+    return "Cubierto"
+
+
+def _texto_uv(uv):
+    for limite, texto in [(3, "Bajo"), (6, "Moderado"), (8, "Alto"), (11, "Muy alto")]:
+        if uv < limite:
+            return texto
+    return "Extremo"
+
+
+def tarjetas_condiciones(ciudad, ahora, detalle, obs, aire):
+    """Sensación térmica, humedad, nubes, UV, nieve (en temporada) y calidad del aire."""
+
+    lista = []
+    if detalle is not None:
+        fila, diario = _hora_actual(detalle["horario"], ahora), detalle["diario"]
+        hoy = ahora.tz_localize(None).normalize()
+
+        lista.append({"label": "Sensación", "valor": f"{fila['sensacion']:.0f}º", "nota": "térmica ahora"})
+        humedad = obs["humedad"].dropna() if obs is not None and "humedad" in obs else pd.Series(dtype=float)
+        if not humedad.empty:
+            lista.append({"label": "Humedad", "valor": f"{humedad.iloc[-1]:.0f}", "unidad": "%", "nota": "observada"})
+        else:
+            lista.append({"label": "Humedad", "valor": f"{fila['humedad']:.0f}", "unidad": "%", "nota": "prevista"})
+        lista.append({"label": "Nubosidad", "valor": f"{fila['nubes']:.0f}", "unidad": "%",
+                      "nota": _texto_nubes(fila["nubes"])})
+        if hoy in diario.index and not pd.isna(diario.loc[hoy, "uv_max"]):
+            uv = diario.loc[hoy, "uv_max"]
+            lista.append({"label": "UV máx. hoy", "valor": f"{uv:.0f}", "nota": _texto_uv(uv)})
+
+        if mostrar_nieve(ciudad, ahora, detalle):
+            proximas = detalle["horario"].loc[hoy:hoy + pd.Timedelta(hours=48), "nieve"].sum()
+            lista.append({"label": "Nieve 48 h", "valor": f"{proximas:.0f}", "unidad": "cm", "nota": "prevista"})
+            espesor = fila["espesor_nieve"]
+            if not pd.isna(espesor):
+                lista.append({"label": "Espesor nieve", "valor": f"{100 * espesor:.0f}", "unidad": "cm",
+                              "nota": "según el modelo"})
+
+    if aire is not None and aire["european_aqi"].notna().any():
+        ica = _hora_actual(aire.dropna(subset=["european_aqi"]), ahora)["european_aqi"]
+        categoria, color = graficos.categoria_ica(ica)
+        lista.append({"label": "Calidad del aire", "valor": f"{ica:.0f}", "nota": categoria, "color": color,
+                      "title": "Índice europeo de calidad del aire (0-20 buena ... >100 extremadamente desfavorable)"})
+
+    if lista:
+        tarjetas.condiciones(lista)
+        st.divider()
+
+
 def render_ciudad(ciudad, titulo=None):
     if titulo:
         st.header(titulo)
@@ -48,17 +138,28 @@ def render_ciudad(ciudad, titulo=None):
     # Las demás fuentes se descargan mientras llega AROME; luego se leen de la caché (los errores se ven al leerlas)
     if ciudad.estacion_aemet:
         en_paralelo(get_aemet_horario, ciudad.estacion_aemet)
+    if ciudad.zonas_aviso:
+        en_paralelo(get_avisos, ciudad.pais)
+    en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    if ciudad.calidad_aire:
+        en_paralelo(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz)
     if ciudad.semana:
         en_paralelo(get_open_meteo, ciudad.lat, ciudad.lon, ciudad.tz)
+    if ciudad.ens_ecmwf:
+        en_paralelo(get_ensemble_ecmwf, ciudad.lat, ciudad.lon, ciudad.tz)
     if ciudad.gefs:  # las tablas de cada pase, no get_ensemble_gefs: una tarea del pool no debe esperar a otras
         for run in RUNS_GEFS:
             en_paralelo(get_meteociel_table, f"{url_gefs(ciudad.lat, ciudad.lon)}&run={run}", ciudad.tz)
+
+    # Los avisos van arriba, pero se rellenan al final: el feed de Meteoalarm es grande y no debe frenar la página
+    hueco_avisos = st.empty()
 
     variables = ["temperatura", "precipitacion", "rachas"] + (["presion", "mucape"] if ciudad.presion_y_cape else [])
     try:
         run, arome = get_ensemble_arome(ciudad.lat, ciudad.lon, ciudad.tz, variables)
     except Exception:
         st.error("No se ha podido descargar el ensemble AROME de Meteociel. Prueba a recargar en unos minutos.")
+        _avisos(ciudad, ahora, hueco_avisos)
         return
 
     st.sidebar.subheader(f"Pase AROME de las {hora_local_run(run, ciudad.tz)} h")
@@ -75,6 +176,7 @@ def render_ciudad(ciudad, titulo=None):
             st.sidebar.subheader(f"Observación AEMET de las {obs.index[-1].hour} h")
             temp["Observado"] = obs["temperatura"]
             rachas["Observado"] = obs["racha"]
+            arome["precipitacion"]["Observado"] = obs["precipitacion"]
         else:
             st.sidebar.subheader("Observación AEMET no disponible")
         temp_actual, temp_ayer = temperatura_actual_y_ayer(obs)
@@ -118,7 +220,8 @@ def render_ciudad(ciudad, titulo=None):
             "max_mañana": percentil(mañana, "tmax", max_mañana, horas_mañana),
             "min_mañana": percentil(mañana, "tmin", min_mañana, horas_mañana),
         }
-        tarjetas.records(datos_hist[datos_hist["día_del_año"] == dia_historico(ahora)])
+        tarjetas.records(datos_hist[datos_hist["día_del_año"] == dia_historico(ahora)],
+                         probabilidad_lluvia(datos_hist, ahora))
 
     # --- Tarjetas y avisos ---
     tarjetas.principales(temp_mañana, fiabilidad, temp_actual, temp_ayer)
@@ -137,10 +240,14 @@ def render_ciudad(ciudad, titulo=None):
     if tarjetas.avisos(percentiles.get("max_hoy"), percentiles.get("max_mañana")):
         st.divider()
 
+    detalle = _o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    aire = _o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
+    tarjetas_condiciones(ciudad, ahora, detalle, obs, aire)
+
     # --- 48 h: ensemble AROME ---
     st.plotly_chart(graficos.temperatura(temp, bandas, dia_historico(ahora)))
     st.plotly_chart(graficos.lluvia(arome["precipitacion"]))
-    st.plotly_chart(graficos.viento(rachas))
+    st.plotly_chart(graficos.viento(rachas, obs["dir_racha"] if obs is not None else None))
     if ciudad.presion_y_cape:
         st.plotly_chart(graficos.presion(arome["presion"]))
         st.plotly_chart(graficos.mucape(arome["mucape"]))
@@ -156,6 +263,16 @@ def render_ciudad(ciudad, titulo=None):
             st.plotly_chart(graficos.semana_temperatura(semana["temperatura"]))
             st.plotly_chart(graficos.semana_lluvia(semana["precipitacion"]))
             st.plotly_chart(graficos.semana_viento(semana["rachas"]))
+        if detalle is not None:
+            proximos = detalle["diario"][detalle["diario"].index >= ahora.tz_localize(None).normalize()].head(7)
+            st.plotly_chart(graficos.semana_nubes_uv(proximos))
+        st.divider()
+
+    # --- Nieve ---
+    if mostrar_nieve(ciudad, ahora, detalle):
+        hoy = ahora.tz_localize(None).normalize()
+        st.plotly_chart(graficos.nieve(detalle["horario"][detalle["horario"].index >= hoy],
+                                       detalle["diario"][detalle["diario"].index >= hoy], detalle["elevacion"]))
         st.divider()
 
     # --- Histórico frente a la previsión ---
@@ -170,9 +287,26 @@ def render_ciudad(ciudad, titulo=None):
         st.plotly_chart(fig)
         st.divider()
 
+    # --- Calidad del aire y polen ---
+    if aire is not None and aire["european_aqi"].notna().any():
+        st.plotly_chart(graficos.calidad_aire(aire))
+        con_polen = {f"{clave}_pollen": nombre for clave, nombre in POLENES.items() if aire[f"{clave}_pollen"].max() >= 1}
+        if con_polen:
+            st.plotly_chart(graficos.polen(aire, con_polen))
+        st.divider()
+
     st.plotly_chart(graficos.elevacion_solar(ciudad.lat, ciudad.lon, ciudad.tz))
 
-    # --- 15 días: GEFS ---
+    # --- 15 días: ensembles ECMWF y GEFS ---
+    if ciudad.ens_ecmwf:
+        st.divider()
+        try:
+            ecmwf = get_ensemble_ecmwf(ciudad.lat, ciudad.lon, ciudad.tz)
+        except Exception:
+            st.warning("No se ha podido descargar el ensemble ECMWF de Open-Meteo.")
+        else:
+            st.plotly_chart(graficos.ecmwf_ensemble(ecmwf["temperatura"], ecmwf["precipitacion"]))
+
     if ciudad.gefs:
         st.divider()
         try:
@@ -191,36 +325,55 @@ def render_ciudad(ciudad, titulo=None):
         )
         st.markdown(f'<div class="camera-grid">{celdas}</div>', unsafe_allow_html=True)
 
+    _avisos(ciudad, ahora, hueco_avisos)
+
+
+def _avisos(ciudad, ahora, hueco):
+    """Avisos oficiales de Meteoalarm en el hueco reservado al principio de la página."""
+
+    if not ciudad.zonas_aviso:
+        return
+    with hueco.container():
+        try:
+            vigentes = avisos_vigentes(ciudad.pais, ciudad.zonas_aviso, ahora)
+        except Exception:
+            st.caption("No se han podido consultar los avisos oficiales (Meteoalarm).")
+        else:
+            tarjetas.avisos_oficiales(vigentes, ahora)
+
 
 def render_pagina(ciudad, titulo=None):
-    """Una ciudad; si tiene mapas AROME, en dos pestañas (previsión y mapas)."""
+    """Una ciudad en pestañas: previsión, radar y, si tiene, mapas AROME. Solo se descarga la pestaña abierta."""
 
     titulo = titulo or ciudad.nombre
-    if not ciudad.mapas_arome:
-        render_ciudad(ciudad, titulo)
-        return
+    nombres = [":material/dashboard: Previsión", ":material/radar: Radar"]
+    if ciudad.mapas_arome:
+        nombres.append(":material/map: Mapas AROME")
+    pestañas = st.tabs(nombres, key=f"vista_{ciudad.nombre}", on_change="rerun")
 
-    from .mapas_arome import render_arome_maps
-
-    prevision, mapas = st.tabs(
-        [":material/dashboard: Previsión", ":material/map: Mapas AROME"],
-        key=f"vista_{ciudad.nombre}",
-        on_change="rerun",
-    )
-    if prevision.open:
-        with prevision:
+    if pestañas[0].open:
+        with pestañas[0]:
             render_ciudad(ciudad, titulo)
-    if mapas.open:
-        with mapas:
+    if pestañas[1].open:
+        with pestañas[1]:
+            render_radar([(ciudad.nombre, ciudad.lat, ciudad.lon)], ciudad.tz)
+    if ciudad.mapas_arome and pestañas[2].open:
+        from .mapas_arome import render_arome_maps
+
+        with pestañas[2]:
             render_arome_maps(location=ciudad.mapas_arome)
 
 
 def render_grupo(titulo, ciudades):
-    """Varias localidades en pestañas; solo se descarga la pestaña abierta."""
+    """Varias localidades en pestañas, más una con el radar de la zona; solo se descarga la pestaña abierta."""
 
     st.header(titulo)
-    pestañas = st.tabs([c.nombre for c in ciudades], key=f"grupo_{titulo}", on_change="rerun")
+    pestañas = st.tabs([c.nombre for c in ciudades] + [":material/radar: Radar"], key=f"grupo_{titulo}",
+                       on_change="rerun")
     for pestaña, ciudad in zip(pestañas, ciudades):
         if pestaña.open:
             with pestaña:
                 render_ciudad(ciudad)
+    if pestañas[-1].open:
+        with pestañas[-1]:
+            render_radar([(c.nombre, c.lat, c.lon) for c in ciudades], ciudades[0].tz)

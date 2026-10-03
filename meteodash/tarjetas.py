@@ -1,9 +1,13 @@
 """Tarjetas de métricas, avisos y tabla de récords (HTML con las clases de estilo.CSS)."""
 
+from html import escape
+
 import pandas as pd
 import streamlit as st
 
+from .avisos import NIVELES, TIPOS
 from .estilo import AZUL, ROJO
+from .graficos import dia_semana
 
 TEXTO_PERCENTIL = (
     "El percentil indica cómo es la temperatura frente a los registros históricos: un valor cercano a 100 "
@@ -108,6 +112,64 @@ def extremos(tarjetas):
     _html(f'<div class="weather-grid">{html}</div>')
 
 
+def condiciones(tarjetas):
+    """Tarjetas compactas. Cada una: dict(label, valor, unidad="", nota="", title="", color=None).
+
+    `color` pinta un borde superior (p. ej. el de la categoría de calidad del aire).
+    """
+
+    html = ""
+    for t in tarjetas:
+        estilo = f' style="border-top: 4px solid {t["color"]};"' if t.get("color") else ""
+        titulo = f' title="{t["title"]}"' if t.get("title") else ""
+        unidad = f'<span class="unidad"> {t["unidad"]}</span>' if t.get("unidad") else ""
+        nota = f'<div class="metric-nota">{t["nota"]}</div>' if t.get("nota") else ""
+        html += f"""
+        <div class="metric-card static-card"{estilo}{titulo}>
+        <div class="metric-label">{t["label"]}</div>
+        <div class="metric-value">{t["valor"]}{unidad}</div>
+        {nota}
+        </div>"""
+
+    _html(f'<div class="weather-grid compacta">{html}</div>')
+
+
+def _momento(t, ahora):
+    hoy = ahora.normalize().tz_localize(None)
+    dia = t.tz_localize(None).normalize()
+    nombre = {0: "hoy", 1: "mañana"}.get((dia - hoy).days, dia_semana(t).lower())
+    return f"{nombre} {t:%H:%M}"
+
+
+def avisos_oficiales(lista, ahora):
+    """Avisos de Meteoalarm (ver avisos.avisos_vigentes), con el intervalo en hora local."""
+
+    if not lista:
+        return False
+
+    html = ""
+    for aviso in lista:
+        nombre, color = NIVELES[aviso["nivel"]]
+        inicio, fin = aviso["inicio"].tz_convert(ahora.tz), aviso["fin"].tz_convert(ahora.tz)
+        if inicio <= ahora:
+            periodo = f"hasta {_momento(fin, ahora)}"
+        elif inicio.date() == fin.date():
+            periodo = f"{_momento(inicio, ahora)}–{fin:%H:%M}"
+        else:
+            periodo = f"{_momento(inicio, ahora)} – {_momento(fin, ahora)}"
+        fenomeno, emoji = TIPOS.get(aviso["tipo"], ("fenómenos adversos", "⚠️"))
+        # Todo en una línea: _html recorta cada línea y Markdown rompería el bloque con los saltos del texto
+        detalle = "<br>".join(escape(linea.strip()) for linea in aviso["descripcion"].splitlines() if linea.strip())
+        detalle = f'<span class="alert-detalle">{detalle}</span>' if detalle else ""
+        html += (f'<div class="alert-item alert-oficial" style="--aviso: {color};">'
+                 f'<span class="alert-emoji">{emoji}</span>'
+                 f'<span class="alert-text"><b>Aviso {nombre}</b> por {fenomeno}'
+                 f'<span class="alert-periodo">{periodo}</span>{detalle}</span></div>')
+
+    _html(f'<div class="alerts-container oficiales">{html}</div>')
+    return True
+
+
 def avisos(perc_max_hoy, perc_max_mañana):
     """Avisos de calor o frío anómalos según los percentiles históricos de las máximas (None: sin dato)."""
 
@@ -140,8 +202,11 @@ def avisos(perc_max_hoy, perc_max_mañana):
     return True
 
 
-def records(del_dia):
-    """Tabla de récords del día en el sidebar a partir de las filas históricas de ese día del año."""
+def records(del_dia, prob_lluvia=None):
+    """Tabla de récords del día en el sidebar a partir de las filas históricas de ese día del año.
+
+    Debajo, el día más lluvioso y `prob_lluvia`: % de días con lluvia en estas fechas.
+    """
 
     def celda(columna, funcion, clase):
         serie = del_dia[columna].dropna()
@@ -160,3 +225,12 @@ def records(del_dia):
     </tbody>
     </table>
     """, destino=st.sidebar)
+
+    lineas = []
+    lluvia = del_dia["prec"].dropna() if "prec" in del_dia else pd.Series(dtype=float)
+    if not lluvia.empty and lluvia.max() > 0:
+        lineas.append(f"Día más lluvioso: <b>{lluvia.max():.1f} L/m²</b> ({lluvia.idxmax().year})")
+    if prob_lluvia is not None:
+        lineas.append(f"Llueve (≥ 1 L/m²) el <b>{prob_lluvia:.0f} %</b> de los días en estas fechas")
+    if lineas:
+        _html(f'<p class="records-nota">{"<br>".join(lineas)}</p>', destino=st.sidebar)

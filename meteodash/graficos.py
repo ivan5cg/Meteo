@@ -43,13 +43,22 @@ def _ensemble(data):
 
 
 def _miembros(fig, data, color):
-    # El control se dibuja aparte, destacado
-    for columna in _ensemble(data).columns.drop("Ctrl", errors="ignore"):
-        fig.add_trace(go.Scatter(
-            x=data.index, y=data[columna], mode="lines",
-            line=dict(color=color, width=1),
-            name=f"Miembro {columna}", showlegend=False, hoverinfo="skip",
-        ))
+    """Los miembros (el control se dibuja aparte, destacado) en una sola traza, separados por huecos.
+
+    Con una traza por miembro el gráfico tarda bastante más en construirse, en enviarse y en dibujarse.
+    """
+
+    miembros = _ensemble(data).drop(columns="Ctrl", errors="ignore")
+    if miembros.empty:
+        return
+    # Cada miembro seguido de un hueco (NaT / NaN) para que no se una con el siguiente
+    utc = np.append(data.index.tz_convert("UTC").tz_localize(None).to_numpy(), np.datetime64("NaT"))
+    x = pd.DatetimeIndex(np.tile(utc, len(miembros.columns))).tz_localize("UTC").tz_convert(data.index.tz)
+    y = np.concatenate([np.append(miembros[c].to_numpy(dtype=float), np.nan) for c in miembros.columns])
+    fig.add_trace(go.Scatter(
+        x=x, y=y, mode="lines", line=dict(color=color, width=1), connectgaps=False,
+        name="Miembros", showlegend=False, hoverinfo="skip",
+    ))
 
 
 def _control(fig, data, color, formato, unidad):
@@ -62,13 +71,19 @@ def _control(fig, data, color, formato, unidad):
         ))
 
 
-def _observado(fig, data, formato, unidad, etiqueta="Observado"):
+def _observado(fig, data, formato, unidad, etiqueta="Observado", detalle=None):
+    """Serie observada; `detalle` (texto por hora, p. ej. la dirección del viento) se añade al hover."""
+
     if OBSERVADO in data.columns and data[OBSERVADO].notna().any():
+        extra = ""
+        if detalle is not None:
+            detalle = detalle.reindex(data.index).fillna("")
+            extra = " %{customdata}"
         fig.add_trace(go.Scatter(
             x=data.index, y=data[OBSERVADO], mode="lines",
             line=dict(color=TEXTO, width=3),
-            name="Observado",
-            hovertemplate=f"{etiqueta}: <b>%{{y:{formato}}} {unidad}</b><extra></extra>",
+            name="Observado", customdata=detalle,
+            hovertemplate=f"{etiqueta}: <b>%{{y:{formato}}} {unidad}</b>{extra}<extra></extra>",
         ))
 
 
@@ -126,11 +141,12 @@ def temperatura(data, bandas=None, dia_bandas=None):
 
 
 def lluvia(prec_data):
-    """Probabilidad de lluvia (miembros con precipitación) y cantidad media cuando llueve."""
+    """Probabilidad de lluvia (miembros con precipitación), cantidad media cuando llueve y, si hay, la observada."""
 
-    llueve = prec_data > 0  # los miembros sin dato (NaN) no cuentan como lluvia
-    probabilidad = 100 * llueve.sum(axis=1) / prec_data.notna().sum(axis=1)
-    media = prec_data.where(llueve).mean(axis=1).fillna(0).round(1)
+    ens = _ensemble(prec_data)
+    llueve = ens > 0  # los miembros sin dato (NaN) no cuentan como lluvia
+    probabilidad = 100 * llueve.sum(axis=1) / ens.notna().sum(axis=1)
+    media = ens.where(llueve).mean(axis=1).fillna(0).round(1)
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.5, 0.5], vertical_spacing=0.1)
     fig.add_trace(go.Scatter(
@@ -139,6 +155,12 @@ def lluvia(prec_data):
         line=dict(color=AZUL, width=2), marker=dict(size=4),
         hovertemplate="Lluvia media: <b>%{y} L/m²</b><extra></extra>",
     ), row=1, col=1)
+    if OBSERVADO in prec_data.columns and prec_data[OBSERVADO].notna().any():
+        observada = prec_data[OBSERVADO]
+        fig.add_trace(go.Bar(
+            x=observada.index, y=observada, name="Observada", marker=dict(color="rgba(42, 36, 31, 0.6)"),
+            hovertemplate="Observada: <b>%{y:.1f} L/m²</b><extra></extra>",
+        ), row=1, col=1)
     fig.add_trace(go.Bar(
         x=probabilidad.index, y=probabilidad, name="Probabilidad (%)",
         marker=dict(color=AMBAR, line=dict(color="rgba(0,0,0,0.05)", width=1)),
@@ -155,7 +177,9 @@ def lluvia(prec_data):
     return fig
 
 
-def viento(data):
+def viento(data, direccion=None):
+    """Rachas del ensemble; `direccion` (puntos cardinales observados) se muestra junto a la racha observada."""
+
     fig = go.Figure()
     _miembros(fig, data, "rgba(217, 119, 6, 0.22)")
     fig.add_trace(go.Scatter(
@@ -164,7 +188,7 @@ def viento(data):
         name="Media Ens", hovertemplate="Media Ens: <b>%{y:.0f} km/h</b><extra></extra>",
     ))
     _control(fig, data, AMBAR, ".0f", "km/h")
-    _observado(fig, data, ".0f", "km/h", etiqueta="Racha observada")
+    _observado(fig, data, ".0f", "km/h", etiqueta="Racha observada", detalle=direccion)
     _extremos_diarios(fig, _ensemble(data).mean(axis=1), ".0f")
     tema_plotly(fig, "Previsión de Viento (Rachas) (48h)", "Velocidad (km/h)")
     _eje_fechas_es(fig, data.index)
@@ -181,7 +205,12 @@ def presion(data):
     ))
     _control(fig, data, AMBAR, ".1f", "hPa")
     tema_plotly(fig, "Previsión de Presión Atmosférica (48h)", "Presión (hPa)")
-    fig.update_layout(yaxis=dict(range=[980, 1040]))
+    # Al menos 30 hPa de rango, centrado en los valores previstos: una borrasca profunda no se sale del gráfico
+    valores = _ensemble(data).stack()
+    if not valores.empty:
+        centro = (valores.min() + valores.max()) / 2
+        mitad = max((valores.max() - valores.min()) / 2 + 3, 15)
+        fig.update_yaxes(range=[centro - mitad, centro + mitad])
     _eje_fechas_es(fig, data.index)
     return fig
 
@@ -332,6 +361,122 @@ def semana_viento(rachas_df):
                              "Racha Máxima", "#ea580c", "rgba(234, 88, 12, 0.15)", ".0f", "km/h")
 
 
+def _eje_dias(fig, indice):
+    """Una marca por día (a medianoche) con el nombre del día en español."""
+
+    dias = pd.DatetimeIndex(sorted(set(pd.DatetimeIndex(indice).normalize())))
+    fig.update_xaxes(tickvals=dias, ticktext=[dia_semana(d) for d in dias], hoverformat="%d/%m %H:%M")
+
+
+def semana_nubes_uv(diario):
+    """Nubosidad media y UV máximo de cada día."""
+
+    x = [dia_semana(f, largo=True) for f in diario.index]
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_trace(go.Bar(
+        x=x, y=diario["nubes"], name="Nubosidad media", marker=dict(color="rgba(99, 91, 83, 0.3)"),
+        hovertemplate="Nubosidad media: <b>%{y:.0f}%</b><extra></extra>",
+    ), secondary_y=False)
+    fig.add_trace(go.Scatter(
+        x=x, y=diario["uv_max"], mode="lines+markers+text", name="UV máximo",
+        line=dict(color=AMBAR, width=2.5), marker=dict(size=7),
+        text=[f"<b>{v:.0f}</b>" if not pd.isna(v) else "" for v in diario["uv_max"]], textposition="top center",
+        textfont=dict(color=AMBAR, size=11, family=FUENTE),
+        hovertemplate="UV máximo: <b>%{y:.1f}</b><extra></extra>",
+    ), secondary_y=True)
+    tema_plotly(fig, "Nubosidad e Índice UV (Próxima Semana)", "Nubosidad (%)")
+    fig.update_yaxes(range=[0, 105], secondary_y=False)
+    fig.update_yaxes(title_text="Índice UV", range=[0, max(11, diario["uv_max"].max() + 1.5)], showgrid=False,
+                     tickfont=dict(color=TEXTO, family=FUENTE, size=11), secondary_y=True)
+    return fig
+
+
+def nieve(horario, diario, elevacion=None):
+    """Nieve diaria prevista y cota de nieve aproximada (300 m por debajo de la isoterma de 0 ºC)."""
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    mediodia = pd.DatetimeIndex(diario.index) + pd.Timedelta(hours=12)
+    fig.add_trace(go.Bar(
+        x=mediodia, y=diario["nieve"], name="Nieve diaria", width=20 * 3600 * 1000,
+        marker=dict(color="rgba(2, 132, 199, 0.35)", line=dict(color="#0284c7", width=1)),
+        text=[f"<b>{v:.0f} cm</b>" if v >= 1 else "" for v in diario["nieve"].fillna(0)], textposition="outside",
+        textfont=dict(color="#0284c7", size=11, family=FUENTE),
+        hovertemplate="Nieve del día: <b>%{y:.1f} cm</b><extra></extra>",
+    ), secondary_y=False)
+    cota = (horario["isocero"] - 300).clip(lower=0)
+    fig.add_trace(go.Scatter(
+        x=cota.index, y=cota, mode="lines", name="Cota de nieve aprox.", line=dict(color=TEXTO, width=2),
+        hovertemplate="Cota de nieve: <b>%{y:.0f} m</b><extra></extra>",
+    ), secondary_y=True)
+    if elevacion is not None:  # una traza y no add_hline: su anotación acabaría en el eje de la nieve
+        fig.add_trace(go.Scatter(
+            x=[cota.index.min(), cota.index.max()], y=[elevacion, elevacion], mode="lines",
+            name=f"Altitud ({elevacion:.0f} m)", line=dict(color=ROJO, width=1.5, dash="dot"), hoverinfo="skip",
+        ), secondary_y=True)
+
+    tema_plotly(fig, "Nieve y Cota de Nieve (Próxima Semana)", "Nieve (cm)")
+    fig.update_yaxes(range=[0, max(5, 1.3 * diario["nieve"].max())], secondary_y=False)
+    fig.update_yaxes(title_text="Cota (m)", rangemode="tozero", showgrid=False,
+                     tickfont=dict(color=TEXTO, family=FUENTE, size=11), secondary_y=True)
+    _eje_dias(fig, cota.index)
+    return fig
+
+
+# ---------------------------------------------------------------- Calidad del aire
+
+# Índice europeo de calidad del aire: (límite superior, categoría, color)
+CATEGORIAS_ICA = [
+    (20, "Buena", "#50f0e6"), (40, "Razonablemente buena", "#50ccaa"), (60, "Regular", "#f0e641"),
+    (80, "Desfavorable", "#ff5050"), (100, "Muy desfavorable", "#960032"),
+    (float("inf"), "Extremadamente desfavorable", "#7d2181"),
+]
+
+
+def categoria_ica(valor):
+    """(categoría, color) del índice europeo de calidad del aire."""
+
+    return next((nombre, color) for limite, nombre, color in CATEGORIAS_ICA if valor <= limite)
+
+
+def calidad_aire(df):
+    """Índice europeo de calidad del aire con las bandas de cada categoría y los contaminantes en el hover."""
+
+    fig = go.Figure()
+    tope = max(60, df["european_aqi"].max() + 10)
+    abajo = 0
+    for limite, _, color in CATEGORIAS_ICA:
+        if abajo < tope:
+            fig.add_hrect(y0=abajo, y1=min(limite, tope), fillcolor=color, opacity=0.12, line_width=0, layer="below")
+        abajo = limite
+
+    fig.add_trace(go.Scatter(
+        x=df.index, y=df["european_aqi"], mode="lines", line=dict(color=TEXTO, width=2.5), name="ICA europeo",
+        customdata=df[["pm2_5", "pm10", "nitrogen_dioxide", "ozone"]].to_numpy(),
+        hovertemplate=("ICA: <b>%{y:.0f}</b><br>PM2,5: %{customdata[0]:.0f} · PM10: %{customdata[1]:.0f} · "
+                       "NO₂: %{customdata[2]:.0f} · O₃: %{customdata[3]:.0f} µg/m³<extra></extra>"),
+    ))
+    tema_plotly(fig, "Calidad del Aire (4 días)", "Índice europeo (ICA)", leyenda=False)
+    fig.update_yaxes(range=[0, tope])
+    _eje_fechas_es(fig, df.index, cada_horas=12)
+    return fig
+
+
+def polen(df, nombres):
+    """Concentración de cada tipo de polen (`nombres`: columna -> nombre en español)."""
+
+    fig = go.Figure()
+    colores = [AMBAR, "#059669", ROJO, "#7c3aed", AZUL, "#635b53"]
+    for (columna, nombre), color in zip(nombres.items(), colores):
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df[columna], mode="lines", name=nombre, line=dict(color=color, width=2),
+            hovertemplate=f"{nombre}: <b>%{{y:.0f}} granos/m³</b><extra></extra>",
+        ))
+    tema_plotly(fig, "Polen (4 días)", "Granos/m³")
+    fig.update_yaxes(rangemode="tozero")
+    _eje_fechas_es(fig, df.index, cada_horas=12)
+    return fig
+
+
 # ---------------------------------------------------------------- GEFS (15 días)
 
 def gefs(temp_gefs):
@@ -370,6 +515,53 @@ def gefs(temp_gefs):
         ))
 
     tema_plotly(fig, "Previsión GEFS Temperaturas Diarias (15 días)", "Temperatura (°C)")
+    return fig
+
+
+# ---------------------------------------------------------------- Ensemble ECMWF (15 días)
+
+def ecmwf_ensemble(temp, prec):
+    """Máximas y mínimas diarias del ensemble ECMWF (mediana y rango 10-90 %) y probabilidad de lluvia de cada día."""
+
+    horas = temp.groupby(temp.index.date).size()
+    completos = horas[horas == 24].index  # el último día puede venir incompleto
+    maximas = temp.groupby(temp.index.date).max().loc[completos]
+    minimas = temp.groupby(temp.index.date).min().loc[completos]
+    lluvia = prec.groupby(prec.index.date).sum(min_count=1).reindex(completos)
+    probabilidad = 100 * (lluvia >= 1).sum(axis=1) / lluvia.notna().sum(axis=1)
+    x = [dia_semana(f) for f in completos]
+
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.72, 0.28], vertical_spacing=0.06)
+    for diario, nombre, color, relleno, posicion in [
+        (maximas, "Máxima", ROJO, "rgba(217, 56, 86, 0.15)", "top center"),
+        (minimas, "Mínima", "#0284c7", "rgba(2, 132, 199, 0.15)", "bottom center"),
+    ]:
+        p10, p90, mediana = diario.quantile(0.1, axis=1), diario.quantile(0.9, axis=1), diario.median(axis=1)
+        fig.add_trace(go.Scatter(x=x, y=p90, mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"),
+                      row=1, col=1)
+        fig.add_trace(go.Scatter(x=x, y=p10, mode="lines", fill="tonexty", fillcolor=relleno, line=dict(width=0),
+                                 showlegend=False, hoverinfo="skip"), row=1, col=1)
+        fig.add_trace(go.Scatter(
+            x=x, y=mediana, mode="lines+markers+text", line=dict(color=color, width=2.5), marker=dict(size=6),
+            text=[f"<b>{t:.0f}º</b>" for t in mediana], textposition=posicion,
+            textfont=dict(color=color, size=10.5, family=FUENTE), name=nombre,
+            customdata=np.stack([p10, p90], axis=-1),
+            hovertemplate=(f"{nombre}: <b>%{{y:.1f}}°C</b> "
+                           "(10-90%: %{customdata[0]:.1f}° - %{customdata[1]:.1f}°C)<extra></extra>"),
+        ), row=1, col=1)
+
+    fig.add_trace(go.Bar(
+        x=x, y=probabilidad, name="Prob. lluvia ≥ 1 L/m²", marker=dict(color="rgba(2, 119, 189, 0.55)"), showlegend=False,
+        hovertemplate="Prob. lluvia ≥ 1 L/m²: <b>%{y:.0f}%</b><extra></extra>",
+    ), row=2, col=1)
+
+    tema_plotly(fig, "Tendencia Ensemble ECMWF (15 días)", "Temperatura (°C)")
+    ejes = dict(showgrid=True, gridcolor="rgba(60, 50, 40, 0.12)", linecolor="rgba(60, 50, 40, 0.25)", color=TEXTO,
+                tickfont=dict(color=TEXTO, family=FUENTE, size=11))
+    fig.update_xaxes(**ejes)
+    fig.update_yaxes(title_text="Lluvia %", title_font=dict(color=TEXTO, size=11, family=FUENTE), range=[0, 105],
+                     row=2, col=1, **ejes)
+    fig.update_layout(height=520)
     return fig
 
 
@@ -450,17 +642,22 @@ def elevacion_solar(latitud, longitud, zona="UTC"):
     i_cenit = int(np.argmax(elevaciones))
     i_ahora = hoy.hour * 60 + hoy.minute
 
+    # La curva, cada 5 min (con minuto a minuto el gráfico pesa 5 veces más). El eje es de categorías ("HH:MM"):
+    # se incluyen los minutos de los marcadores para que no aparezcan como categorías nuevas al final del eje
+    indices = sorted(set(range(0, 1440, 5)) | {i_amanecer, i_atardecer, i_cenit, i_ahora})
+    x, curva = [etiquetas[i] for i in indices], elevaciones[indices]
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=etiquetas, y=np.where(elevaciones >= 0, elevaciones, 0), mode="lines", fill="tozeroy",
+        x=x, y=np.where(curva >= 0, curva, 0), mode="lines", fill="tozeroy",
         fillcolor="rgba(217, 119, 6, 0.18)", line=dict(color=AMBAR, width=2.5), name="Día", hoverinfo="skip",
     ))
     fig.add_trace(go.Scatter(
-        x=etiquetas, y=np.where(elevaciones <= 0, elevaciones, 0), mode="lines", fill="tozeroy",
+        x=x, y=np.where(curva <= 0, curva, 0), mode="lines", fill="tozeroy",
         fillcolor="rgba(2, 119, 189, 0.12)", line=dict(color=AZUL, width=1.5), name="Noche", hoverinfo="skip",
     ))
     fig.add_trace(go.Scatter(
-        x=etiquetas, y=elevaciones, mode="lines", line=dict(color="rgba(0,0,0,0)", width=0),
+        x=x, y=curva, mode="lines", line=dict(color="rgba(0,0,0,0)", width=0),
         name="Elevación Solar",
         hovertemplate="Hora: <b>%{x}</b><br>Elevación Solar: <b>%{y:.1f}°</b><extra></extra>",
     ))

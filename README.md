@@ -1,6 +1,6 @@
 # Meteo Dash
 
-Panel meteorológico en Streamlit con previsiones de ensemble para varias ciudades: temperatura, lluvia, viento, presión y potencial de tormentas a 48 h, previsión semanal multimodelo, tendencia a 15 días, comparación con el histórico y mapas AROME.
+Panel meteorológico en Streamlit con previsiones de ensemble para varias ciudades: temperatura, lluvia, viento, presión y potencial de tormentas a 48 h, previsión semanal multimodelo, tendencia a 15 días (ECMWF y GEFS), avisos oficiales, condiciones actuales (sensación térmica, humedad, UV...), nieve, calidad del aire y polen, comparación con el histórico, radar y mapas AROME.
 
 ## Ejecutar en local
 
@@ -15,11 +15,13 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 
 | Ruta | Qué hay |
 | --- | --- |
-| `main_page.py` | Punto de entrada: navegación entre páginas, estilo y botón de actualizar (como mucho una vez cada 5 min, porque la caché es común a todos) |
+| `main_page.py` | Punto de entrada: navegación entre páginas, estilo y botón de actualizar previsiones, observaciones y avisos (como mucho una vez cada 5 min, porque la caché es común a todos) |
 | `paginas/` | Una página por ciudad o grupo; cada una es solo su configuración |
 | `meteodash/ciudad.py` | `Ciudad` (configuración) y `render_ciudad`, que monta la página completa |
-| `meteodash/fuentes.py` | Descarga y caché de Meteociel (AROME, GEFS), Open-Meteo e históricos |
-| `meteodash/aemet.py` | Observaciones horarias de AEMET |
+| `meteodash/fuentes.py` | Descarga y caché de Meteociel (AROME, GEFS), Open-Meteo (multimodelo, variables complementarias, ensemble ECMWF, calidad del aire) e históricos |
+| `meteodash/avisos.py` | Avisos oficiales de Meteoalarm (AEMET y los servicios meteorológicos europeos) |
+| `meteodash/radar.py` | Radar de precipitación de RainViewer (pestaña Radar de cada página) |
+| `meteodash/aemet.py` | Observaciones horarias de AEMET (temperatura, rachas y su dirección, lluvia y humedad) |
 | `meteodash/graficos.py` | Gráficos Plotly |
 | `meteodash/tarjetas.py` | Tarjetas, avisos y tabla de récords |
 | `meteodash/estilo.py` | CSS de la app y tema de los gráficos |
@@ -39,9 +41,13 @@ render_pagina(Ciudad(nombre="Nueva", lat=40.0, lon=-3.0, semana=True))
 y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad`:
 
 - `estacion_aemet`: código de estación para la temperatura y las rachas observadas.
-- `historico`: CSV diario de AEMET; activa récords, percentiles, avisos y rangos habituales.
+- `historico`: CSV diario de AEMET; activa récords (también de lluvia), percentiles, avisos y rangos habituales.
 - `semana`: previsión multimodelo de Open-Meteo a 7 días.
 - `gefs`: tendencia a 15 días del ensemble GFS.
+- `ens_ecmwf`: tendencia a 15 días del ensemble ECMWF (Open-Meteo), con la probabilidad de lluvia de cada día.
+- `nieve`: nieve prevista, espesor y cota de nieve, solo de noviembre a abril. Con `nieve_fuera_de_temporada`, también el resto del año cuando se prevé nieve en la semana (Pirineos).
+- `calidad_aire`: índice europeo de calidad del aire y polen (activado por defecto).
+- `pais` y `zonas_aviso`: feed de Meteoalarm (`spain`, `ireland`...) y zonas de aviso, por código (`ES219`, `EI07`) o por parte del nombre (`lombardia`).
 - `presion_y_cape`: gráficos de presión y MUCAPE (activado por defecto).
 - `camaras`: URLs de cámaras.
 - `mapas_arome`: clave de `meteodash.mapas_arome.LOCATIONS` para añadir la pestaña de mapas.
@@ -51,7 +57,9 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 
 - [Meteociel](https://www.meteociel.fr): ensembles PE-AROME y GEFS (tablas HTML, sin API oficial).
 - [AEMET](https://www.aemet.es): observaciones de las últimas 24 h (XML interno de su web, sin API oficial).
-- [Open-Meteo](https://open-meteo.com): ECMWF, GFS, AROME, ARPEGE e ICON.
+- [Open-Meteo](https://open-meteo.com): ECMWF, GFS, AROME, ARPEGE e ICON; ensemble ECMWF; calidad del aire y polen (CAMS).
+- [Meteoalarm](https://meteoalarm.org): avisos oficiales de AEMET y del resto de servicios europeos.
+- [RainViewer](https://www.rainviewer.com): radar de precipitación animado (plan gratuito: últimas 2 h, zoom máximo 7).
 
 La app no escribe nada en disco (en Streamlit Cloud no persiste): todo se cachea en memoria.
 

@@ -7,4 +7,6 @@ render_pagina(Ciudad(
     estacion_aemet="1111X",
     semana=True,
     gefs=True,
+    ens_ecmwf=True,
+    zonas_aviso=("ES133",),  # Litoral cántabro
 ))

@@ -7,4 +7,7 @@ render_pagina(Ciudad(
     estacion_aemet="2444",
     historico="datos/avila_1990.csv",
     semana=True,
+    ens_ecmwf=True,
+    nieve=True,
+    zonas_aviso=("ES137",),  # Meseta de Ávila
 ))

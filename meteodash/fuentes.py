@@ -25,10 +25,14 @@ MODELOS_OPEN_METEO = {
     "icon_eu": "ICON",
 }
 
+# Polen de CAMS (Open-Meteo) -> nombre en español
+POLENES = {"alder": "Aliso", "birch": "Abedul", "grass": "Gramíneas", "mugwort": "Artemisa", "olive": "Olivo",
+           "ragweed": "Ambrosía"}
+
 
 # Descargas en paralelo. La caché de Streamlit tiene un cerrojo por clave: si el hilo principal pide un valor
 # que un hilo del pool ya está descargando, espera a que termine en lugar de repetir la petición.
-_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="meteodash")
+_POOL = ThreadPoolExecutor(max_workers=16, thread_name_prefix="meteodash")  # una página pide hasta ~20 recursos
 
 
 def en_paralelo(funcion, *args):
@@ -159,6 +163,65 @@ def get_open_meteo(lat, lon, tz):
     return datos
 
 
+@st.cache_data(ttl="1h", show_spinner=False)
+def get_open_meteo_detalle(lat, lon, tz):
+    """Variables complementarias del mejor modelo de Open-Meteo para el punto.
+
+    Devuelve {"horario", "diario", "elevacion"}.
+    """
+
+    horarias = {
+        "sensacion": "apparent_temperature", "humedad": "relative_humidity_2m", "nubes": "cloud_cover",
+        "nieve": "snowfall", "espesor_nieve": "snow_depth", "isocero": "freezing_level_height",
+    }
+    diarias = {"nieve": "snowfall_sum", "uv_max": "uv_index_max", "nubes": "cloud_cover_mean"}
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "timezone": tz,
+        "hourly": ",".join(horarias.values()),
+        "daily": ",".join(diarias.values()),
+        "forecast_days": 8,
+    }
+    datos = descargar("https://api.open-meteo.com/v1/forecast", params=params).json()
+
+    def tabla(bloque, variables):
+        df = pd.DataFrame({nombre: datos[bloque].get(variable) for nombre, variable in variables.items()},
+                          index=pd.to_datetime(datos[bloque]["time"]))
+        return df.apply(pd.to_numeric, errors="coerce")
+
+    return {"horario": tabla("hourly", horarias), "diario": tabla("daily", diarias), "elevacion": datos.get("elevation")}
+
+
+@st.cache_data(ttl="1h", show_spinner=False)
+def get_calidad_aire(lat, lon, tz):
+    """Índice europeo de calidad del aire, contaminantes y polen (CAMS vía Open-Meteo), 4 días."""
+
+    variables = ["european_aqi", "pm2_5", "pm10", "nitrogen_dioxide", "ozone"] + [f"{p}_pollen" for p in POLENES]
+    params = {"latitude": lat, "longitude": lon, "timezone": tz, "forecast_days": 4, "hourly": ",".join(variables)}
+    horario = descargar("https://air-quality-api.open-meteo.com/v1/air-quality", params=params).json()["hourly"]
+    df = pd.DataFrame({v: horario.get(v) for v in variables}, index=pd.to_datetime(horario["time"]))
+    return df.apply(pd.to_numeric, errors="coerce")
+
+
+@st.cache_data(ttl="1h", show_spinner=False)
+def get_ensemble_ecmwf(lat, lon, tz):
+    """Ensemble ECMWF IFS (control y 50 miembros) a 15 días: {"temperatura", "precipitacion"}, un miembro por columna."""
+
+    variables = {"temperatura": "temperature_2m", "precipitacion": "precipitation"}
+    params = {"latitude": lat, "longitude": lon, "timezone": tz, "forecast_days": 15,
+              "hourly": ",".join(variables.values()), "models": "ecmwf_ifs025"}
+    horario = descargar("https://ensemble-api.open-meteo.com/v1/ensemble", params=params, timeout=60).json()["hourly"]
+    indice = pd.to_datetime(horario["time"])
+
+    datos = {}
+    for nombre, variable in variables.items():
+        columnas = {("Ctrl" if clave == variable else clave.removeprefix(f"{variable}_member")): valores
+                    for clave, valores in horario.items() if clave == variable or clave.startswith(f"{variable}_member")}
+        datos[nombre] = pd.DataFrame(columnas, index=indice).apply(pd.to_numeric, errors="coerce").dropna(how="all")
+    return datos
+
+
 # ---------------------------------------------------------------- Históricos locales
 
 def dia_historico(fecha):
@@ -175,9 +238,9 @@ def _dias_historicos(indice):
 
 @st.cache_data(show_spinner=False)
 def get_historico(ruta_csv):
-    """Serie diaria (tmax, tmin, tmed) y bandas habituales (percentiles 15-85 de la media móvil de 15 días)."""
+    """Serie diaria (tmax, tmin, tmed, prec) y bandas habituales (percentiles 15-85 de la media móvil de 15 días)."""
 
-    datos = pd.read_csv(ruta_csv, usecols=["fecha", "tmed", "tmax", "tmin"], index_col="fecha", parse_dates=True)
+    datos = pd.read_csv(ruta_csv, usecols=["fecha", "tmed", "tmax", "tmin", "prec"], index_col="fecha", parse_dates=True)
     datos = datos[~((datos.index.month == 2) & (datos.index.day == 29))]
     datos["día_del_año"] = _dias_historicos(datos.index)
 
@@ -187,3 +250,11 @@ def get_historico(ruta_csv):
     bandas = rolling.groupby("día_del_año").quantile([0.15, 0.85]).unstack()
 
     return datos, bandas
+
+
+def probabilidad_lluvia(datos, fecha, margen=7, umbral=1):
+    """Porcentaje de días con al menos `umbral` L/m² en el histórico, a ±`margen` días de la fecha."""
+
+    distancia = (datos["día_del_año"] - dia_historico(fecha)).abs()
+    cerca = datos.loc[(distancia <= margen) | (distancia >= 365 - margen), "prec"].dropna()
+    return None if cerca.empty else 100 * (cerca >= umbral).mean()

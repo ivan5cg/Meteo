@@ -4,8 +4,10 @@ import pandas as pd
 import streamlit as st
 
 from meteodash.aemet import get_aemet_horario
+from meteodash.avisos import get_avisos
 from meteodash.estilo import aplicar_estilos
-from meteodash.fuentes import get_meteociel_table, get_open_meteo
+from meteodash.fuentes import (get_calidad_aire, get_ensemble_ecmwf, get_meteociel_table, get_open_meteo,
+                               get_open_meteo_detalle)
 
 # La caché es común a todos los visitantes: como mucho una actualización forzada cada tanto
 INTERVALO_ACTUALIZAR = pd.Timedelta(minutes=5)
@@ -29,14 +31,13 @@ paginas = st.navigation({
 })
 
 
-
 @st.cache_resource
 def _ultima_actualizacion():
     return {"momento": None}
 
 
 def actualizar_datos():
-    """Vacía la caché de previsiones y observaciones (no la de históricos ni mapas), como mucho una vez cada 5 min."""
+    """Vacía la caché de previsiones, observaciones y avisos (no la de históricos ni mapas), como mucho cada 5 min."""
 
     ultima = _ultima_actualizacion()
     ahora = pd.Timestamp.now(tz="UTC")
@@ -45,7 +46,8 @@ def actualizar_datos():
         st.toast(f"Los datos se acaban de actualizar. Podrás volver a hacerlo en {espera} min.", icon=":material/schedule:")
         return
     ultima["momento"] = ahora
-    for funcion in (get_meteociel_table, get_open_meteo, get_aemet_horario):
+    for funcion in (get_meteociel_table, get_open_meteo, get_open_meteo_detalle, get_ensemble_ecmwf, get_calidad_aire,
+                    get_aemet_horario, get_avisos):
         funcion.clear()
     st.rerun()
 

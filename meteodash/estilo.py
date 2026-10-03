@@ -60,6 +60,11 @@ section[data-testid="stSidebar"] {
 }
 .records-table td.temp-max { color: #d93856 !important; font-weight: 600; }
 .records-table td.temp-min { color: #0277bd !important; font-weight: 600; }
+.records-nota {
+    font-size: 0.82rem;
+    color: #635b53;
+    line-height: 1.6;
+}
 
 /* Rejilla responsiva para cámaras */
 .camera-grid {
@@ -149,6 +154,23 @@ section[data-testid="stSidebar"] {
     margin-left: 2px;
 }
 
+/* Tarjetas compactas (condiciones actuales, calidad del aire...) */
+.weather-grid.compacta {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+}
+.weather-grid.compacta .metric-card {
+    padding: 14px 16px;
+}
+.weather-grid.compacta .metric-value {
+    font-size: 1.6rem;
+}
+.metric-nota {
+    font-size: 0.78rem;
+    margin-top: 8px;
+    color: #635b53;
+}
+
 /* Barra de fiabilidad */
 .progress-bg {
     background: #ded8cd;
@@ -223,6 +245,40 @@ section[data-testid="stSidebar"] {
 .alert-item:hover { transform: translateY(-2px); }
 .alert-warm { background: #fdf6e7; border-color: #fce7c6; color: #b45309; }
 .alert-cold { background: #eefbfe; border-color: #c5f3fa; color: #0369a1; }
+/* Avisos oficiales (Meteoalarm): color del nivel en --aviso */
+/* Rejilla de columnas iguales: los avisos quedan alineados y se leen en orden, fila a fila */
+.alerts-container.oficiales {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+.alerts-container.oficiales .alert-item {
+    max-width: none;
+    min-width: 0;
+}
+.alert-oficial {
+    background: color-mix(in srgb, var(--aviso) 10%, #fffdf8);
+    border-color: color-mix(in srgb, var(--aviso) 45%, transparent);
+    border-left: 5px solid var(--aviso);
+    color: #2a241f;
+}
+.alert-emoji {
+    font-size: 1.5rem;
+    line-height: 1;
+    margin-right: 12px;
+}
+.alert-detalle {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 400;
+    margin-top: 6px;
+    line-height: 1.45;
+}
+.alert-periodo {
+    display: block;
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-top: 2px;
+}
 .alert-icon-container {
     display: flex;
     align-items: center;

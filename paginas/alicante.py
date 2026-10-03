@@ -6,4 +6,6 @@ render_pagina(Ciudad(
     lon=-0.48,
     estacion_aemet="8025",
     semana=True,
+    ens_ecmwf=True,
+    zonas_aviso=("ES241",),  # Litoral sur de Alicante
 ))
