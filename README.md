@@ -22,11 +22,13 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `meteodash/avisos.py` | Avisos oficiales de Meteoalarm (AEMET y los servicios meteorológicos europeos) |
 | `meteodash/radar.py` | Radar de precipitación de RainViewer (pestaña Radar de cada página) |
 | `meteodash/aemet.py` | Observaciones horarias de AEMET (temperatura, rachas y su dirección, lluvia y humedad) |
+| `meteodash/aemet_opendata.py` | API OpenData de AEMET (con clave): comentario de los predictores por comunidad y resumen mensual de estación |
+| `actualizar_historicos.py` | Script que añade a los CSV de `datos/` los días que faltan (requiere `AEMET_API_KEY`) |
 | `meteodash/graficos.py` | Gráficos Plotly |
 | `meteodash/tarjetas.py` | Tarjetas, avisos y tabla de récords |
 | `meteodash/estilo.py` | CSS de la app y tema de los gráficos |
 | `meteodash/mapas_arome.py` | Mapas AROME interactivos (Madrid y Torrelavega); las rejillas se descargan en segundo plano y se guardan en memoria, compartidas entre visitantes |
-| `datos/` | Históricos diarios de AEMET, solo lectura (Retiro 1950-2022, Ávila 1990-2022) |
+| `datos/` | Históricos diarios de AEMET, solo lectura (Retiro desde 1950, Ávila desde 1990; se actualizan con `actualizar_historicos.py`) |
 
 ## Añadir una ciudad
 
@@ -42,6 +44,8 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 
 - `estacion_aemet`: código de estación para la temperatura y las rachas observadas.
 - `historico`: CSV diario de AEMET; activa récords (también de lluvia), percentiles, avisos y rangos habituales.
+- `ccaa_aemet`: `(código, nombre)` de la comunidad (`("mad", "Comunidad de Madrid")`); añade antes del primer gráfico el comentario de los predictores de AEMET (hoy, mañana y pasado mañana). Requiere `AEMET_API_KEY`.
+- `resumen_mensual`: último mes publicado por AEMET para `estacion_aemet` frente al promedio 1991-2020 del histórico. Requiere `AEMET_API_KEY` e `historico` para la comparación.
 - `semana`: previsión multimodelo de Open-Meteo a 7 días.
 - `gefs`: tendencia a 15 días del ensemble GFS.
 - `ens_ecmwf`: tendencia a 15 días del ensemble ECMWF (Open-Meteo), con la probabilidad de lluvia de cada día.
@@ -57,6 +61,7 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 
 - [Meteociel](https://www.meteociel.fr): ensembles PE-AROME y GEFS (tablas HTML, sin API oficial).
 - [AEMET](https://www.aemet.es): observaciones de las últimas 24 h (XML interno de su web, sin API oficial).
+- [AEMET OpenData](https://opendata.aemet.es): comentario de los predictores por comunidad, resúmenes mensuales e históricos diarios. Clave gratuita en `AEMET_API_KEY`: en local, `.streamlit/secrets.toml` (`AEMET_API_KEY = "..."`, ya ignorado por git) o variable de entorno; en Streamlit Cloud, en *Secrets*. Sin clave, esas secciones no se muestran.
 - [Open-Meteo](https://open-meteo.com): ECMWF, GFS, AROME, ARPEGE e ICON; ensemble ECMWF; calidad del aire y polen (CAMS).
 - [Meteoalarm](https://meteoalarm.org): avisos oficiales de AEMET y del resto de servicios europeos.
 - [RainViewer](https://www.rainviewer.com): radar de precipitación animado (plan gratuito: últimas 2 h, zoom máximo 7).

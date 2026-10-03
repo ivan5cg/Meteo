@@ -134,6 +134,32 @@ def condiciones(tarjetas):
     _html(f'<div class="weather-grid compacta">{html}</div>')
 
 
+def comentario_predictores(textos, lugar, ahora):
+    """Comentario de los predictores de AEMET (ver aemet_opendata.get_comentario_aemet), con una pestaña por día.
+
+    Solo se muestran los textos de hoy en adelante: el de "hoy" de AEMET a veces no se renueva y llega caducado.
+    """
+
+    hoy = ahora.normalize().tz_localize(None)
+    vigentes = sorted((t for t in textos if t["fecha"] >= hoy), key=lambda t: t["fecha"])
+    if not vigentes:
+        return False
+
+    def nombre(fecha):
+        dia = {0: "Hoy", 1: "Mañana", 2: "Pasado mañana"}.get((fecha - hoy).days)
+        return f"{dia} · {dia_semana(fecha)}" if dia else dia_semana(fecha, largo=True)
+
+    st.markdown(f"**Comentario de los predictores de AEMET · {lugar}**")
+    with st.container(border=True):
+        for pestaña, texto in zip(st.tabs([nombre(t["fecha"]) for t in vigentes]), vigentes):
+            with pestaña:
+                st.caption(f"Elaborado {_momento(texto['elaborado'], ahora)} h")
+                for titulo, cuerpo in texto["secciones"]:
+                    st.markdown(f"**{titulo}**")
+                    st.markdown(cuerpo)
+    return True
+
+
 def _momento(t, ahora):
     hoy = ahora.normalize().tz_localize(None)
     dia = t.tz_localize(None).normalize()

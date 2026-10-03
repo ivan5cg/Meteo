@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from meteodash.aemet import get_aemet_horario
+from meteodash.aemet_opendata import get_comentario_aemet
 from meteodash.avisos import get_avisos
 from meteodash.estilo import aplicar_estilos
 from meteodash.fuentes import (get_calidad_aire, get_ensemble_ecmwf, get_meteociel_table, get_open_meteo,
@@ -47,7 +48,7 @@ def actualizar_datos():
         return
     ultima["momento"] = ahora
     for funcion in (get_meteociel_table, get_open_meteo, get_open_meteo_detalle, get_ensemble_ecmwf, get_calidad_aire,
-                    get_aemet_horario, get_avisos):
+                    get_aemet_horario, get_avisos, get_comentario_aemet):
         funcion.clear()
     st.rerun()
 

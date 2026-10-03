@@ -6,6 +6,8 @@ render_pagina(Ciudad(
     lon=-3.659,
     estacion_aemet="3195",  # Retiro
     historico="datos/retiro_1950.csv",
+    ccaa_aemet=("mad", "Comunidad de Madrid"),
+    resumen_mensual=True,
     semana=True,
     gefs=True,
     ens_ecmwf=True,

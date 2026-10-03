@@ -6,6 +6,8 @@ render_pagina(Ciudad(
     lon=-4.680,
     estacion_aemet="2444",
     historico="datos/avila_1990.csv",
+    ccaa_aemet=("cle", "Castilla y León"),
+    resumen_mensual=True,
     semana=True,
     ens_ecmwf=True,
     nieve=True,

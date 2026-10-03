@@ -7,7 +7,10 @@ import pandas as pd
 import streamlit as st
 
 from . import graficos, tarjetas
+from .estilo import AZUL, ROJO
 from .aemet import cargar_aemet_horario, get_aemet_horario, temperatura_actual_y_ayer
+from .aemet_opendata import (DIAS_PREDICCION, get_comentario_aemet, get_resumen_mensual, hay_clave, normales_mensuales,
+                             racha_maxima, valor_y_dia)
 from .avisos import avisos_vigentes, get_avisos
 from .fuentes import (POLENES, RUNS_GEFS, dia_historico, en_paralelo, get_calidad_aire, get_ensemble_arome,
                       get_ensemble_ecmwf, get_ensemble_gefs, get_historico, get_meteociel_table, get_open_meteo,
@@ -25,6 +28,8 @@ class Ciudad:
     tz: str = "Europe/Madrid"
     estacion_aemet: str | None = None  # observaciones de las últimas 24 h
     historico: str | None = None  # CSV diario de AEMET: récords, percentiles, avisos y rangos habituales
+    ccaa_aemet: tuple[str, str] | None = None  # (código, nombre) de la comunidad: comentario de los predictores de AEMET
+    resumen_mensual: bool = False  # último mes publicado por AEMET frente a lo normal (requiere estacion_aemet y clave)
     presion_y_cape: bool = True
     semana: bool = False  # previsión multimodelo de Open-Meteo para 7 días
     gefs: bool = False  # ensemble GFS a 15 días
@@ -128,6 +133,83 @@ def tarjetas_condiciones(ciudad, ahora, detalle, obs, aire):
         st.divider()
 
 
+MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
+         "noviembre", "diciembre"]
+
+
+def mostrar_resumen_mensual(ciudad, ahora, datos_hist):
+    """Último mes publicado por AEMET para la estación, con la desviación respecto a 1991-2020 si hay histórico."""
+
+    try:
+        publicado = get_resumen_mensual(ciudad.estacion_aemet, ahora.year)
+    except Exception:
+        st.caption("No se ha podido consultar el resumen mensual de AEMET.")
+        return False
+    if publicado is None:
+        return False
+
+    año, mes, v = publicado
+    normal = normales_mensuales(datos_hist, mes) if datos_hist is not None else None
+
+    def numero(clave):
+        try:
+            return float(v[clave])
+        except (KeyError, ValueError):  # ausente o "Ip" (inapreciable)
+            return None
+
+    lista = []
+    for etiqueta, clave, clave_normal in [("Temp. media", "tm_mes", "tmed"), ("Máx. media", "tm_max", "tmax"),
+                                          ("Mín. media", "tm_min", "tmin")]:
+        valor = numero(clave)
+        if valor is None:
+            continue
+        tarjeta = {"label": etiqueta, "valor": f"{valor:.1f}º"}
+        if normal:
+            desvio = valor - normal[clave_normal]
+            tarjeta["nota"] = f"{desvio:+.1f}º sobre lo normal" if desvio >= 0 else f"{desvio:+.1f}º bajo lo normal"
+            tarjeta["title"] = f"Normal de {MESES[mes - 1]} (1991-2020): {normal[clave_normal]:.1f}º"
+            if abs(desvio) >= 1:
+                tarjeta["color"] = ROJO if desvio > 0 else AZUL
+        lista.append(tarjeta)
+
+    lluvia = numero("p_mes")
+    if lluvia is not None:
+        tarjeta = {"label": "Lluvia", "valor": f"{lluvia:.1f}", "unidad": "L/m²"}
+        if normal and normal["lluvia"] > 0:
+            tarjeta["nota"] = f"{100 * lluvia / normal['lluvia']:.0f} % de lo normal"
+            tarjeta["title"] = f"Normal de {MESES[mes - 1]} (1991-2020): {normal['lluvia']:.1f} L/m²"
+        lista.append(tarjeta)
+    dias_lluvia = numero("np_010")
+    if dias_lluvia is not None:
+        tarjeta = {"label": "Días de lluvia", "valor": f"{dias_lluvia:.0f}", "nota": "con ≥ 1 L/m²"}
+        if normal:
+            tarjeta["nota"] += f" (normal: {normal['dias_lluvia']:.0f})"
+        lista.append(tarjeta)
+
+    for etiqueta, clave in [("Máxima absoluta", "ta_max"), ("Mínima absoluta", "ta_min")]:
+        valor, dia = valor_y_dia(v.get(clave))
+        if valor is not None:
+            lista.append({"label": etiqueta, "valor": f"{valor:.1f}º", "nota": f"el día {dia}" if dia else ""})
+    racha, dia = racha_maxima(v.get("w_racha"))
+    if racha is not None:
+        lista.append({"label": "Racha máxima", "valor": f"{racha:.0f}", "unidad": "km/h", "nota": f"el día {dia}" if dia else ""})
+    sol = numero("inso")
+    if sol is not None:
+        lista.append({"label": "Sol", "valor": f"{sol:.1f}", "unidad": "h/día", "nota": "insolación media"})
+    for etiqueta, clave, nota in [("Días ≥ 30º", "nt_30", "de máxima"), ("Días de helada", "nt_00", "de mínima ≤ 0º")]:
+        dias = numero(clave)
+        if dias:
+            lista.append({"label": etiqueta, "valor": f"{dias:.0f}", "nota": nota})
+
+    if not lista:
+        return False
+    st.subheader(f"Resumen de {MESES[mes - 1]} de {año}")
+    st.caption(f"Estación de {ciudad.nombre} según AEMET, frente al promedio de 1991-2020. "
+               "AEMET publica el resumen mensual con unos días de retraso.")
+    tarjetas.condiciones(lista)
+    return True
+
+
 def render_ciudad(ciudad, titulo=None):
     if titulo:
         st.header(titulo)
@@ -141,6 +223,12 @@ def render_ciudad(ciudad, titulo=None):
     if ciudad.zonas_aviso:
         en_paralelo(get_avisos, ciudad.pais)
     en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    usa_opendata = hay_clave()
+    if ciudad.ccaa_aemet and usa_opendata:
+        for dia in DIAS_PREDICCION:
+            en_paralelo(get_comentario_aemet, ciudad.ccaa_aemet[0], dia)
+    if ciudad.resumen_mensual and ciudad.estacion_aemet and usa_opendata:
+        en_paralelo(get_resumen_mensual, ciudad.estacion_aemet, ahora.year)
     if ciudad.calidad_aire:
         en_paralelo(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz)
     if ciudad.semana:
@@ -244,6 +332,15 @@ def render_ciudad(ciudad, titulo=None):
     aire = _o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
     tarjetas_condiciones(ciudad, ahora, detalle, obs, aire)
 
+    # --- Comentario de los predictores de AEMET ---
+    if ciudad.ccaa_aemet and usa_opendata:
+        codigo, lugar = ciudad.ccaa_aemet
+        textos = [t for t in (_o_none(get_comentario_aemet, codigo, dia) for dia in DIAS_PREDICCION) if t is not None]
+        if not textos:
+            st.caption("No se ha podido consultar el comentario de los predictores de AEMET.")
+        elif tarjetas.comentario_predictores(textos, lugar, ahora):
+            st.divider()
+
     # --- 48 h: ensemble AROME ---
     st.plotly_chart(graficos.temperatura(temp, bandas, dia_historico(ahora)))
     st.plotly_chart(graficos.lluvia(arome["precipitacion"]))
@@ -286,6 +383,11 @@ def render_ciudad(ciudad, titulo=None):
         fig = graficos.historico_vs_prevision(datos_hist, dia_historico(ahora), prev_hoy, prev_mañana)
         st.plotly_chart(fig)
         st.divider()
+
+    # --- Resumen del último mes publicado por AEMET ---
+    if ciudad.resumen_mensual and ciudad.estacion_aemet and usa_opendata:
+        if mostrar_resumen_mensual(ciudad, ahora, datos_hist):
+            st.divider()
 
     # --- Calidad del aire y polen ---
     if aire is not None and aire["european_aqi"].notna().any():
