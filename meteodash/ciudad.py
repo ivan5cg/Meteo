@@ -384,11 +384,6 @@ def render_ciudad(ciudad, titulo=None):
         st.plotly_chart(fig)
         st.divider()
 
-    # --- Resumen del último mes publicado por AEMET ---
-    if ciudad.resumen_mensual and ciudad.estacion_aemet and usa_opendata:
-        if mostrar_resumen_mensual(ciudad, ahora, datos_hist):
-            st.divider()
-
     # --- Calidad del aire y polen ---
     if aire is not None and aire["european_aqi"].notna().any():
         st.plotly_chart(graficos.calidad_aire(aire))
@@ -426,6 +421,11 @@ def render_ciudad(ciudad, titulo=None):
             for url in ciudad.camaras
         )
         st.markdown(f'<div class="camera-grid">{celdas}</div>', unsafe_allow_html=True)
+
+    # --- Resumen del último mes publicado por AEMET (al final de la página) ---
+    if ciudad.resumen_mensual and ciudad.estacion_aemet and usa_opendata:
+        st.divider()
+        mostrar_resumen_mensual(ciudad, ahora, datos_hist)
 
     _avisos(ciudad, ahora, hueco_avisos)
 

@@ -193,6 +193,37 @@ def get_open_meteo_detalle(lat, lon, tz):
     return {"horario": tabla("hourly", horarias), "diario": tabla("daily", diarias), "elevacion": datos.get("elevation")}
 
 
+@st.cache_data(ttl="7d", show_spinner=False)
+def buscar_lugares(texto):
+    """Localidades que coinciden con `texto` según el geocodificador de Open-Meteo (nombre, región, lat, lon, tz)."""
+
+    params = {"name": texto, "count": 10, "language": "es", "format": "json"}
+    resultados = descargar("https://geocoding-api.open-meteo.com/v1/search", params=params).json().get("results", [])
+    return [{"nombre": r["name"], "region": ", ".join(x for x in (r.get("admin1"), r.get("country")) if x),
+             "lat": r["latitude"], "lon": r["longitude"], "tz": r.get("timezone")} for r in resultados]
+
+
+@st.cache_data(ttl="7d", show_spinner=False)
+def get_zona_horaria(lat, lon):
+    """Zona horaria del punto según Open-Meteo (p. ej. "Europe/Paris")."""
+
+    params = {"latitude": lat, "longitude": lon, "timezone": "auto", "forecast_days": 1}
+    return descargar("https://api.open-meteo.com/v1/forecast", params=params).json()["timezone"]
+
+
+@st.cache_data(ttl="7d", show_spinner=False)
+def get_nombre_lugar(lat, lon):
+    """Localidad más cercana al punto según OpenStreetMap (Nominatim), o None si no la hay."""
+
+    params = {"lat": lat, "lon": lon, "format": "jsonv2", "zoom": 10, "accept-language": "es"}
+    datos = descargar("https://nominatim.openstreetmap.org/reverse", params=params, timeout=10).json()
+    direccion = datos.get("address", {})
+    for clave in ("city", "town", "village", "municipality", "county", "state"):
+        if clave in direccion:
+            return direccion[clave]
+    return None
+
+
 @st.cache_data(ttl="1h", show_spinner=False)
 def get_calidad_aire(lat, lon, tz):
     """Índice europeo de calidad del aire, contaminantes y polen (CAMS vía Open-Meteo), 4 días."""
