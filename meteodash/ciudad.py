@@ -13,8 +13,8 @@ from .aemet_opendata import (DIAS_PREDICCION, get_comentario_aemet, get_resumen_
                              racha_maxima, valor_y_dia)
 from .avisos import avisos_vigentes, get_avisos
 from .fuentes import (POLENES, RUNS_GEFS, dia_historico, en_paralelo, get_calidad_aire, get_ensemble_arome,
-                      get_ensemble_ecmwf, get_ensemble_gefs, get_historico, get_meteociel_table, get_open_meteo,
-                      get_open_meteo_detalle, hora_local_run, probabilidad_lluvia, url_gefs)
+                      get_ensemble_ecmwf, get_ensemble_gefs, get_ensemble_ukmo, get_historico, get_meteociel_table,
+                      get_open_meteo, get_open_meteo_detalle, hora_local_run, probabilidad_lluvia, url_gefs)
 from .radar import render_radar
 
 MESES_NIEVE = {11, 12, 1, 2, 3, 4}
@@ -41,6 +41,7 @@ class Ciudad:
     zonas_aviso: tuple[str, ...] = ()  # códigos o nombres de las zonas de aviso de Meteoalarm
     camaras: tuple[str, ...] = ()
     mapas_arome: str | None = None  # clave de mapas_arome.LOCATIONS
+    ensemble: str = "arome"  # 48 h: "arome" (PE-AROME de Meteociel) o "ukmo" (Met Office, fuera del dominio de AROME)
 
 
 def extremos_del_dia(serie, fecha):
@@ -243,14 +244,23 @@ def render_ciudad(ciudad, titulo=None):
     hueco_avisos = st.empty()
 
     variables = ["temperatura", "precipitacion", "rachas"] + (["presion", "mucape"] if ciudad.presion_y_cape else [])
-    try:
-        run, arome = get_ensemble_arome(ciudad.lat, ciudad.lon, ciudad.tz, variables)
-    except Exception:
-        st.error("No se ha podido descargar el ensemble AROME de Meteociel. Prueba a recargar en unos minutos.")
-        _avisos(ciudad, ahora, hueco_avisos)
-        return
-
-    st.sidebar.subheader(f"Pase AROME de las {hora_local_run(run, ciudad.tz)} h")
+    if ciudad.ensemble == "ukmo":
+        try:
+            run, arome = get_ensemble_ukmo(ciudad.lat, ciudad.lon, ciudad.tz, tuple(variables))
+        except Exception:
+            st.error("No se ha podido descargar el ensemble de la Met Office (Open-Meteo). Prueba a recargar en unos minutos.")
+            _avisos(ciudad, ahora, hueco_avisos)
+            return
+        if run is not None:
+            st.sidebar.subheader(f"Pase Met Office de las {run.tz_convert(ciudad.tz):%H} h")
+    else:
+        try:
+            run, arome = get_ensemble_arome(ciudad.lat, ciudad.lon, ciudad.tz, variables)
+        except Exception:
+            st.error("No se ha podido descargar el ensemble AROME de Meteociel. Prueba a recargar en unos minutos.")
+            _avisos(ciudad, ahora, hueco_avisos)
+            return
+        st.sidebar.subheader(f"Pase AROME de las {hora_local_run(run, ciudad.tz)} h")
 
     # --- Observaciones ---
     temp = arome["temperatura"]

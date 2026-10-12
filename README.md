@@ -18,7 +18,7 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `main_page.py` | Punto de entrada: navegación entre páginas, estilo y botón de actualizar previsiones, observaciones y avisos (como mucho una vez cada 5 min, porque la caché es común a todos) |
 | `paginas/` | Una página por ciudad o grupo; cada una es solo su configuración |
 | `meteodash/ciudad.py` | `Ciudad` (configuración) y `render_ciudad`, que monta la página completa |
-| `meteodash/fuentes.py` | Descarga y caché de Meteociel (AROME, GEFS), Open-Meteo (multimodelo, variables complementarias, ensemble ECMWF, calidad del aire) e históricos |
+| `meteodash/fuentes.py` | Descarga y caché de Meteociel (AROME, GEFS), Open-Meteo (multimodelo, variables complementarias, ensembles ECMWF y Met Office, calidad del aire) e históricos |
 | `meteodash/avisos.py` | Avisos oficiales de Meteoalarm (AEMET y los servicios meteorológicos europeos) |
 | `meteodash/radar.py` | Radar de precipitación de RainViewer (pestaña Radar de cada página) |
 | `meteodash/aemet.py` | Observaciones horarias de AEMET (temperatura, rachas y su dirección, lluvia y humedad) |
@@ -55,6 +55,7 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - `presion_y_cape`: gráficos de presión y MUCAPE (activado por defecto).
 - `camaras`: URLs de cámaras.
 - `mapas_arome`: clave de `meteodash.mapas_arome.LOCATIONS` para añadir la pestaña de mapas.
+- `ensemble`: fuente de los gráficos a 48 h: `"arome"` (PE-AROME de Meteociel, por defecto) o `"ukmo"` (MOGREPS-UK 2 km + MOGREPS-G de la Met Office vía Open-Meteo), para lugares fuera del dominio de AROME como Escocia.
 - `tz`: zona horaria (por defecto `Europe/Madrid`).
 
 ## Fuentes de datos
@@ -62,7 +63,7 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - [Meteociel](https://www.meteociel.fr): ensembles PE-AROME y GEFS (tablas HTML, sin API oficial).
 - [AEMET](https://www.aemet.es): observaciones de las últimas 24 h (XML interno de su web, sin API oficial).
 - [AEMET OpenData](https://opendata.aemet.es): comentario de los predictores por comunidad, resúmenes mensuales e históricos diarios. Clave gratuita en `AEMET_API_KEY`: en local, `.streamlit/secrets.toml` (`AEMET_API_KEY = "..."`, ya ignorado por git) o variable de entorno; en Streamlit Cloud, en *Secrets*. Sin clave, esas secciones no se muestran.
-- [Open-Meteo](https://open-meteo.com): ECMWF, GFS, AROME, ARPEGE e ICON; ensemble ECMWF; calidad del aire y polen (CAMS).
+- [Open-Meteo](https://open-meteo.com): ECMWF, GFS, AROME, ARPEGE e ICON; ensembles ECMWF y Met Office (MOGREPS-UK y MOGREPS-G); calidad del aire y polen (CAMS).
 - [Meteoalarm](https://meteoalarm.org): avisos oficiales de AEMET y del resto de servicios europeos.
 - [RainViewer](https://www.rainviewer.com): radar de precipitación animado (plan gratuito: últimas 2 h, zoom máximo 7).
 

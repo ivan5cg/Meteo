@@ -235,6 +235,48 @@ def get_calidad_aire(lat, lon, tz):
     return df.apply(pd.to_numeric, errors="coerce")
 
 
+# Ensembles de la Met Office (Open-Meteo) que sustituyen al PE-AROME fuera de su dominio (Escocia):
+# MOGREPS-UK, 2 km y 3 miembros, cuyo control se destaca, más MOGREPS-G, 20 km y 18 miembros, para tener dispersión
+MODELOS_UKMO = {"ukmo_uk_ensemble_2km": "UK", "ukmo_global_ensemble_20km": "G"}
+VARIABLES_UKMO = {"temperatura": "temperature_2m", "precipitacion": "precipitation", "rachas": "wind_gusts_10m",
+                  "presion": "pressure_msl", "mucape": "cape"}
+
+
+@st.cache_data(ttl="30m", show_spinner=False)
+def get_ensemble_ukmo(lat, lon, tz, variables):
+    """Ensemble Met Office a 48 h con el formato de las tablas de Meteociel: (inicio del pase UTC, {variable: DataFrame}).
+
+    Empieza a las 00 h locales de hoy, así que los extremos de hoy salen del día completo. El control de MOGREPS-UK
+    es la columna "Ctrl"; el resto de miembros, "UK1", "UK2", "G0"... "G17".
+    """
+
+    params = {"latitude": lat, "longitude": lon, "timezone": tz, "forecast_days": 3, "timeformat": "unixtime",
+              "hourly": ",".join(VARIABLES_UKMO[v] for v in variables), "models": ",".join(MODELOS_UKMO)}
+    horario = descargar("https://ensemble-api.open-meteo.com/v1/ensemble", params=params, timeout=60).json()["hourly"]
+    indice = pd.to_datetime(horario["time"], unit="s", utc=True).tz_convert(tz)
+    fin = pd.Timestamp.now(tz=tz).floor("h") + pd.Timedelta(hours=48)
+
+    datos = {}
+    for nombre in variables:
+        variable, columnas = VARIABLES_UKMO[nombre], {}
+        for modelo, prefijo in MODELOS_UKMO.items():
+            for clave, valores in horario.items():
+                if clave == f"{variable}_{modelo}":
+                    columnas["Ctrl" if prefijo == "UK" else f"{prefijo}0"] = valores
+                elif clave.startswith(f"{variable}_member") and clave.endswith(f"_{modelo}"):
+                    miembro = clave.removeprefix(f"{variable}_member").removesuffix(f"_{modelo}")
+                    columnas[f"{prefijo}{int(miembro)}"] = valores
+        df = pd.DataFrame(columnas, index=indice).apply(pd.to_numeric, errors="coerce")
+        datos[nombre] = df[df.index <= fin].dropna(how="all")
+
+    try:
+        run = pd.Timestamp(descargar("https://ensemble-api.open-meteo.com/data/ukmo_uk_ensemble_2km/static/meta.json")
+                           .json()["last_run_initialisation_time"], unit="s", tz="UTC")
+    except Exception:
+        run = None
+    return run, datos
+
+
 @st.cache_data(ttl="1h", show_spinner=False)
 def get_ensemble_ecmwf(lat, lon, tz):
     """Ensemble ECMWF IFS (control y 50 miembros) a 15 días: {"temperatura", "precipitacion"}, un miembro por columna."""
