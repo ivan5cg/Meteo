@@ -35,6 +35,13 @@ def _html(contenido, destino=st):
     destino.markdown("\n".join(linea.strip() for linea in contenido.splitlines()), unsafe_allow_html=True)
 
 
+def _rejilla(tarjetas, n, por_fila, clase=""):
+    """Tarjetas en filas equilibradas y centradas (5 -> 3 + 2, 7 -> 4 + 3) en lugar de dejar una sola en la última."""
+
+    filas = -(-n // por_fila)
+    _html(f'<div class="rejilla"><div class="weather-grid {clase}" style="--n: {-(-n // filas)}">{tarjetas}</div></div>')
+
+
 def _grados(t):
     return "–" if t is None or pd.isna(t) else f"{t}º"
 
@@ -74,7 +81,7 @@ def principales(temp_mañana, fiabilidad, temp_actual=None, temp_ayer=None):
     <div class="progress-bg"><div class="progress-fill" style="width: {fiabilidad * 10}%;"></div></div>
     </div>"""
 
-    _html(f'<div class="weather-grid">{tarjetas}</div>')
+    _rejilla(tarjetas, 3 if temp_actual is not None else 2, 3)
 
 
 def extremos(tarjetas):
@@ -109,7 +116,7 @@ def extremos(tarjetas):
         {barra}
         </div>"""
 
-    _html(f'<div class="weather-grid">{html}</div>')
+    _rejilla(html, len(tarjetas), 3)
 
 
 def condiciones(tarjetas):
@@ -131,7 +138,7 @@ def condiciones(tarjetas):
         {nota}
         </div>"""
 
-    _html(f'<div class="weather-grid compacta">{html}</div>')
+    _rejilla(html, len(tarjetas), 4, "compacta")
 
 
 def comentario_predictores(textos, lugar, ahora):

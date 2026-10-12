@@ -87,13 +87,26 @@ section[data-testid="stSidebar"] {
 }
 
 /* Tarjetas de métricas */
+/* Filas equilibradas: tarjetas.py fija en --n las columnas; la última fila, si queda incompleta, va centrada.
+   En pantallas estrechas se reducen las columnas según el ancho disponible (consultas de contenedor) */
+.rejilla { container-type: inline-size; }
 .weather-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
+    --columnas: var(--n, 3);
+    --hueco: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--hueco);
     margin-bottom: 25px;
     font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
 }
+.weather-grid > .metric-card {
+    box-sizing: border-box;
+    min-width: 0;
+    flex: 0 0 calc((100% - (var(--columnas) - 1) * var(--hueco)) / var(--columnas));
+}
+@container (max-width: 560px) { .weather-grid > .metric-card { --columnas: min(var(--n, 3), 2); } }
+@container (max-width: 380px) { .weather-grid > .metric-card { --columnas: 1; } }
 .metric-card {
     background: #f7f4ee;
     border: 1px solid #d6cfc4;
@@ -155,10 +168,9 @@ section[data-testid="stSidebar"] {
 }
 
 /* Tarjetas compactas (condiciones actuales, calidad del aire...) */
-.weather-grid.compacta {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 12px;
-}
+.weather-grid.compacta { --hueco: 12px; }
+@container (max-width: 600px) { .weather-grid.compacta > .metric-card { --columnas: min(var(--n, 4), 3); } }
+@container (max-width: 460px) { .weather-grid.compacta > .metric-card { --columnas: min(var(--n, 4), 2); } }
 .weather-grid.compacta .metric-card {
     padding: 14px 16px;
 }
