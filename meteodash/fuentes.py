@@ -297,6 +297,38 @@ def get_ensemble_ecmwf(lat, lon, tz):
     return datos
 
 
+# ---------------------------------------------------------------- Probabilidad de lluvia
+
+UMBRAL_LLUVIA = 1  # L/m² acumulados en un día o tramo: la misma referencia que el histórico ("día de lluvia")
+UMBRAL_LLUVIA_HORA = 0.2  # L/m² en una hora: por debajo son trazas que apenas mojan
+
+
+def prob_miembros(precipitacion, umbral=UMBRAL_LLUVIA):
+    """% de miembros del ensemble con al menos `umbral` L/m² acumulados en las filas de `precipitacion` (o None).
+
+    Es la probabilidad de que llueva en algún momento de la ventana. El máximo de las probabilidades horarias la
+    subestima: si cada miembro moja a una hora distinta, ninguna hora suma muchos miembros.
+    """
+
+    total = precipitacion.drop(columns="Observado", errors="ignore").sum(min_count=1).dropna()
+    return None if total.empty else 100 * (total >= umbral).mean()
+
+
+def prob_por_hora(precipitacion):
+    """% de miembros con al menos UMBRAL_LLUVIA_HORA en cada hora."""
+
+    ens = precipitacion.drop(columns="Observado", errors="ignore")
+    return 100 * (ens >= UMBRAL_LLUVIA_HORA).sum(axis=1) / ens.notna().sum(axis=1).clip(lower=1)
+
+
+def prob_diaria(precipitacion, desde=None):
+    """prob_miembros de cada día ({fecha: %}); con `desde`, las horas anteriores no cuentan (lo que queda de hoy)."""
+
+    if desde is not None:
+        precipitacion = precipitacion[precipitacion.index >= desde]
+    return {fecha: prob_miembros(dia) for fecha, dia in precipitacion.groupby(precipitacion.index.date)}
+
+
 # ---------------------------------------------------------------- Históricos locales
 
 def dia_historico(fecha):
@@ -327,7 +359,7 @@ def get_historico(ruta_csv):
     return datos, bandas
 
 
-def probabilidad_lluvia(datos, fecha, margen=7, umbral=1):
+def probabilidad_lluvia(datos, fecha, margen=7, umbral=UMBRAL_LLUVIA):
     """Porcentaje de días con al menos `umbral` L/m² en el histórico, a ±`margen` días de la fecha."""
 
     distancia = (datos["día_del_año"] - dia_historico(fecha)).abs()

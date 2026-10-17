@@ -13,6 +13,7 @@ from astral.sun import elevation, sun
 from plotly.subplots import make_subplots
 
 from .estilo import AMBAR, AZUL, FUENTE, ROJO, TEXTO, tema_plotly
+from .fuentes import UMBRAL_LLUVIA, UMBRAL_LLUVIA_HORA, prob_diaria, prob_por_hora
 
 DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 DIAS_LARGOS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
@@ -144,11 +145,12 @@ def temperatura(data, bandas=None, dia_bandas=None):
 
 
 def lluvia(prec_data):
-    """Probabilidad de lluvia (miembros con precipitación), cantidad media cuando llueve y, si hay, la observada."""
+    """Probabilidad de lluvia de cada hora (miembros con al menos UMBRAL_LLUVIA_HORA), cantidad media cuando llueve y,
+    si hay, la observada."""
 
     ens = _ensemble(prec_data)
-    llueve = ens > 0  # los miembros sin dato (NaN) no cuentan como lluvia
-    probabilidad = 100 * llueve.sum(axis=1) / ens.notna().sum(axis=1)
+    llueve = ens >= UMBRAL_LLUVIA_HORA  # los miembros sin dato (NaN) no cuentan como lluvia
+    probabilidad = prob_por_hora(prec_data)
     media = ens.where(llueve).mean(axis=1).fillna(0).round(1)
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.5, 0.5], vertical_spacing=0.1)
@@ -167,7 +169,7 @@ def lluvia(prec_data):
     fig.add_trace(go.Bar(
         x=probabilidad.index, y=probabilidad, name="Probabilidad (%)",
         marker=dict(color=AMBAR, line=dict(color="rgba(0,0,0,0.05)", width=1)),
-        hovertemplate="Probabilidad: <b>%{y:.0f}%</b><extra></extra>",
+        hovertemplate=f"Prob. ≥ {str(UMBRAL_LLUVIA_HORA).replace('.', ',')} L/m² en la hora: <b>%{{y:.0f}}%</b><extra></extra>",
     ), row=2, col=1)
 
     tema_plotly(fig, "Lluvia · 48 h", leyenda=False)
@@ -530,8 +532,8 @@ def ecmwf_ensemble(temp, prec):
     completos = horas[horas == 24].index  # el último día puede venir incompleto
     maximas = temp.groupby(temp.index.date).max().loc[completos]
     minimas = temp.groupby(temp.index.date).min().loc[completos]
-    lluvia = prec.groupby(prec.index.date).sum(min_count=1).reindex(completos)
-    probabilidad = 100 * (lluvia >= 1).sum(axis=1) / lluvia.notna().sum(axis=1)
+    por_dia = prob_diaria(prec)
+    probabilidad = [por_dia.get(fecha) for fecha in completos]
     x = [dia_semana(f) for f in completos]
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.72, 0.28], vertical_spacing=0.06)
@@ -554,8 +556,8 @@ def ecmwf_ensemble(temp, prec):
         ), row=1, col=1)
 
     fig.add_trace(go.Bar(
-        x=x, y=probabilidad, name="Prob. lluvia ≥ 1 L/m²", marker=dict(color="rgba(2, 119, 189, 0.55)"), showlegend=False,
-        hovertemplate="Prob. lluvia ≥ 1 L/m²: <b>%{y:.0f}%</b><extra></extra>",
+        x=x, y=probabilidad, name=f"Prob. lluvia ≥ {UMBRAL_LLUVIA} L/m²", marker=dict(color="rgba(2, 119, 189, 0.55)"),
+        showlegend=False, hovertemplate=f"Prob. lluvia ≥ {UMBRAL_LLUVIA} L/m²: <b>%{{y:.0f}}%</b><extra></extra>",
     ), row=2, col=1)
 
     tema_plotly(fig, "Ensemble ECMWF · 15 días", "Temperatura (°C)")

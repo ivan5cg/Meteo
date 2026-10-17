@@ -14,7 +14,8 @@ from .aemet_opendata import (DIAS_PREDICCION, get_comentario_aemet, get_resumen_
 from .avisos import avisos_vigentes, get_avisos
 from .fuentes import (POLENES, RUNS_GEFS, dia_historico, en_paralelo, get_calidad_aire, get_ensemble_arome,
                       get_ensemble_ecmwf, get_ensemble_gefs, get_ensemble_ukmo, get_historico, get_meteociel_table,
-                      get_open_meteo, get_open_meteo_detalle, hora_local_run, probabilidad_lluvia, url_gefs)
+                      get_open_meteo, get_open_meteo_detalle, hora_local_run, prob_diaria, prob_miembros,
+                      probabilidad_lluvia, url_gefs)
 from .radar import render_radar
 
 MESES_NIEVE = {11, 12, 1, 2, 3, 4}
@@ -215,18 +216,20 @@ PERIODOS = [(0, 6, "de madrugada"), (6, 12, "por la mañana"), (12, 18, "por la 
 
 
 def _lluvia_por_periodos(prec, fecha, desde=None):
-    """(periodos con lluvia probable, probabilidad máxima) de un día según el ensemble; desde: primera hora a mirar."""
+    """(tramos con lluvia probable, probabilidad del día) según los miembros del ensemble; desde: primera hora a mirar.
 
-    ens = prec.drop(columns="Observado", errors="ignore")
-    del_dia = ens[ens.index.date == fecha.date()]
+    Un tramo es probable si al menos el 30 % de los miembros acumula UMBRAL_LLUVIA en él.
+    """
+
+    del_dia = prec[prec.index.date == fecha.date()]
     if desde is not None:
         del_dia = del_dia[del_dia.index >= desde]
     if del_dia.empty:
         return None, None
-    prob = 100 * (del_dia >= 0.2).sum(axis=1) / del_dia.notna().sum(axis=1).clip(lower=1)
+    horas = del_dia.index.hour
     periodos = [texto for inicio, fin, texto in PERIODOS
-                if (prob[(prob.index.hour >= inicio) & (prob.index.hour < fin)] >= 30).any()]
-    return periodos, prob.max()
+                if (p := prob_miembros(del_dia[(horas >= inicio) & (horas < fin)])) is not None and p >= 30]
+    return periodos, prob_miembros(del_dia)
 
 
 def _frase_lluvia(periodos, prob):
@@ -481,10 +484,12 @@ def render_dias(ciudad, titulo=None):
             en_paralelo(get_meteociel_table, f"{url_gefs(ciudad.lat, ciudad.lon)}&run={run}", ciudad.tz)
     datos_hist, _ = _historico_sidebar(ciudad, ahora)
 
-    # --- Tira de 7 días ---
+    # --- Tira de 7 días: la probabilidad de lluvia, por miembros del ensemble ECMWF (la de Open-Meteo, si falta) ---
     detalle = _o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    ecmwf = _o_none(get_ensemble_ecmwf, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.ens_ecmwf else None
     if detalle is not None:
-        tarjetas.tira_semana(detalle["diario"], ahora)
+        prob = prob_diaria(ecmwf["precipitacion"], ahora.tz_localize(None).floor("h")) if ecmwf is not None else None
+        tarjetas.tira_semana(detalle["diario"], ahora, prob)
         st.divider()
     else:
         st.warning("No se ha podido descargar la previsión diaria de Open-Meteo.")
@@ -520,9 +525,7 @@ def render_dias(ciudad, titulo=None):
 
     # --- 15 días: ensembles ECMWF y GEFS ---
     if ciudad.ens_ecmwf:
-        try:
-            ecmwf = get_ensemble_ecmwf(ciudad.lat, ciudad.lon, ciudad.tz)
-        except Exception:
+        if ecmwf is None:
             st.warning("No se ha podido descargar el ensemble ECMWF de Open-Meteo.")
         else:
             st.plotly_chart(graficos.ecmwf_ensemble(ecmwf["temperatura"], ecmwf["precipitacion"]))

@@ -7,6 +7,7 @@ import streamlit as st
 
 from .avisos import NIVELES, TIPOS
 from .estilo import AMBAR, AZUL, ROJO
+from .fuentes import UMBRAL_LLUVIA
 from .graficos import dia_semana
 
 TEXTO_PERCENTIL = "Percentil: posición frente a los registros históricos de este día (100 = el más alto)."
@@ -300,8 +301,11 @@ def tiempo_wmo(codigo):
     return next(((e, t) for limite, e, t in TIEMPO_WMO if codigo <= limite), ("", ""))
 
 
-def tira_semana(diario, ahora):
-    """Un día por columna: tiempo, máxima, mínima y probabilidad de lluvia (diario de get_open_meteo_detalle)."""
+def tira_semana(diario, ahora, prob=None):
+    """Un día por columna: tiempo, máxima, mínima y probabilidad de lluvia (diario de get_open_meteo_detalle).
+
+    `prob` ({fecha: %}, ver fuentes.prob_diaria) sustituye a la probabilidad de Open-Meteo, que es la máxima horaria.
+    """
 
     hoy = ahora.tz_localize(None).normalize()
     html = ""
@@ -310,8 +314,8 @@ def tira_semana(diario, ahora):
             continue
         emoji, texto = tiempo_wmo(d["codigo"])
         nombre = "Hoy" if fecha == hoy else dia_semana(fecha)
-        prob = d["prob_lluvia"]
-        lluvia = (f'<div class="dia-lluvia">{prob:.0f} %</div>' if not pd.isna(prob) and prob >= 10
+        p = d["prob_lluvia"] if prob is None else prob.get(fecha.date())
+        lluvia = (f'<div class="dia-lluvia">{p:.0f} %</div>' if p is not None and not pd.isna(p) and p >= 10
                   else '<div class="dia-lluvia vacia">–</div>')
         html += (f'<div class="dia" title="{texto}"><div class="dia-nombre">{nombre}</div>'
                  f'<div class="dia-icono">{emoji}</div>'
@@ -319,4 +323,6 @@ def tira_semana(diario, ahora):
                  f'<div class="dia-min">{d["tmin"]:.0f}º</div>{lluvia}</div>')
     if html:
         _html(f'<div class="tira-semana">{html}</div>')
-        st.caption("Máxima, mínima y probabilidad de lluvia de cada día (Open-Meteo).")
+        fuente = (f"probabilidad de que caiga al menos {UMBRAL_LLUVIA} L/m² según el ensemble ECMWF" if prob is not None
+                  else "probabilidad de lluvia de Open-Meteo")
+        st.caption(f"Máxima, mínima y {fuente}.")
