@@ -1,4 +1,4 @@
-"""Descarga y preparación de datos: Meteociel (AROME y GEFS), Open-Meteo e históricos locales."""
+"""Descarga y preparación de datos: Meteociel (PE-AROME), Open-Meteo (ensembles y deterministas) e históricos."""
 
 from concurrent.futures import ThreadPoolExecutor
 import threading
@@ -14,16 +14,17 @@ USER_AGENT = {"User-Agent": "Mozilla/5.0 (Meteo Dash; Streamlit)"}
 # Modos de las tablas de ensemble AROME de Meteociel
 MODOS_AROME = {"temperatura": 8, "rachas": 13, "presion": 1, "mucape": 0, "precipitacion": 10}
 RUNS_AROME = [3, 9, 15, 21]  # UTC
-RUNS_GEFS = [0, 6, 12, 18]  # UTC
 
-# Columnas de Open-Meteo -> nombre corto en los gráficos
-MODELOS_OPEN_METEO = {
-    "ecmwf_ifs025": "ECMWF",
-    "gfs_global": "GFS",
-    "meteofrance_arome_france_hd": "AROME",
-    "meteofrance_arpege_europe": "ARPEGE",
-    "icon_eu": "ICON",
+# Deterministas de Open-Meteo para el medio plazo -> nombre corto en los gráficos
+MODELOS_DETERMINISTAS = {"icon_eu": "ICON-EU"}
+
+# Ensembles de Open-Meteo: modelo -> (nombre corto, días que se piden, si el primer miembro es un control)
+ENSEMBLES = {
+    "icon_eu": ("ICON-EU", 6, False),  # 40 miembros, unas 120 h: medio plazo
+    "ecmwf_ifs025": ("ECMWF", 15, True),  # control y 50 miembros: largo plazo (15 días)
+    "gfs_seamless": ("GEFS", 16, True),  # control y 30 miembros: largo plazo (15 días)
 }
+VARIABLES_ENSEMBLE = {"temperatura": "temperature_2m", "precipitacion": "precipitation", "rachas": "wind_gusts_10m"}
 
 # Polen de CAMS (Open-Meteo) -> nombre en español
 POLENES = {"alder": "Aliso", "birch": "Abedul", "grass": "Gramíneas", "mugwort": "Artemisa", "olive": "Olivo",
@@ -56,7 +57,7 @@ def descargar(url, timeout=30, params=None):
 # ---------------------------------------------------------------- Meteociel
 
 def leer_tabla_meteociel(url, tz="Europe/Madrid"):
-    """Descarga una tabla de ensemble de Meteociel (AROME o GEFS) como DataFrame, sin caché.
+    """Descarga una tabla de ensemble de Meteociel como DataFrame, sin caché.
 
     Las celdas no numéricas (vacías, "-") quedan como NaN en lugar de invalidar toda la tabla.
     """
@@ -109,10 +110,6 @@ def url_arome(lat, lon, modo):
     return f"https://www.meteociel.fr/modeles/pe-arome_table.php?x=0&y=0&lat={lat}&lon={lon}&mode={modo}&sort=0"
 
 
-def url_gefs(lat, lon):
-    return f"https://www.meteociel.fr/modeles/gefs_table.php?x=0&y=0&lat={lat}&lon={lon}&ext=1&mode=7&sort=0"
-
-
 def get_ensemble_arome(lat, lon, tz, variables):
     """Pase más reciente del ensemble PE-AROME y sus tablas para las variables pedidas."""
 
@@ -120,11 +117,6 @@ def get_ensemble_arome(lat, lon, tz, variables):
     tablas = {var: en_paralelo(get_meteociel_table, f"{url_arome(lat, lon, MODOS_AROME[var])}&run={run}", tz)
               for var in variables}
     return run, {var: tabla.result() for var, tabla in tablas.items()}
-
-
-def get_ensemble_gefs(lat, lon, tz):
-    run, _ = get_last_run(url_gefs(lat, lon), RUNS_GEFS, tz)
-    return get_meteociel_table(f"{url_gefs(lat, lon)}&run={run}", tz)
 
 
 def hora_local_run(run_utc, tz):
@@ -137,29 +129,19 @@ def hora_local_run(run_utc, tz):
 # ---------------------------------------------------------------- Open-Meteo
 
 @st.cache_data(ttl="1h", show_spinner=False)
-def get_open_meteo(lat, lon, tz):
-    """Previsión horaria multimodelo de Open-Meteo: un DataFrame por variable, una columna por modelo."""
+def get_deterministas(lat, lon, tz):
+    """Previsión horaria de MODELOS_DETERMINISTAS: {variable: DataFrame}, una columna por modelo."""
 
-    variables = {"temperatura": "temperature_2m", "precipitacion": "precipitation", "rachas": "windgusts_10m"}
-    params = {
-        "latitude": lat,
-        "longitude": lon,
-        "hourly": ",".join(variables.values()),
-        "timezone": tz,
-        "models": ",".join(MODELOS_OPEN_METEO),
-    }
+    params = {"latitude": lat, "longitude": lon, "timeformat": "unixtime", "forecast_days": 6,
+              "hourly": ",".join(VARIABLES_ENSEMBLE.values()), "models": ",".join(MODELOS_DETERMINISTAS)}
     horario = descargar("https://api.open-meteo.com/v1/forecast", params=params).json()["hourly"]
-    indice = pd.to_datetime(horario["time"])
+    indice = pd.to_datetime(horario["time"], unit="s", utc=True).tz_convert(tz)
 
     datos = {}
-    for nombre, variable in variables.items():
-        df = pd.DataFrame(index=indice)
-        for modelo, corto in MODELOS_OPEN_METEO.items():
-            valores = horario.get(f"{variable}_{modelo}")
-            if valores is not None:
-                df[corto] = pd.to_numeric(pd.Series(valores, index=indice), errors="coerce")
-        datos[nombre] = df.dropna(axis=1, how="all")
-
+    for nombre, variable in VARIABLES_ENSEMBLE.items():
+        columnas = {corto: horario.get(f"{variable}_{modelo}") for modelo, corto in MODELOS_DETERMINISTAS.items()}
+        df = pd.DataFrame({c: v for c, v in columnas.items() if v is not None}, index=indice)
+        datos[nombre] = df.apply(pd.to_numeric, errors="coerce").dropna(axis=1, how="all")
     return datos
 
 
@@ -280,21 +262,39 @@ def get_ensemble_ukmo(lat, lon, tz, variables):
 
 
 @st.cache_data(ttl="1h", show_spinner=False)
-def get_ensemble_ecmwf(lat, lon, tz):
-    """Ensemble ECMWF IFS (control y 50 miembros) a 15 días: {"temperatura", "precipitacion"}, un miembro por columna."""
+def get_ensemble(lat, lon, tz, modelo):
+    """Ensemble de Open-Meteo (ver ENSEMBLES): {"temperatura", "precipitacion", "rachas"}, un miembro por columna.
 
-    variables = {"temperatura": "temperature_2m", "precipitacion": "precipitation"}
-    params = {"latitude": lat, "longitude": lon, "timezone": tz, "forecast_days": 15,
-              "hourly": ",".join(variables.values()), "models": "ecmwf_ifs025"}
+    El índice es la hora local con zona. El control, si el modelo lo tiene, es la columna "Ctrl"; el resto, "1", "2"...
+    """
+
+    _, dias, con_control = ENSEMBLES[modelo]
+    params = {"latitude": lat, "longitude": lon, "timeformat": "unixtime", "forecast_days": dias,
+              "hourly": ",".join(VARIABLES_ENSEMBLE.values()), "models": modelo}
     horario = descargar("https://ensemble-api.open-meteo.com/v1/ensemble", params=params, timeout=60).json()["hourly"]
-    indice = pd.to_datetime(horario["time"])
+    indice = pd.to_datetime(horario["time"], unit="s", utc=True).tz_convert(tz)
 
     datos = {}
-    for nombre, variable in variables.items():
-        columnas = {("Ctrl" if clave == variable else clave.removeprefix(f"{variable}_member")): valores
-                    for clave, valores in horario.items() if clave == variable or clave.startswith(f"{variable}_member")}
+    for nombre, variable in VARIABLES_ENSEMBLE.items():
+        columnas = {}
+        for clave, valores in horario.items():
+            if clave == variable:
+                columnas["Ctrl" if con_control else "0"] = valores
+            elif clave.startswith(f"{variable}_member"):
+                columnas[str(int(clave.removeprefix(f"{variable}_member")))] = valores
         datos[nombre] = pd.DataFrame(columnas, index=indice).apply(pd.to_numeric, errors="coerce").dropna(how="all")
     return datos
+
+
+def extremos_diarios(temperatura, fechas, minimo_horas=23):
+    """Máximas y mínimas diarias de cada miembro en `fechas` con al menos `minimo_horas` horas: (DataFrame, DataFrame).
+
+    Por defecto, solo días completos (23-25 h con el cambio de hora).
+    """
+
+    por_dia = temperatura.groupby(temperatura.index.date)
+    completos = [f for f, horas in por_dia.size().items() if horas >= minimo_horas and f in set(fechas)]
+    return por_dia.max().loc[completos], por_dia.min().loc[completos]
 
 
 # ---------------------------------------------------------------- Probabilidad de lluvia

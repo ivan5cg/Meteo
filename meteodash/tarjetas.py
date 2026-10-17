@@ -7,7 +7,6 @@ import streamlit as st
 
 from .avisos import NIVELES, TIPOS
 from .estilo import AMBAR, AZUL, ROJO
-from .fuentes import UMBRAL_LLUVIA
 from .graficos import dia_semana
 
 TEXTO_PERCENTIL = "Percentil: posición frente a los registros históricos de este día (100 = el más alto)."
@@ -296,33 +295,29 @@ def resumen(frases):
 def tiempo_wmo(codigo):
     """(emoji, texto) del código WMO del tiempo."""
 
-    if pd.isna(codigo):
+    if codigo is None or pd.isna(codigo):
         return "", ""
     return next(((e, t) for limite, e, t in TIEMPO_WMO if codigo <= limite), ("", ""))
 
 
-def tira_semana(diario, ahora, prob=None):
-    """Un día por columna: tiempo, máxima, mínima y probabilidad de lluvia (diario de get_open_meteo_detalle).
+def tira_dias(dias, nota):
+    """Un día por columna: tiempo, máxima, mínima y probabilidad de lluvia, con `nota` debajo.
 
-    `prob` ({fecha: %}, ver fuentes.prob_diaria) sustituye a la probabilidad de Open-Meteo, que es la máxima horaria.
+    Cada día: dict(fecha, codigo (WMO, o None), tmax, tmin, prob (%, o None), nombre (opcional, p. ej. "Hoy")).
     """
 
-    hoy = ahora.tz_localize(None).normalize()
     html = ""
-    for fecha, d in diario[diario.index >= hoy].head(7).iterrows():
+    for d in dias:
         if pd.isna(d["tmax"]) or pd.isna(d["tmin"]):
             continue
-        emoji, texto = tiempo_wmo(d["codigo"])
-        nombre = "Hoy" if fecha == hoy else dia_semana(fecha)
-        p = d["prob_lluvia"] if prob is None else prob.get(fecha.date())
+        emoji, texto = tiempo_wmo(d.get("codigo"))
+        p = d.get("prob")
         lluvia = (f'<div class="dia-lluvia">{p:.0f} %</div>' if p is not None and not pd.isna(p) and p >= 10
                   else '<div class="dia-lluvia vacia">–</div>')
-        html += (f'<div class="dia" title="{texto}"><div class="dia-nombre">{nombre}</div>'
+        html += (f'<div class="dia" title="{texto}"><div class="dia-nombre">{d.get("nombre") or dia_semana(d["fecha"])}</div>'
                  f'<div class="dia-icono">{emoji}</div>'
                  f'<div class="dia-max">{d["tmax"]:.0f}º</div>'
                  f'<div class="dia-min">{d["tmin"]:.0f}º</div>{lluvia}</div>')
     if html:
-        _html(f'<div class="tira-semana">{html}</div>')
-        fuente = (f"probabilidad de que caiga al menos {UMBRAL_LLUVIA} L/m² según el ensemble ECMWF" if prob is not None
-                  else "probabilidad de lluvia de Open-Meteo")
-        st.caption(f"Máxima, mínima y {fuente}.")
+        _html(f'<div class="tira-semana" style="--dias: {len(dias)}">{html}</div>')
+        st.caption(nota)

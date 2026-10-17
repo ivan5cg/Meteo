@@ -216,7 +216,7 @@ section[data-testid="stSidebar"] {
 /* Tira de 7 días */
 .tira-semana {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--dias, 7), minmax(0, 1fr));
     gap: 6px;
     margin-bottom: 6px;
     font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;

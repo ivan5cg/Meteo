@@ -1,6 +1,6 @@
 # Meteo Dash
 
-Panel meteorológico en Streamlit con previsiones de ensemble para varias ciudades: temperatura, lluvia, viento, presión y potencial de tormentas a 48 h, previsión semanal multimodelo, tendencia a 15 días (ECMWF y GEFS), avisos oficiales, condiciones actuales (sensación térmica, humedad, UV...), nieve, calidad del aire y polen, comparación con el histórico, radar y mapas AROME.
+Panel meteorológico en Streamlit con previsiones de ensemble para varias ciudades: en tres plazos: corto, 48 h (PE-AROME: temperatura, lluvia, viento, presión y potencial de tormentas), medio, de hoy hasta donde llega el ICON-EU, unos 5 días (ensemble y determinista ICON-EU), y largo, de hoy a 15 días (ensembles ECMWF y GEFS, con probabilidad y cantidad de lluvia); además, avisos oficiales, condiciones actuales (sensación térmica, humedad, UV...), nieve, calidad del aire y polen, comparación con el histórico, radar y mapas AROME.
 
 ## Ejecutar en local
 
@@ -17,8 +17,8 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | --- | --- |
 | `main_page.py` | Punto de entrada: navegación entre páginas, estilo y botón de actualizar previsiones, observaciones y avisos (como mucho una vez cada 5 min, porque la caché es común a todos) |
 | `paginas/` | Una página por ciudad o grupo; cada una es solo su configuración |
-| `meteodash/ciudad.py` | `Ciudad` (configuración) y las pestañas de cada página: `render_48h` (resumen, tarjetas y ensemble a 48 h) y `render_dias` (tira de 7 días, multimodelo y ensembles a 15 días) |
-| `meteodash/fuentes.py` | Descarga y caché de Meteociel (AROME, GEFS), Open-Meteo (multimodelo, variables complementarias, ensembles ECMWF y Met Office, calidad del aire) e históricos |
+| `meteodash/ciudad.py` | `Ciudad` (configuración) y las pestañas de cada página: `render_48h` (corto plazo: resumen, tarjetas y ensemble a 48 h), `render_medio` (medio plazo: ICON-EU) y `render_largo` (largo plazo, 15 días: ECMWF y GEFS) |
+| `meteodash/fuentes.py` | Descarga y caché de Meteociel (PE-AROME), Open-Meteo (ensembles ICON-EU, ECMWF, GEFS y Met Office, determinista ICON-EU, variables complementarias, calidad del aire), probabilidad de lluvia por miembros e históricos |
 | `meteodash/avisos.py` | Avisos oficiales de Meteoalarm (AEMET y los servicios meteorológicos europeos) |
 | `meteodash/radar.py` | Radar de precipitación de RainViewer (pestaña Radar de cada página) |
 | `meteodash/aemet.py` | Observaciones horarias de AEMET (temperatura, rachas y su dirección, lluvia y humedad) |
@@ -37,7 +37,7 @@ Crea `paginas/nueva.py`:
 ```python
 from meteodash.ciudad import Ciudad, render_pagina
 
-render_pagina(Ciudad(nombre="Nueva", lat=40.0, lon=-3.0, semana=True))
+render_pagina(Ciudad(nombre="Nueva", lat=40.0, lon=-3.0))
 ```
 
 y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad`:
@@ -46,9 +46,6 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - `historico`: CSV diario de AEMET; activa récords (también de lluvia), percentiles, avisos y rangos habituales.
 - `ccaa_aemet`: `(código, nombre)` de la comunidad (`("mad", "Comunidad de Madrid")`); añade antes del primer gráfico el comentario de los predictores de AEMET (hoy, mañana y pasado mañana). Requiere `AEMET_API_KEY`.
 - `resumen_mensual`: último mes publicado por AEMET para `estacion_aemet` frente al promedio 1991-2020 del histórico. Requiere `AEMET_API_KEY` e `historico` para la comparación.
-- `semana`: previsión multimodelo de Open-Meteo a 7 días.
-- `gefs`: tendencia a 15 días del ensemble GFS.
-- `ens_ecmwf`: tendencia a 15 días del ensemble ECMWF (Open-Meteo), con la probabilidad de lluvia de cada día.
 - `nieve`: nieve prevista, espesor y cota de nieve, solo de noviembre a abril. Con `nieve_fuera_de_temporada`, también el resto del año cuando se prevé nieve en la semana (Pirineos).
 - `calidad_aire`: índice europeo de calidad del aire y polen (activado por defecto).
 - `pais` y `zonas_aviso`: feed de Meteoalarm (`spain`, `ireland`...) y zonas de aviso, por código (`ES219`, `EI07`) o por parte del nombre (`lombardia`).
@@ -60,10 +57,10 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 
 ## Fuentes de datos
 
-- [Meteociel](https://www.meteociel.fr): ensembles PE-AROME y GEFS (tablas HTML, sin API oficial).
+- [Meteociel](https://www.meteociel.fr): ensemble PE-AROME (tablas HTML, sin API oficial).
 - [AEMET](https://www.aemet.es): observaciones de las últimas 24 h (XML interno de su web, sin API oficial).
 - [AEMET OpenData](https://opendata.aemet.es): comentario de los predictores por comunidad, resúmenes mensuales e históricos diarios. Clave gratuita en `AEMET_API_KEY`: en local, `.streamlit/secrets.toml` (`AEMET_API_KEY = "..."`, ya ignorado por git) o variable de entorno; en Streamlit Cloud, en *Secrets*. Sin clave, esas secciones no se muestran.
-- [Open-Meteo](https://open-meteo.com): ECMWF, GFS, AROME, ARPEGE e ICON; ensembles ECMWF y Met Office (MOGREPS-UK y MOGREPS-G); calidad del aire y polen (CAMS).
+- [Open-Meteo](https://open-meteo.com): ICON-EU determinista; ensembles ICON-EU EPS, ECMWF, GEFS y Met Office (MOGREPS-UK y MOGREPS-G); calidad del aire y polen (CAMS).
 - [Meteoalarm](https://meteoalarm.org): avisos oficiales de AEMET y del resto de servicios europeos.
 - [RainViewer](https://www.rainviewer.com): radar de precipitación animado (plan gratuito: últimas 2 h, zoom máximo 7).
 

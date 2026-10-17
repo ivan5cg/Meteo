@@ -8,8 +8,6 @@ render_pagina(Ciudad(
     historico="datos/avila_1990.csv",
     ccaa_aemet=("cle", "Castilla y León"),
     resumen_mensual=True,
-    semana=True,
-    ens_ecmwf=True,
     nieve=True,
     zonas_aviso=("ES137",),  # Meseta de Ávila
 ))

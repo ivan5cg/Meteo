@@ -3,7 +3,7 @@ from meteodash.ciudad import Ciudad, render_grupo
 # Fuera del dominio del PE-AROME: el ensemble a 48 h es el de la Met Office (MOGREPS-UK 2 km + MOGREPS-G).
 # Zonas de aviso: regiones de la Met Office en Meteoalarm
 render_grupo("Edimburgo y Highlands 🏴󠁧󠁢󠁳󠁣󠁴󠁿", [
-    Ciudad(nombre, lat, lon, tz="Europe/London", ensemble="ukmo", presion_y_cape=False, semana=True, ens_ecmwf=True,
+    Ciudad(nombre, lat, lon, tz="Europe/London", ensemble="ukmo", presion_y_cape=False,
            nieve=nieve, pais="united-kingdom", zonas_aviso=zonas)
     for nombre, lat, lon, nieve, zonas in [
         ("Edimburgo", 55.953, -3.189, False, ("lothian",)),

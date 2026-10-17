@@ -93,6 +93,6 @@ coordenadas = f"{punto['lat']:.3f}, {punto['lon']:.3f}"
 st.divider()
 render_pagina(
     Ciudad(nombre=punto["nombre"] or coordenadas, lat=punto["lat"], lon=punto["lon"], tz=punto["tz"],
-           semana=True, gefs=True, ens_ecmwf=True, nieve=True),
+           nieve=True),
     titulo=f"{punto['nombre']} ({coordenadas})" if punto["nombre"] else coordenadas,
 )

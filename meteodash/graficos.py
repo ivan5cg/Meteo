@@ -13,7 +13,7 @@ from astral.sun import elevation, sun
 from plotly.subplots import make_subplots
 
 from .estilo import AMBAR, AZUL, FUENTE, ROJO, TEXTO, tema_plotly
-from .fuentes import UMBRAL_LLUVIA, UMBRAL_LLUVIA_HORA, prob_diaria, prob_por_hora
+from .fuentes import UMBRAL_LLUVIA, UMBRAL_LLUVIA_HORA, extremos_diarios, prob_diaria, prob_por_hora
 
 DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 DIAS_LARGOS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
@@ -144,7 +144,7 @@ def temperatura(data, bandas=None, dia_bandas=None):
     return fig
 
 
-def lluvia(prec_data):
+def lluvia(prec_data, titulo="Lluvia · 48 h"):
     """Probabilidad de lluvia de cada hora (miembros con al menos UMBRAL_LLUVIA_HORA), cantidad media cuando llueve y,
     si hay, la observada."""
 
@@ -172,7 +172,7 @@ def lluvia(prec_data):
         hovertemplate=f"Prob. ≥ {str(UMBRAL_LLUVIA_HORA).replace('.', ',')} L/m² en la hora: <b>%{{y:.0f}}%</b><extra></extra>",
     ), row=2, col=1)
 
-    tema_plotly(fig, "Lluvia · 48 h", leyenda=False)
+    tema_plotly(fig, titulo, leyenda=False)
     ejes = dict(showgrid=True, gridcolor="rgba(60, 50, 40, 0.12)", linecolor="rgba(60, 50, 40, 0.25)", color=TEXTO,
                 tickfont=dict(color=TEXTO, family=FUENTE, size=11))
     fig.update_xaxes(range=[media.index.min(), media.index.max()], **ejes)
@@ -182,7 +182,7 @@ def lluvia(prec_data):
     return fig
 
 
-def viento(data, direccion=None):
+def viento(data, direccion=None, titulo="Rachas de viento · 48 h"):
     """Rachas del ensemble; `direccion` (puntos cardinales observados) se muestra junto a la racha observada."""
 
     fig = go.Figure()
@@ -195,7 +195,7 @@ def viento(data, direccion=None):
     _control(fig, data, AMBAR, ".0f", "km/h")
     _observado(fig, data, ".0f", "km/h", etiqueta="Racha observada", detalle=direccion)
     _extremos_diarios(fig, _ensemble(data).mean(axis=1), ".0f")
-    tema_plotly(fig, "Rachas de viento · 48 h", "Velocidad (km/h)")
+    tema_plotly(fig, titulo, "Velocidad (km/h)")
     _eje_fechas_es(fig, data.index)
     return fig
 
@@ -242,128 +242,31 @@ def mucape(data):
     return fig
 
 
-# ---------------------------------------------------------------- Multimodelo Open-Meteo (semana)
+# ---------------------------------------------------------------- Medio plazo: ensemble ICON-EU
 
-def _valor_referencia(valores):
-    """ECMWF si está disponible; si no, la media de los modelos."""
-
-    if "ECMWF" in valores.index and not pd.isna(valores["ECMWF"]):
-        return valores["ECMWF"]
-    return valores.mean()
-
-
-def _resumen_hover(fig, x, columnas, plantilla):
-    if x:
-        fig.add_trace(go.Scatter(
-            x=x, y=columnas[0], mode="markers",
-            marker=dict(size=0.1, color="rgba(0,0,0,0)"),
-            showlegend=False, customdata=np.stack(columnas, axis=-1), hovertemplate=plantilla,
-        ))
-
-
-def _dias_completos(df):
-    """Agrupa por día descartando los días a los que les falta alguna hora."""
-
-    por_dia = df.groupby(df.index.date)
-    completos = por_dia.apply(lambda g: g.notnull().all())
-    return por_dia, completos
-
-
-def semana_temperatura(temp_df):
-    por_dia, completos = _dias_completos(temp_df)
-    maximas = (por_dia.max() * completos[completos]).dropna(how="all")
-    minimas = (por_dia.min() * completos[completos]).dropna(how="all")
+def medio_temperatura(ens, deterministas):
+    """Miembros y mediana del ensemble ICON-EU, con el ICON-EU determinista superpuesto."""
 
     fig = go.Figure()
-    resumen = {k: [] for k in ["x", "max", "max20", "max80", "min", "min20", "min80"]}
-
-    for i, fecha in enumerate(minimas.index[:8]):
-        dia_min = minimas.loc[fecha].dropna()
-        dia_max = maximas.loc[fecha].dropna() if fecha in maximas.index else pd.Series(dtype=float)
-        if dia_min.empty or dia_max.empty:
-            continue
-        etiqueta = dia_semana(fecha)
-
-        for valores, nombre, color, relleno, grupo in [
-            (dia_min, "Mínima", "#0284c7", "rgba(2, 132, 199, 0.15)", "A"),
-            (dia_max, "Máxima", ROJO, "rgba(217, 56, 86, 0.15)", "B"),
-        ]:
-            fig.add_trace(go.Box(
-                y=valores, x=[etiqueta] * len(valores), name=nombre,
-                marker_color=color, line_color=color, fillcolor=relleno,
-                boxpoints="outliers", offsetgroup=grupo, showlegend=(i == 0),
-                width=0.35, line_width=2, hoverinfo="skip",
+    _miembros(fig, ens, "rgba(99, 91, 83, 0.18)")
+    mediana = ens.median(axis=1)
+    fig.add_trace(go.Scatter(
+        x=ens.index, y=mediana, mode="lines", line=dict(color="#635b53", width=2.5), name="Mediana ensemble",
+        customdata=np.stack([ens.quantile(0.1, axis=1), ens.quantile(0.9, axis=1)], axis=-1),
+        hovertemplate=("Mediana: <b>%{y:.1f}°C</b><br>Rango 10-90%: <b>%{customdata[0]:.1f}° - "
+                       "%{customdata[1]:.1f}°C</b><extra></extra>"),
+    ))
+    for modelo, color, trazo in [("ICON-EU", AZUL, "dash")]:
+        if modelo in deterministas.columns:
+            serie = deterministas[modelo].reindex(ens.index)
+            fig.add_trace(go.Scatter(
+                x=serie.index, y=serie, mode="lines", line=dict(color=color, width=2, dash=trazo), name=modelo,
+                hovertemplate=f"{modelo}: <b>%{{y:.1f}}°C</b><extra></extra>",
             ))
-
-        ref_max, ref_min = _valor_referencia(dia_max), _valor_referencia(dia_min)
-        resumen["x"].append(etiqueta)
-        resumen["max"].append(ref_max)
-        resumen["max20"].append(dia_max.quantile(0.2))
-        resumen["max80"].append(dia_max.quantile(0.8))
-        resumen["min"].append(ref_min)
-        resumen["min20"].append(dia_min.quantile(0.2))
-        resumen["min80"].append(dia_min.quantile(0.8))
-
-        fig.add_annotation(x=etiqueta, y=ref_min, text=f"<b>{ref_min:.1f}º</b>", showarrow=False, yshift=-15,
-                           font=dict(color="#0284c7", size=10.5, family=FUENTE))
-        fig.add_annotation(x=etiqueta, y=ref_max, text=f"<b>{ref_max:.1f}º</b>", showarrow=False, yshift=15,
-                           font=dict(color=ROJO, size=10.5, family=FUENTE))
-
-    _resumen_hover(
-        fig, resumen["x"],
-        [resumen[k] for k in ["max", "max20", "max80", "min", "min20", "min80"]],
-        "<b>Máxima:</b> <b>%{customdata[0]:.1f}°C</b> (20-80%: %{customdata[1]:.1f}° - %{customdata[2]:.1f}°C)<br>"
-        "<b>Mínima:</b> <b>%{customdata[3]:.1f}°C</b> (20-80%: %{customdata[4]:.1f}° - %{customdata[5]:.1f}°C)<extra></extra>",
-    )
-    tema_plotly(fig, "Temperaturas por modelo · 7 días", "Temperatura (°C)")
-    fig.update_layout(boxmode="group")
+    _extremos_diarios(fig, mediana, ".1f", "º")
+    tema_plotly(fig, "Temperatura · medio plazo", "Temperatura (°C)")
+    _eje_fechas_es(fig, ens.index)
     return fig
-
-
-def _semana_acumulada(diario, titulo, titulo_y, nombre, color, relleno, formato, unidad, umbral_etiqueta=None):
-    fig = go.Figure()
-    x, ref, p20, p80 = [], [], [], []
-
-    for fecha, valores in diario.iterrows():
-        valores = valores.dropna()
-        if valores.empty:
-            continue
-        etiqueta = dia_semana(fecha)
-        fig.add_trace(go.Box(
-            y=valores, x=[etiqueta] * len(valores), name=nombre,
-            marker_color=color, line_color=color, fillcolor=relleno,
-            boxpoints="all", showlegend=False, width=0.45, line_width=2, hoverinfo="skip",
-        ))
-        valor = _valor_referencia(valores)
-        x.append(etiqueta)
-        ref.append(valor)
-        p20.append(valores.quantile(0.2))
-        p80.append(valores.quantile(0.8))
-
-        if umbral_etiqueta is None or valor > umbral_etiqueta:
-            fig.add_annotation(x=etiqueta, y=valor, text=f"<b>{valor:{formato}} {unidad}</b>", showarrow=False,
-                               yshift=14, font=dict(color=color, size=10.5, family=FUENTE))
-
-    _resumen_hover(
-        fig, x, [ref, p20, p80],
-        f"ECMWF/Media: <b>%{{customdata[0]:{formato}}} {unidad}</b> "
-        f"(20-80%: %{{customdata[1]:{formato}}} - %{{customdata[2]:{formato}}} {unidad})<extra></extra>",
-    )
-    tema_plotly(fig, titulo, titulo_y)
-    fig.update_layout(boxmode="group")
-    return fig
-
-
-def semana_lluvia(prec_df):
-    diario = prec_df.groupby(prec_df.index.date).sum(min_count=1).dropna(how="all")
-    return _semana_acumulada(diario, "Lluvia diaria por modelo · 7 días", "Lluvia (L/m²)",
-                             "Lluvia diaria", "#0284c7", "rgba(2, 132, 199, 0.15)", ".1f", "L/m²", umbral_etiqueta=0.1)
-
-
-def semana_viento(rachas_df):
-    diario = rachas_df.groupby(rachas_df.index.date).max().dropna(how="all")
-    return _semana_acumulada(diario, "Racha máxima por modelo · 7 días", "Racha (km/h)",
-                             "Racha máxima", "#ea580c", "rgba(234, 88, 12, 0.15)", ".0f", "km/h")
 
 
 def _eje_dias(fig, indice):
@@ -373,7 +276,7 @@ def _eje_dias(fig, indice):
     fig.update_xaxes(tickvals=dias, ticktext=[dia_semana(d) for d in dias], hoverformat="%d/%m %H:%M")
 
 
-def semana_nubes_uv(diario):
+def nubes_uv(diario, titulo):
     """Nubosidad media y UV máximo de cada día."""
 
     x = [dia_semana(f) for f in diario.index]
@@ -389,14 +292,14 @@ def semana_nubes_uv(diario):
         textfont=dict(color=AMBAR, size=11, family=FUENTE),
         hovertemplate="UV máximo: <b>%{y:.1f}</b><extra></extra>",
     ), secondary_y=True)
-    tema_plotly(fig, "Nubosidad y UV · 7 días", "Nubosidad (%)")
+    tema_plotly(fig, titulo, "Nubosidad (%)")
     fig.update_yaxes(range=[0, 105], secondary_y=False)
     fig.update_yaxes(title_text="Índice UV", range=[0, max(11, diario["uv_max"].max() + 1.5)], showgrid=False,
                      tickfont=dict(color=TEXTO, family=FUENTE, size=11), secondary_y=True)
     return fig
 
 
-def nieve(horario, diario, elevacion=None):
+def nieve(horario, diario, titulo, elevacion=None):
     """Nieve diaria prevista y cota de nieve aproximada (300 m por debajo de la isoterma de 0 ºC)."""
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -419,7 +322,7 @@ def nieve(horario, diario, elevacion=None):
             name=f"Altitud ({elevacion:.0f} m)", line=dict(color=ROJO, width=1.5, dash="dot"), hoverinfo="skip",
         ), secondary_y=True)
 
-    tema_plotly(fig, "Nieve y cota de nieve · 7 días", "Nieve (cm)")
+    tema_plotly(fig, titulo, "Nieve (cm)")
     fig.update_yaxes(range=[0, max(5, 1.3 * diario["nieve"].max())], secondary_y=False)
     fig.update_yaxes(title_text="Cota (m)", rangemode="tozero", showgrid=False,
                      tickfont=dict(color=TEXTO, family=FUENTE, size=11), secondary_y=True)
@@ -482,64 +385,38 @@ def polen(df, nombres):
     return fig
 
 
-# ---------------------------------------------------------------- GEFS (15 días)
+# ---------------------------------------------------------------- Largo plazo: ensembles ECMWF y GEFS
 
-def gefs(temp_gefs):
-    """Máximas y mínimas diarias del GFS determinista con la envolvente del ensemble GEFS."""
-
-    maximas = temp_gefs.resample("D").max()
-    minimas = temp_gefs.resample("D").min()
-
-    # Se excluye el día de hoy, que está incompleto
-    hoy = pd.Timestamp.now(tz=maximas.index.tz).normalize()
-    maximas, minimas = maximas[maximas.index > hoy], minimas[minimas.index > hoy]
-
-    miembros = [c for c in temp_gefs.columns if c != "GFS"]
-    x = [dia_semana(f) for f in maximas.index]
-
-    fig = go.Figure()
-    for diario, nombre, relleno in [
-        (maximas, "Rango máxima", "rgba(217, 56, 86, 0.15)"),
-        (minimas, "Rango mínima", "rgba(2, 132, 199, 0.15)"),
-    ]:
-        fig.add_trace(go.Scatter(x=x, y=diario[miembros].max(axis=1), mode="lines", line=dict(width=0),
-                                 showlegend=False, hoverinfo="skip"))
-        fig.add_trace(go.Scatter(x=x, y=diario[miembros].min(axis=1), mode="lines", fill="tonexty",
-                                 fillcolor=relleno, line=dict(width=0), name=nombre, hoverinfo="skip"))
-
-    for diario, nombre, color, posicion in [
-        (maximas, "Máxima GFS", ROJO, "top center"),
-        (minimas, "Mínima GFS", "#0284c7", "bottom center"),
-    ]:
-        fig.add_trace(go.Scatter(
-            x=x, y=diario["GFS"], mode="lines+markers+text",
-            line=dict(color=color, width=2.5), marker=dict(size=6),
-            text=[f"<b>{t:.1f}º</b>" for t in diario["GFS"]], textposition=posicion,
-            textfont=dict(color=color, size=11, family=FUENTE),
-            name=nombre, hovertemplate=f"{nombre}: <b>%{{y:.1f}}°C</b><extra></extra>",
-        ))
-
-    tema_plotly(fig, "Ensemble GEFS · 15 días", "Temperatura (°C)")
-    return fig
+COLORES_MODELO = {"ECMWF": AZUL, "GEFS": AMBAR}
+TRAZOS_MODELO = {"ECMWF": "dot", "GEFS": "dash"}
 
 
-# ---------------------------------------------------------------- Ensemble ECMWF (15 días)
+def largo(ensembles, fechas, hoy=None):
+    """Máximas y mínimas diarias de todos los miembros juntos (mediana y rango 10-90 %), la mediana de cada modelo y,
+    por modelo, la probabilidad de lluvia y la lluvia media de cada día.
 
-def ecmwf_ensemble(temp, prec):
-    """Máximas y mínimas diarias del ensemble ECMWF (mediana y rango 10-90 %) y probabilidad de lluvia de cada día."""
+    `ensembles`: {nombre: {"temperatura", "precipitacion"}} (ver fuentes.get_ensemble); `fechas`: días a mostrar.
+    `hoy` se rotula "Hoy" y cuenta aunque el pase empiece a medianoche UTC (20 h bastan).
+    """
 
-    horas = temp.groupby(temp.index.date).size()
-    completos = horas[horas == 24].index  # el último día puede venir incompleto
-    maximas = temp.groupby(temp.index.date).max().loc[completos]
-    minimas = temp.groupby(temp.index.date).min().loc[completos]
-    por_dia = prob_diaria(prec)
-    probabilidad = [por_dia.get(fecha) for fecha in completos]
-    x = [dia_semana(f) for f in completos]
+    maximas, minimas, por_modelo, probabilidades, totales = [], [], {}, {}, {}
+    for nombre, datos in ensembles.items():
+        maxima, minima = extremos_diarios(datos["temperatura"], fechas, minimo_horas=20)
+        maximas.append(maxima)
+        minimas.append(minima)
+        por_modelo[nombre] = (maxima.median(axis=1), minima.median(axis=1))
+        probabilidades[nombre] = prob_diaria(datos["precipitacion"])
+        prec = datos["precipitacion"]
+        totales[nombre] = prec.groupby(prec.index.date).sum(min_count=1)  # lluvia de cada miembro en cada día
+    maximas, minimas = pd.concat(maximas, axis=1), pd.concat(minimas, axis=1)
+    dias = [f for f in fechas if f in maximas.index]
+    x = ["Hoy" if f == hoy else dia_semana(f) for f in dias]
+    total = sum(d["temperatura"].shape[1] for d in ensembles.values())
 
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.72, 0.28], vertical_spacing=0.06)
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights=[0.58, 0.21, 0.21], vertical_spacing=0.05)
     for diario, nombre, color, relleno, posicion in [
-        (maximas, "Máxima", ROJO, "rgba(217, 56, 86, 0.15)", "top center"),
-        (minimas, "Mínima", "#0284c7", "rgba(2, 132, 199, 0.15)", "bottom center"),
+        (maximas.loc[dias], "Máxima", ROJO, "rgba(217, 56, 86, 0.15)", "top center"),
+        (minimas.loc[dias], "Mínima", "#0284c7", "rgba(2, 132, 199, 0.15)", "bottom center"),
     ]:
         p10, p90, mediana = diario.quantile(0.1, axis=1), diario.quantile(0.9, axis=1), diario.median(axis=1)
         fig.add_trace(go.Scatter(x=x, y=p90, mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"),
@@ -555,18 +432,43 @@ def ecmwf_ensemble(temp, prec):
                            "(10-90%: %{customdata[0]:.1f}° - %{customdata[1]:.1f}°C)<extra></extra>"),
         ), row=1, col=1)
 
-    fig.add_trace(go.Bar(
-        x=x, y=probabilidad, name=f"Prob. lluvia ≥ {UMBRAL_LLUVIA} L/m²", marker=dict(color="rgba(2, 119, 189, 0.55)"),
-        showlegend=False, hovertemplate=f"Prob. lluvia ≥ {UMBRAL_LLUVIA} L/m²: <b>%{{y:.0f}}%</b><extra></extra>",
-    ), row=2, col=1)
+    # Mediana de cada modelo, fina: se ve si discrepan sin cargar el gráfico
+    for modelo, (maxima, minima) in por_modelo.items():
+        for serie, mostrar in [(maxima, True), (minima, False)]:
+            serie = serie.reindex(dias)
+            fig.add_trace(go.Scatter(
+                x=x, y=serie, mode="lines", name=modelo, legendgroup=modelo, showlegend=mostrar,
+                line=dict(color=COLORES_MODELO.get(modelo, TEXTO), width=1.5, dash=TRAZOS_MODELO.get(modelo)),
+                hovertemplate=f"{modelo}: <b>%{{y:.1f}}°C</b><extra></extra>",
+            ), row=1, col=1)
 
-    tema_plotly(fig, "Ensemble ECMWF · 15 días", "Temperatura (°C)")
+    for modelo, probabilidad in probabilidades.items():
+        fig.add_trace(go.Bar(
+            x=x, y=[probabilidad.get(f) for f in dias], name=modelo, legendgroup=modelo, showlegend=False,
+            marker=dict(color=COLORES_MODELO.get(modelo, TEXTO), opacity=0.6),
+            hovertemplate=f"{modelo}, lluvia ≥ {UMBRAL_LLUVIA} L/m²: <b>%{{y:.0f}}%</b><extra></extra>",
+        ), row=2, col=1)
+
+    # Lluvia media de los miembros (lo esperable) y, en el hover, la del 10 % de miembros más lluviosos
+    for modelo, lluvia in totales.items():
+        lluvia = lluvia.reindex(dias)
+        fig.add_trace(go.Bar(
+            x=x, y=lluvia.mean(axis=1).round(1), name=modelo, legendgroup=modelo, showlegend=False,
+            marker=dict(color=COLORES_MODELO.get(modelo, TEXTO), opacity=0.6),
+            customdata=lluvia.quantile(0.9, axis=1).round(1),
+            hovertemplate=(f"{modelo}: media <b>%{{y:.1f}} L/m²</b><br>"
+                           "10 % más lluvioso: ≥ %{customdata:.1f} L/m²<extra></extra>"),
+        ), row=3, col=1)
+
+    tema_plotly(fig, f"Largo plazo · ECMWF + GEFS ({total} miembros)", "Temperatura (°C)")
     ejes = dict(showgrid=True, gridcolor="rgba(60, 50, 40, 0.12)", linecolor="rgba(60, 50, 40, 0.25)", color=TEXTO,
                 tickfont=dict(color=TEXTO, family=FUENTE, size=11))
     fig.update_xaxes(**ejes)
-    fig.update_yaxes(title_text="Lluvia %", title_font=dict(color=TEXTO, size=11, family=FUENTE), range=[0, 105],
+    fig.update_yaxes(title_text="Prob. %", title_font=dict(color=TEXTO, size=11, family=FUENTE), range=[0, 105],
                      row=2, col=1, **ejes)
-    fig.update_layout(height=520)
+    fig.update_yaxes(title_text="L/m²", title_font=dict(color=TEXTO, size=11, family=FUENTE), rangemode="tozero",
+                     row=3, col=1, **ejes)
+    fig.update_layout(height=640, barmode="group")
     return fig
 
 

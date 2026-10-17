@@ -8,9 +8,6 @@ render_pagina(Ciudad(
     historico="datos/retiro_1950.csv",
     ccaa_aemet=("mad", "Comunidad de Madrid"),
     resumen_mensual=True,
-    semana=True,
-    gefs=True,
-    ens_ecmwf=True,
     zonas_aviso=("ES219",),  # Metropolitana y Henares
     camaras=tuple(
         f"https://informo.madrid.es/cameras/Camara{codigo}.jpg"

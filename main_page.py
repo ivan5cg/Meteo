@@ -7,8 +7,8 @@ from meteodash.aemet import get_aemet_horario
 from meteodash.aemet_opendata import get_comentario_aemet
 from meteodash.avisos import get_avisos
 from meteodash.estilo import aplicar_estilos
-from meteodash.fuentes import (get_calidad_aire, get_ensemble_ecmwf, get_ensemble_ukmo, get_meteociel_table,
-                               get_open_meteo, get_open_meteo_detalle)
+from meteodash.fuentes import (get_calidad_aire, get_deterministas, get_ensemble, get_ensemble_ukmo,
+                               get_meteociel_table, get_open_meteo_detalle)
 
 # La caché es común a todos los visitantes: como mucho una actualización forzada cada tanto
 INTERVALO_ACTUALIZAR = pd.Timedelta(minutes=5)
@@ -51,7 +51,7 @@ def actualizar_datos():
         st.toast(f"Los datos se acaban de actualizar. Podrás volver a hacerlo en {espera} min.", icon=":material/schedule:")
         return
     ultima["momento"] = ahora
-    for funcion in (get_meteociel_table, get_ensemble_ukmo, get_open_meteo, get_open_meteo_detalle, get_ensemble_ecmwf,
+    for funcion in (get_meteociel_table, get_ensemble_ukmo, get_deterministas, get_open_meteo_detalle, get_ensemble,
                     get_calidad_aire, get_aemet_horario, get_avisos, get_comentario_aemet):
         funcion.clear()
     st.rerun()
