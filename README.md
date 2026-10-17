@@ -17,7 +17,7 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | --- | --- |
 | `main_page.py` | Punto de entrada: navegación entre páginas, estilo y botón de actualizar previsiones, observaciones y avisos (como mucho una vez cada 5 min, porque la caché es común a todos) |
 | `paginas/` | Una página por ciudad o grupo; cada una es solo su configuración |
-| `meteodash/ciudad.py` | `Ciudad` (configuración) y `render_ciudad`, que monta la página completa |
+| `meteodash/ciudad.py` | `Ciudad` (configuración) y las pestañas de cada página: `render_48h` (resumen, tarjetas y ensemble a 48 h) y `render_dias` (tira de 7 días, multimodelo y ensembles a 15 días) |
 | `meteodash/fuentes.py` | Descarga y caché de Meteociel (AROME, GEFS), Open-Meteo (multimodelo, variables complementarias, ensembles ECMWF y Met Office, calidad del aire) e históricos |
 | `meteodash/avisos.py` | Avisos oficiales de Meteoalarm (AEMET y los servicios meteorológicos europeos) |
 | `meteodash/radar.py` | Radar de precipitación de RainViewer (pestaña Radar de cada página) |

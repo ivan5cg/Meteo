@@ -6,13 +6,20 @@ import pandas as pd
 import streamlit as st
 
 from .avisos import NIVELES, TIPOS
-from .estilo import AZUL, ROJO
+from .estilo import AMBAR, AZUL, ROJO
 from .graficos import dia_semana
 
-TEXTO_PERCENTIL = (
-    "El percentil indica cómo es la temperatura frente a los registros históricos: un valor cercano a 100 "
-    "indica un registro extremadamente alto y uno cercano a 0, extremadamente bajo."
-)
+TEXTO_PERCENTIL = "Percentil: posición frente a los registros históricos de este día (100 = el más alto)."
+
+# (desde, nivel, color) de la fiabilidad del ensemble
+NIVELES_FIABILIDAD = [(7, "alto", "#059669"), (4, "medio", AMBAR), (0, "bajo", ROJO)]
+
+# Códigos WMO del tiempo de Open-Meteo: (hasta, emoji, texto)
+TIEMPO_WMO = [
+    (0, "☀️", "Despejado"), (1, "🌤️", "Poco nuboso"), (2, "⛅", "Nubes y claros"), (3, "☁️", "Cubierto"),
+    (48, "🌫️", "Niebla"), (57, "🌦️", "Llovizna"), (65, "🌧️", "Lluvia"), (67, "🌧️", "Lluvia helada"),
+    (77, "🌨️", "Nieve"), (82, "🌦️", "Chubascos"), (86, "🌨️", "Chubascos de nieve"), (99, "⛈️", "Tormenta"),
+]
 
 SVG = {
     "calor": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
@@ -68,6 +75,7 @@ def principales(temp_mañana, fiabilidad, temp_actual=None, temp_ayer=None):
         {_delta(round(float(temp_actual - temp_ayer), 1), "vs ayer")}
         </div>"""
 
+    nivel, color = next((n, c) for limite, n, c in NIVELES_FIABILIDAD if fiabilidad >= limite)
     delta_mañana = _delta(round(float(temp_mañana - temp_actual), 1), "previsto") if temp_actual is not None else ""
     tarjetas += f"""
     <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(temp_mañana)};">
@@ -75,10 +83,11 @@ def principales(temp_mañana, fiabilidad, temp_actual=None, temp_ayer=None):
     <div class="metric-value">{_grados(temp_mañana)}</div>
     {delta_mañana}
     </div>
-    <div class="metric-card static-card" title="Coincidencia entre los miembros del ensemble para la temperatura de mañana a esta hora">
+    <div class="metric-card static-card">
     <div class="metric-label">Fiabilidad</div>
     <div class="metric-value">{fiabilidad}<span class="unidad"> / 10</span></div>
-    <div class="progress-bg"><div class="progress-fill" style="width: {fiabilidad * 10}%;"></div></div>
+    <div class="progress-bg"><div class="progress-fill" style="width: {fiabilidad * 10}%; background: {color};"></div></div>
+    <div class="metric-nota">Acuerdo {nivel} del ensemble</div>
     </div>"""
 
     _rejilla(tarjetas, 3 if temp_actual is not None else 2, 3)
@@ -107,7 +116,6 @@ def extremos(tarjetas):
             <div class="perc-text">{valor}<span>perc</span></div>
             <div class="perc-track"><div class="perc-fill" style="width: {valor}%; background-size: {tamaño_fondo:.0f}% 100%;"></div></div>
             </div>"""
-            titulo = f' title="{TEXTO_PERCENTIL}"'
 
         html += f"""
         <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(tarjeta['temp'])};"{titulo}>
@@ -117,6 +125,8 @@ def extremos(tarjetas):
         </div>"""
 
     _rejilla(html, len(tarjetas), 3)
+    if any(t.get("perc") is not None for t in tarjetas):
+        st.caption(TEXTO_PERCENTIL)
 
 
 def condiciones(tarjetas):
@@ -193,7 +203,8 @@ def avisos_oficiales(lista, ahora):
         fenomeno, emoji = TIPOS.get(aviso["tipo"], ("fenómenos adversos", "⚠️"))
         # Todo en una línea: _html recorta cada línea y Markdown rompería el bloque con los saltos del texto
         detalle = "<br>".join(escape(linea.strip()) for linea in aviso["descripcion"].splitlines() if linea.strip())
-        detalle = f'<span class="alert-detalle">{detalle}</span>' if detalle else ""
+        detalle = (f'<details class="alert-detalle"><summary>Detalles</summary>{detalle}</details>'
+                   if detalle else "")
         html += (f'<div class="alert-item alert-oficial" style="--aviso: {color};">'
                  f'<span class="alert-emoji">{emoji}</span>'
                  f'<span class="alert-text"><b>Aviso {nombre}</b> por {fenomeno}'
@@ -206,20 +217,25 @@ def avisos_oficiales(lista, ahora):
 def avisos(perc_max_hoy, perc_max_mañana):
     """Avisos de calor o frío anómalos según los percentiles históricos de las máximas (None: sin dato)."""
 
-    lista = []
-    for percentil, dia in [(perc_max_hoy, "Hoy"), (perc_max_mañana, "Mañana")]:
-        if percentil is None:
-            continue
-        if percentil > 80:
-            lista.append(("calor", "calor", f"{dia} hará mucho calor"))
-        elif percentil < 20:
-            lista.append(("frio", "frio", f"{dia} hará mucho frío"))
-
+    # Una subida o bajada brusca sustituye al aviso de calor o frío de mañana: basta con uno
+    cambio = None
     if perc_max_hoy is not None and perc_max_mañana is not None:
         if perc_max_mañana - perc_max_hoy > 50:
-            lista.append(("calor", "sube", "Mañana subirán mucho las temperaturas"))
+            cambio = ("calor", "sube", "Mañana, subida brusca")
         elif perc_max_hoy - perc_max_mañana > 50:
-            lista.append(("frio", "baja", "Mañana bajarán mucho las temperaturas"))
+            cambio = ("frio", "baja", "Mañana, bajada brusca")
+
+    lista = []
+    for percentil, dia in [(perc_max_hoy, "Hoy"), (perc_max_mañana, "Mañana")]:
+        if percentil is None or (dia == "Mañana" and cambio):
+            continue
+        if percentil > 80:
+            lista.append(("calor", "calor", f"{dia}, muy cálido para la fecha"))
+        elif percentil < 20:
+            lista.append(("frio", "frio", f"{dia}, muy fresco para la fecha"))
+
+    if cambio:
+        lista.append(cambio)
 
     if not lista:
         return False
@@ -267,3 +283,40 @@ def records(del_dia, prob_lluvia=None):
         lineas.append(f"Llueve (≥ 1 L/m²) el <b>{prob_lluvia:.0f} %</b> de los días en estas fechas")
     if lineas:
         _html(f'<p class="records-nota">{"<br>".join(lineas)}</p>', destino=st.sidebar)
+
+
+def resumen(frases):
+    """Resumen en texto de hoy y mañana, arriba de la página."""
+
+    if frases:
+        _html(f'<p class="resumen">{" ".join(escape(f) for f in frases)}</p>')
+
+
+def tiempo_wmo(codigo):
+    """(emoji, texto) del código WMO del tiempo."""
+
+    if pd.isna(codigo):
+        return "", ""
+    return next(((e, t) for limite, e, t in TIEMPO_WMO if codigo <= limite), ("", ""))
+
+
+def tira_semana(diario, ahora):
+    """Un día por columna: tiempo, máxima, mínima y probabilidad de lluvia (diario de get_open_meteo_detalle)."""
+
+    hoy = ahora.tz_localize(None).normalize()
+    html = ""
+    for fecha, d in diario[diario.index >= hoy].head(7).iterrows():
+        if pd.isna(d["tmax"]) or pd.isna(d["tmin"]):
+            continue
+        emoji, texto = tiempo_wmo(d["codigo"])
+        nombre = "Hoy" if fecha == hoy else dia_semana(fecha)
+        prob = d["prob_lluvia"]
+        lluvia = (f'<div class="dia-lluvia">{prob:.0f} %</div>' if not pd.isna(prob) and prob >= 10
+                  else '<div class="dia-lluvia vacia">–</div>')
+        html += (f'<div class="dia" title="{texto}"><div class="dia-nombre">{nombre}</div>'
+                 f'<div class="dia-icono">{emoji}</div>'
+                 f'<div class="dia-max">{d["tmax"]:.0f}º</div>'
+                 f'<div class="dia-min">{d["tmin"]:.0f}º</div>{lluvia}</div>')
+    if html:
+        _html(f'<div class="tira-semana">{html}</div>')
+        st.caption("Máxima, mínima y probabilidad de lluvia de cada día (Open-Meteo).")

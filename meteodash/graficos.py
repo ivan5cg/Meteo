@@ -29,10 +29,13 @@ def dia_semana(fecha, largo=False):
 def _eje_fechas_es(fig, indice, cada_horas=6):
     """Marcas del eje temporal en español (Plotly solo trae los nombres de los días en inglés)."""
 
+    # Etiquetas cortas para que quepan sin girarse en el móvil: el día a medianoche, "12 h" a mediodía y el resto,
+    # solo la línea de la rejilla
     marcas = [t for t in indice if t.hour % cada_horas == 0 and t.minute == 0]
     fig.update_xaxes(
         tickvals=marcas,
-        ticktext=[f"{dia_semana(t)}<br>{t:%H:%M}" for t in marcas],
+        tickangle=0,
+        ticktext=[f"<b>{dia_semana(t)}</b>" if t.hour == 0 else "12 h" if t.hour == 12 else "" for t in marcas],
         hoverformat="%d/%m %H:%M",
     )
 
@@ -113,9 +116,9 @@ def temperatura(data, bandas=None, dia_bandas=None):
     fig.add_trace(go.Scatter(
         x=data.index, y=ens.mean(axis=1), mode="lines",
         line=dict(color="#635b53", width=1.5, dash="dot"),
-        name="Media Ens",
+        name="Media",
         customdata=np.stack([ens.quantile(0.1, axis=1), ens.quantile(0.9, axis=1)], axis=-1),
-        hovertemplate="Media Ens: <b>%{y:.1f}°C</b><br>Rango 10-90%: <b>%{customdata[0]:.1f}° - %{customdata[1]:.1f}°C</b><extra></extra>",
+        hovertemplate="Media: <b>%{y:.1f}°C</b><br>Rango 10-90%: <b>%{customdata[0]:.1f}° - %{customdata[1]:.1f}°C</b><extra></extra>",
     ))
     _control(fig, data, AMBAR, ".1f", "°C")
     _observado(fig, data, ".1f", "°C")
@@ -123,8 +126,8 @@ def temperatura(data, bandas=None, dia_bandas=None):
     if bandas is not None and dia_bandas in bandas.index:
         x = data.index.tolist()
         for variable, nombre, relleno in [
-            ("tmax", "Rango Máx Habitual", "rgba(217, 56, 86, 0.1)"),
-            ("tmin", "Rango Mín Habitual", "rgba(2, 119, 189, 0.1)"),
+            ("tmax", "Máx. habitual", "rgba(217, 56, 86, 0.1)"),
+            ("tmin", "Mín. habitual", "rgba(2, 119, 189, 0.1)"),
         ]:
             bajo = bandas.loc[dia_bandas, (variable, 0.15)]
             alto = bandas.loc[dia_bandas, (variable, 0.85)]
@@ -135,7 +138,7 @@ def temperatura(data, bandas=None, dia_bandas=None):
             ))
 
     _extremos_diarios(fig, ens.mean(axis=1), ".1f", "º")
-    tema_plotly(fig, "Previsión de Temperaturas (48h)", "Temperatura (°C)")
+    tema_plotly(fig, "Temperatura · 48 h", "Temperatura (°C)")
     _eje_fechas_es(fig, data.index)
     return fig
 
@@ -167,7 +170,7 @@ def lluvia(prec_data):
         hovertemplate="Probabilidad: <b>%{y:.0f}%</b><extra></extra>",
     ), row=2, col=1)
 
-    tema_plotly(fig, "Previsión de Lluvia (48h)", leyenda=False)
+    tema_plotly(fig, "Lluvia · 48 h", leyenda=False)
     ejes = dict(showgrid=True, gridcolor="rgba(60, 50, 40, 0.12)", linecolor="rgba(60, 50, 40, 0.25)", color=TEXTO,
                 tickfont=dict(color=TEXTO, family=FUENTE, size=11))
     fig.update_xaxes(range=[media.index.min(), media.index.max()], **ejes)
@@ -185,12 +188,12 @@ def viento(data, direccion=None):
     fig.add_trace(go.Scatter(
         x=data.index, y=_ensemble(data).mean(axis=1), mode="lines",
         line=dict(color="#b45309", width=1.5, dash="dot"),
-        name="Media Ens", hovertemplate="Media Ens: <b>%{y:.0f} km/h</b><extra></extra>",
+        name="Media", hovertemplate="Media: <b>%{y:.0f} km/h</b><extra></extra>",
     ))
     _control(fig, data, AMBAR, ".0f", "km/h")
     _observado(fig, data, ".0f", "km/h", etiqueta="Racha observada", detalle=direccion)
     _extremos_diarios(fig, _ensemble(data).mean(axis=1), ".0f")
-    tema_plotly(fig, "Previsión de Viento (Rachas) (48h)", "Velocidad (km/h)")
+    tema_plotly(fig, "Rachas de viento · 48 h", "Velocidad (km/h)")
     _eje_fechas_es(fig, data.index)
     return fig
 
@@ -201,10 +204,10 @@ def presion(data):
     fig.add_trace(go.Scatter(
         x=data.index, y=_ensemble(data).mean(axis=1), mode="lines",
         line=dict(color="#635b53", width=1.5, dash="dot"),
-        name="Media Ens", hovertemplate="Media Ens: <b>%{y:.1f} hPa</b><extra></extra>",
+        name="Media", hovertemplate="Media: <b>%{y:.1f} hPa</b><extra></extra>",
     ))
     _control(fig, data, AMBAR, ".1f", "hPa")
-    tema_plotly(fig, "Previsión de Presión Atmosférica (48h)", "Presión (hPa)")
+    tema_plotly(fig, "Presión · 48 h", "Presión (hPa)")
     # Al menos 30 hPa de rango, centrado en los valores previstos: una borrasca profunda no se sale del gráfico
     valores = _ensemble(data).stack()
     if not valores.empty:
@@ -222,7 +225,7 @@ def mucape(data):
     fig.add_trace(go.Scatter(
         x=data.index, y=ens.mean(axis=1), mode="lines",
         line=dict(color=AMBAR, width=1.5, dash="dot"),
-        name="Media Ens", customdata=ens.max(axis=1),
+        name="Media", customdata=ens.max(axis=1),
         hovertemplate="Media CAPE: <b>%{y:.0f} J/kg</b><br>Máx Ens: <b>%{customdata:.0f} J/kg</b><extra></extra>",
     ))
     _control(fig, data, ROJO, ".0f", "J/kg")
@@ -232,7 +235,7 @@ def mucape(data):
     fig.add_hrect(y0=300, y1=1000, fillcolor="#fbbf24", opacity=0.04, line_width=0, layer="below")
     fig.add_hrect(y0=1000, y1=3000, fillcolor="#ef4444", opacity=0.04, line_width=0, layer="below")
 
-    tema_plotly(fig, "Potencial de Tormentas (MUCAPE) (48h)", "J/kg")
+    tema_plotly(fig, "Potencial de tormentas (MUCAPE) · 48 h", "J/kg")
     _eje_fechas_es(fig, data.index)
     return fig
 
@@ -277,7 +280,7 @@ def semana_temperatura(temp_df):
         dia_max = maximas.loc[fecha].dropna() if fecha in maximas.index else pd.Series(dtype=float)
         if dia_min.empty or dia_max.empty:
             continue
-        etiqueta = dia_semana(fecha, largo=True)
+        etiqueta = dia_semana(fecha)
 
         for valores, nombre, color, relleno, grupo in [
             (dia_min, "Mínima", "#0284c7", "rgba(2, 132, 199, 0.15)", "A"),
@@ -310,7 +313,7 @@ def semana_temperatura(temp_df):
         "<b>Máxima:</b> <b>%{customdata[0]:.1f}°C</b> (20-80%: %{customdata[1]:.1f}° - %{customdata[2]:.1f}°C)<br>"
         "<b>Mínima:</b> <b>%{customdata[3]:.1f}°C</b> (20-80%: %{customdata[4]:.1f}° - %{customdata[5]:.1f}°C)<extra></extra>",
     )
-    tema_plotly(fig, "Evolución Temperaturas (Próxima Semana)", "Temperatura (°C)")
+    tema_plotly(fig, "Temperaturas por modelo · 7 días", "Temperatura (°C)")
     fig.update_layout(boxmode="group")
     return fig
 
@@ -323,7 +326,7 @@ def _semana_acumulada(diario, titulo, titulo_y, nombre, color, relleno, formato,
         valores = valores.dropna()
         if valores.empty:
             continue
-        etiqueta = dia_semana(fecha, largo=True)
+        etiqueta = dia_semana(fecha)
         fig.add_trace(go.Box(
             y=valores, x=[etiqueta] * len(valores), name=nombre,
             marker_color=color, line_color=color, fillcolor=relleno,
@@ -351,14 +354,14 @@ def _semana_acumulada(diario, titulo, titulo_y, nombre, color, relleno, formato,
 
 def semana_lluvia(prec_df):
     diario = prec_df.groupby(prec_df.index.date).sum(min_count=1).dropna(how="all")
-    return _semana_acumulada(diario, "Evolución Precipitación Diaria (Próxima Semana)", "Lluvia Acumulada (L/m²)",
-                             "Acumulado Lluvia", "#0284c7", "rgba(2, 132, 199, 0.15)", ".1f", "L/m²", umbral_etiqueta=0.1)
+    return _semana_acumulada(diario, "Lluvia diaria por modelo · 7 días", "Lluvia (L/m²)",
+                             "Lluvia diaria", "#0284c7", "rgba(2, 132, 199, 0.15)", ".1f", "L/m²", umbral_etiqueta=0.1)
 
 
 def semana_viento(rachas_df):
     diario = rachas_df.groupby(rachas_df.index.date).max().dropna(how="all")
-    return _semana_acumulada(diario, "Evolución Viento Rachas (Próxima Semana)", "Racha Máxima (km/h)",
-                             "Racha Máxima", "#ea580c", "rgba(234, 88, 12, 0.15)", ".0f", "km/h")
+    return _semana_acumulada(diario, "Racha máxima por modelo · 7 días", "Racha (km/h)",
+                             "Racha máxima", "#ea580c", "rgba(234, 88, 12, 0.15)", ".0f", "km/h")
 
 
 def _eje_dias(fig, indice):
@@ -371,7 +374,7 @@ def _eje_dias(fig, indice):
 def semana_nubes_uv(diario):
     """Nubosidad media y UV máximo de cada día."""
 
-    x = [dia_semana(f, largo=True) for f in diario.index]
+    x = [dia_semana(f) for f in diario.index]
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Bar(
         x=x, y=diario["nubes"], name="Nubosidad media", marker=dict(color="rgba(99, 91, 83, 0.3)"),
@@ -384,7 +387,7 @@ def semana_nubes_uv(diario):
         textfont=dict(color=AMBAR, size=11, family=FUENTE),
         hovertemplate="UV máximo: <b>%{y:.1f}</b><extra></extra>",
     ), secondary_y=True)
-    tema_plotly(fig, "Nubosidad e Índice UV (Próxima Semana)", "Nubosidad (%)")
+    tema_plotly(fig, "Nubosidad y UV · 7 días", "Nubosidad (%)")
     fig.update_yaxes(range=[0, 105], secondary_y=False)
     fig.update_yaxes(title_text="Índice UV", range=[0, max(11, diario["uv_max"].max() + 1.5)], showgrid=False,
                      tickfont=dict(color=TEXTO, family=FUENTE, size=11), secondary_y=True)
@@ -414,7 +417,7 @@ def nieve(horario, diario, elevacion=None):
             name=f"Altitud ({elevacion:.0f} m)", line=dict(color=ROJO, width=1.5, dash="dot"), hoverinfo="skip",
         ), secondary_y=True)
 
-    tema_plotly(fig, "Nieve y Cota de Nieve (Próxima Semana)", "Nieve (cm)")
+    tema_plotly(fig, "Nieve y cota de nieve · 7 días", "Nieve (cm)")
     fig.update_yaxes(range=[0, max(5, 1.3 * diario["nieve"].max())], secondary_y=False)
     fig.update_yaxes(title_text="Cota (m)", rangemode="tozero", showgrid=False,
                      tickfont=dict(color=TEXTO, family=FUENTE, size=11), secondary_y=True)
@@ -455,7 +458,7 @@ def calidad_aire(df):
         hovertemplate=("ICA: <b>%{y:.0f}</b><br>PM2,5: %{customdata[0]:.0f} · PM10: %{customdata[1]:.0f} · "
                        "NO₂: %{customdata[2]:.0f} · O₃: %{customdata[3]:.0f} µg/m³<extra></extra>"),
     ))
-    tema_plotly(fig, "Calidad del Aire (4 días)", "Índice europeo (ICA)", leyenda=False)
+    tema_plotly(fig, "Calidad del aire · 4 días", "Índice europeo (ICA)", leyenda=False)
     fig.update_yaxes(range=[0, tope])
     _eje_fechas_es(fig, df.index, cada_horas=12)
     return fig
@@ -471,7 +474,7 @@ def polen(df, nombres):
             x=df.index, y=df[columna], mode="lines", name=nombre, line=dict(color=color, width=2),
             hovertemplate=f"{nombre}: <b>%{{y:.0f}} granos/m³</b><extra></extra>",
         ))
-    tema_plotly(fig, "Polen (4 días)", "Granos/m³")
+    tema_plotly(fig, "Polen · 4 días", "Granos/m³")
     fig.update_yaxes(rangemode="tozero")
     _eje_fechas_es(fig, df.index, cada_horas=12)
     return fig
@@ -494,8 +497,8 @@ def gefs(temp_gefs):
 
     fig = go.Figure()
     for diario, nombre, relleno in [
-        (maximas, "Rango Ens. Máxima", "rgba(217, 56, 86, 0.15)"),
-        (minimas, "Rango Ens. Mínima", "rgba(2, 132, 199, 0.15)"),
+        (maximas, "Rango máxima", "rgba(217, 56, 86, 0.15)"),
+        (minimas, "Rango mínima", "rgba(2, 132, 199, 0.15)"),
     ]:
         fig.add_trace(go.Scatter(x=x, y=diario[miembros].max(axis=1), mode="lines", line=dict(width=0),
                                  showlegend=False, hoverinfo="skip"))
@@ -503,8 +506,8 @@ def gefs(temp_gefs):
                                  fillcolor=relleno, line=dict(width=0), name=nombre, hoverinfo="skip"))
 
     for diario, nombre, color, posicion in [
-        (maximas, "GFS Máxima", ROJO, "top center"),
-        (minimas, "GFS Mínima", "#0284c7", "bottom center"),
+        (maximas, "Máxima GFS", ROJO, "top center"),
+        (minimas, "Mínima GFS", "#0284c7", "bottom center"),
     ]:
         fig.add_trace(go.Scatter(
             x=x, y=diario["GFS"], mode="lines+markers+text",
@@ -514,7 +517,7 @@ def gefs(temp_gefs):
             name=nombre, hovertemplate=f"{nombre}: <b>%{{y:.1f}}°C</b><extra></extra>",
         ))
 
-    tema_plotly(fig, "Previsión GEFS Temperaturas Diarias (15 días)", "Temperatura (°C)")
+    tema_plotly(fig, "Ensemble GEFS · 15 días", "Temperatura (°C)")
     return fig
 
 
@@ -555,7 +558,7 @@ def ecmwf_ensemble(temp, prec):
         hovertemplate="Prob. lluvia ≥ 1 L/m²: <b>%{y:.0f}%</b><extra></extra>",
     ), row=2, col=1)
 
-    tema_plotly(fig, "Tendencia Ensemble ECMWF (15 días)", "Temperatura (°C)")
+    tema_plotly(fig, "Ensemble ECMWF · 15 días", "Temperatura (°C)")
     ejes = dict(showgrid=True, gridcolor="rgba(60, 50, 40, 0.12)", linecolor="rgba(60, 50, 40, 0.25)", color=TEXTO,
                 tickfont=dict(color=TEXTO, family=FUENTE, size=11))
     fig.update_xaxes(**ejes)
@@ -604,7 +607,7 @@ def historico_vs_prevision(datos, dia, hoy, mañana):
         ))
 
     tema_plotly(fig, "", "Temperatura (°C)", hovermode="closest")
-    fig.update_layout(xaxis=dict(showgrid=False))
+    fig.update_layout(xaxis=dict(showgrid=False, title_text=""), legend_title_text="")
     return fig
 
 
@@ -621,7 +624,7 @@ def _curva_solar(latitud, longitud, zona, fecha):
 
     diferencia = (atardecer - amanecer).total_seconds() - (sol_ayer["sunset"] - sol_ayer["sunrise"]).total_seconds()
     dif_min, dif_seg = divmod(abs(int(diferencia)), 60)
-    cambio = f"{dif_min} m {dif_seg} s {'ganados' if diferencia > 0 else 'perdidos'}"
+    cambio = f"{'+' if diferencia > 0 else '−'}{dif_min} min {dif_seg} s"
 
     duracion = (atardecer - amanecer).total_seconds()
     horas_dia, minutos_dia = int(duracion // 3600), int((duracion % 3600) / 60)
@@ -632,7 +635,7 @@ def _curva_solar(latitud, longitud, zona, fecha):
 
     i_amanecer = amanecer.hour * 60 + amanecer.minute
     i_atardecer = atardecer.hour * 60 + atardecer.minute
-    titulo = f"Perfil de Elevación Solar | Duración del día: {horas_dia}h {minutos_dia}m ({cambio})"
+    titulo = f"Sol hoy · {horas_dia} h {minutos_dia} min de luz ({cambio})"
     return etiquetas, elevaciones, i_amanecer, i_atardecer, titulo
 
 
@@ -658,16 +661,16 @@ def elevacion_solar(latitud, longitud, zona="UTC"):
     ))
     fig.add_trace(go.Scatter(
         x=x, y=curva, mode="lines", line=dict(color="rgba(0,0,0,0)", width=0),
-        name="Elevación Solar",
-        hovertemplate="Hora: <b>%{x}</b><br>Elevación Solar: <b>%{y:.1f}°</b><extra></extra>",
+        name="Elevación solar",
+        hovertemplate="Hora: <b>%{x}</b><br>Elevación solar: <b>%{y:.1f}°</b><extra></extra>",
     ))
     fig.add_hline(y=0, line_dash="dash", line_color="#a89f91", line_width=1)
 
     fig.add_trace(go.Scatter(
         x=[etiquetas[i_ahora]], y=[elevaciones[i_ahora]], mode="markers+text",
         marker=dict(size=12, color=AZUL, symbol="circle", line=dict(width=2, color="white")),
-        text=[f"<b>Posición Actual ({elevaciones[i_ahora]:.1f}°)</b>"], textposition="top center",
-        textfont=dict(color=AZUL, size=11, family=FUENTE), name="Posición Actual",
+        text=[f"<b>Ahora ({elevaciones[i_ahora]:.1f}°)</b>"], textposition="top center",
+        textfont=dict(color=AZUL, size=11, family=FUENTE), name="Ahora",
         hovertemplate="Actual (%{x}): <b>%{y:.1f}°</b><extra></extra>",
     ))
     fig.add_trace(go.Scatter(
@@ -679,7 +682,7 @@ def elevacion_solar(latitud, longitud, zona="UTC"):
               f"<b>Atardecer {etiquetas[i_atardecer]}</b>"],
         textposition=["bottom center", "top center", "bottom center"],
         textfont=dict(color=TEXTO, size=10.5, family=FUENTE), showlegend=False,
-        hovertemplate="Hito Solar: <b>%{x}</b> (%{y:.1f}°)<extra></extra>",
+        hovertemplate="<b>%{x}</b> (%{y:.1f}°)<extra></extra>",
     ))
 
     tema_plotly(fig, titulo, "Elevación (°)", leyenda=False)

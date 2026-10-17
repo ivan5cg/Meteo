@@ -106,7 +106,7 @@ section[data-testid="stSidebar"] {
     flex: 0 0 calc((100% - (var(--columnas) - 1) * var(--hueco)) / var(--columnas));
 }
 @container (max-width: 560px) { .weather-grid > .metric-card { --columnas: min(var(--n, 3), 2); } }
-@container (max-width: 380px) { .weather-grid > .metric-card { --columnas: 1; } }
+@container (max-width: 250px) { .weather-grid > .metric-card { --columnas: 1; } }
 .metric-card {
     background: #f7f4ee;
     border: 1px solid #d6cfc4;
@@ -181,6 +181,66 @@ section[data-testid="stSidebar"] {
     font-size: 0.78rem;
     margin-top: 8px;
     color: #635b53;
+}
+
+/* Móvil: dos tarjetas por fila, más compactas */
+@container (max-width: 460px) {
+    .weather-grid { --hueco: 10px; margin-bottom: 16px; }
+    .weather-grid .metric-card, .weather-grid.compacta .metric-card { padding: 12px 14px; border-radius: 12px; }
+    .metric-label { font-size: 0.66rem; margin-bottom: 6px; letter-spacing: 0.04em; }
+    .metric-value, .weather-grid.compacta .metric-value { font-size: 1.6rem; }
+    .metric-value .unidad { font-size: 0.85rem; }
+    .metric-delta { font-size: 0.75rem; margin-top: 6px; flex-wrap: wrap; }
+    .metric-nota { font-size: 0.72rem; margin-top: 6px; }
+    .progress-bg { margin-top: 12px; }
+    .perc-row { gap: 6px; margin-top: 8px; }
+    .perc-text { width: auto; font-size: 0.75rem; }
+}
+@media (max-width: 640px) {
+    hr, [data-testid="stDivider"], .stDivider { margin: 1.2rem 0 !important; }
+}
+
+/* Resumen en texto y hora de los datos, bajo el título */
+.resumen {
+    font-size: 1.05rem;
+    line-height: 1.5;
+    color: #2a241f;
+    margin: 0 0 18px;
+}
+.datos-de {
+    font-size: 0.8rem;
+    color: #635b53;
+    margin: -10px 0 14px;
+}
+
+/* Tira de 7 días */
+.tira-semana {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 6px;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+.tira-semana .dia {
+    background: #f7f4ee;
+    border: 1px solid #d6cfc4;
+    border-radius: 12px;
+    padding: 10px 2px;
+    text-align: center;
+}
+.dia-nombre { font-size: 0.75rem; font-weight: 600; color: #635b53; white-space: nowrap; }
+.dia-icono { font-size: 1.6rem; line-height: 1.2; margin: 4px 0; }
+.dia-max { font-size: 1.05rem; font-weight: 700; color: #2a241f; }
+.dia-min { font-size: 0.9rem; color: #635b53; }
+.dia-lluvia { font-size: 0.75rem; font-weight: 600; color: #0277bd; margin-top: 4px; }
+.dia-lluvia.vacia { color: #b8b0a2; }
+@media (max-width: 460px) {
+    .tira-semana { gap: 3px; }
+    .tira-semana .dia { padding: 8px 0; border-radius: 9px; }
+    .dia-nombre { font-size: 0.62rem; }
+    .dia-icono { font-size: 1.2rem; }
+    .dia-max { font-size: 0.9rem; }
+    .dia-min, .dia-lluvia { font-size: 0.7rem; }
 }
 
 /* Barra de fiabilidad */
@@ -285,6 +345,11 @@ section[data-testid="stSidebar"] {
     margin-top: 6px;
     line-height: 1.45;
 }
+.alert-detalle summary {
+    cursor: pointer;
+    font-size: 0.78rem;
+    opacity: 0.7;
+}
 .alert-periodo {
     display: block;
     font-size: 0.8rem;
@@ -335,9 +400,9 @@ def tema_plotly(fig, titulo, titulo_y="", leyenda=True, hovermode="x unified"):
             align="left",
         ),
         hovermode=hovermode,
-        margin=dict(l=10, r=10, t=60, b=10),
+        margin=dict(l=10, r=10, t=50, b=60 if leyenda else 10),
         legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+            orientation="h", yref="container", yanchor="bottom", y=0, xanchor="left", x=0,
             font=dict(color=TEXTO, family=FUENTE, size=11),
             bgcolor="rgba(0,0,0,0)",
         ) if leyenda else None,

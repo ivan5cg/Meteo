@@ -174,7 +174,9 @@ def get_open_meteo_detalle(lat, lon, tz):
         "sensacion": "apparent_temperature", "humedad": "relative_humidity_2m", "nubes": "cloud_cover",
         "nieve": "snowfall", "espesor_nieve": "snow_depth", "isocero": "freezing_level_height",
     }
-    diarias = {"nieve": "snowfall_sum", "uv_max": "uv_index_max", "nubes": "cloud_cover_mean"}
+    diarias = {"nieve": "snowfall_sum", "uv_max": "uv_index_max", "nubes": "cloud_cover_mean",
+               "tmax": "temperature_2m_max", "tmin": "temperature_2m_min", "lluvia": "precipitation_sum",
+               "prob_lluvia": "precipitation_probability_max", "codigo": "weather_code"}
     params = {
         "latitude": lat,
         "longitude": lon,
