@@ -322,10 +322,18 @@ section[data-testid="stSidebar"] {
 .alerts-container.oficiales {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    /* Al desplegar los detalles de un aviso, los de su fila no se estiran */
+    align-items: start;
 }
 .alerts-container.oficiales .alert-item {
     max-width: none;
     min-width: 0;
+    align-items: flex-start;
+}
+/* Sin min-width: 0 el texto no se encoge y las URL largas del detalle se salen de la tarjeta */
+.alerts-container.oficiales .alert-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 .alert-oficial {
     background: color-mix(in srgb, var(--aviso) 10%, #fffdf8);
