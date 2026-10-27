@@ -5,9 +5,11 @@ import streamlit as st
 
 from meteodash.aemet import get_aemet_horario
 from meteodash.aemet_opendata import get_comentario_aemet
+from meteodash.auroras import (get_cielo, get_kp, get_kp_27_dias, get_nubes_ensemble, get_ovation, get_prob_tormenta,
+                               get_viento_solar)
 from meteodash.avisos import get_avisos
 from meteodash.estilo import aplicar_estilos
-from meteodash.fuentes import (get_calidad_aire, get_deterministas, get_ensemble, get_ensemble_ukmo,
+from meteodash.fuentes import (get_calidad_aire, get_deterministas, get_ensemble, get_ensemble_48h,
                                get_meteociel_table, get_open_meteo_detalle)
 
 # La caché es común a todos los visitantes: como mucho una actualización forzada cada tanto
@@ -30,6 +32,12 @@ paginas = st.navigation({
         st.Page("paginas/belgica.py", title="Bélgica", icon=":material/public:"),
         st.Page("paginas/escocia.py", title="Edimburgo y Highlands", icon=":material/public:"),
     ],
+    "Báltico y Laponia": [
+        st.Page("paginas/helsinki.py", title="Helsinki", icon=":material/directions_boat:"),
+        st.Page("paginas/rovaniemi.py", title="Rovaniemi", icon=":material/auto_awesome:"),
+        st.Page("paginas/tallin.py", title="Tallin", icon=":material/castle:"),
+        st.Page("paginas/riga.py", title="Riga", icon=":material/account_balance:"),
+    ],
     "Explorar": [
         st.Page("paginas/punto.py", title="Cualquier punto", icon=":material/add_location_alt:"),
     ],
@@ -51,8 +59,9 @@ def actualizar_datos():
         st.toast(f"Los datos se acaban de actualizar. Podrás volver a hacerlo en {espera} min.", icon=":material/schedule:")
         return
     ultima["momento"] = ahora
-    for funcion in (get_meteociel_table, get_ensemble_ukmo, get_deterministas, get_open_meteo_detalle, get_ensemble,
-                    get_calidad_aire, get_aemet_horario, get_avisos, get_comentario_aemet):
+    for funcion in (get_meteociel_table, get_ensemble_48h, get_deterministas, get_open_meteo_detalle, get_ensemble,
+                    get_calidad_aire, get_aemet_horario, get_avisos, get_comentario_aemet, get_kp, get_prob_tormenta,
+                    get_viento_solar, get_ovation, get_kp_27_dias, get_cielo, get_nubes_ensemble):
         funcion.clear()
     st.rerun()
 

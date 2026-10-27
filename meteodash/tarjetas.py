@@ -321,3 +321,109 @@ def tira_dias(dias, nota):
     if html:
         _html(f'<div class="tira-semana" style="--dias: {len(dias)}">{html}</div>')
         st.caption(nota)
+
+
+# ---------------------------------------------------------------- Auroras
+
+def _bosque():
+    """Silueta de un bosque de abetos (path SVG de 800 x 70) para el pie de la cabecera de auroras."""
+
+    trazos = ["M0,70 L0,62 L800,62 L800,70 Z"]
+    for i in range(46):
+        x, alto = i * 17.7 + (i * 37 % 11), 22 + (i * 53 % 40)  # posiciones y alturas variadas pero fijas
+        ancho, base = 0.3 * alto, 64
+        puntos = [(-1, 0), (-0.35, 0.35), (-0.7, 0.35), (-0.25, 0.68), (-0.5, 0.68), (0, 1),
+                  (0.5, 0.68), (0.25, 0.68), (0.7, 0.35), (0.35, 0.35), (1, 0)]
+        trazos.append("M" + " L".join(f"{x + dx * ancho:.1f},{base - dy * alto:.1f}" for dx, dy in puntos) + " Z")
+    return "".join(trazos)
+
+
+BOSQUE = _bosque()
+
+
+def nombre_noche(fecha, ahora):
+    """"Esta noche", "Lo que queda de noche" (la que empezó ayer) o "Noche del mié 28"."""
+
+    hoy = ahora.date()
+    if fecha == hoy:
+        return "Esta noche"
+    if fecha < hoy:
+        return "Lo que queda de noche"
+    return f"Noche del {dia_semana(fecha).lower()}"
+
+
+def _ventana(noche, factores):
+    """Mejor ventana de la noche y, si la noche no es buena, el factor que más resta; si está perdida, solo este."""
+
+    ventana = f"mejor de {noche['inicio']:%H} a {noche['fin']:%H} h"
+    motivo = f"sobre todo por {factores[noche['limita']][2]}"
+    if noche["puntuacion"] < 2:
+        return motivo
+    return f"{ventana}, {motivo}" if noche["puntuacion"] < 6 else ventana
+
+
+def cabecera_auroras(lugar, noche, ahora, factores):
+    """Cielo estrellado con auroras animadas, el lugar y la puntuación de la primera noche (ver auroras.puntuar_noches;
+    `factores`: ver auroras.FACTORES)."""
+
+    if noche is None:
+        resumen = '<div class="aurora-hero-veredicto">Sin puntuación por ahora</div>'
+    else:
+        resumen = (f'<div class="aurora-hero-nota">{nombre_noche(noche["fecha"], ahora)}</div>'
+                   f'<div class="aurora-hero-puntos" style="--nivel: {noche["color"]}">'
+                   f'{noche["puntuacion"]:.1f}<span>/ 10</span></div>'
+                   f'<div class="aurora-hero-veredicto">{noche["valoracion"]}: {_ventana(noche, factores)}</div>')
+    _html(f'<div class="aurora-hero"><div class="aurora-estrellas"></div>'
+          f'<div class="aurora-cortina uno"></div><div class="aurora-cortina dos"></div>'
+          f'<div class="aurora-cortina tres"></div>'
+          f'<svg class="aurora-bosque" viewBox="0 0 800 70" preserveAspectRatio="none" aria-hidden="true">'
+          f'<path d="{BOSQUE}"/></svg>'
+          f'<div class="aurora-hero-texto"><div class="aurora-hero-lugar">Auroras boreales · {escape(lugar)}</div>'
+          f'{resumen}</div></div>')
+
+
+def _color_factor(valor):
+    return "#34d399" if valor >= 0.7 else "#fbbf24" if valor >= 0.4 else "#f87171"
+
+
+def noches_aurora(noches, ahora, factores, compacta=False):
+    """Una tarjeta por noche (ver auroras.puntuar_noches): puntuación en un anillo, valoración y mejor ventana y, salvo
+    `compacta`, la confianza, cada factor (`factores`: ver auroras.FACTORES) y los datos de la noche."""
+
+    html = ""
+    for n in noches:
+        kp = f"Kp ~{n['kp']:.0f} (27 días)" if n["kp_27"] else f"Kp {n['kp']:.1f}"
+        datos = [kp]
+        if n["tormenta"] >= 10:
+            datos.append(f"tormenta {n['tormenta']:.0f} %")
+        if not pd.isna(n["nubes"]):
+            datos.append(f"nubes {n['nubes']:.0f} %")
+        datos.append(f"luna {100 * n['luna']:.0f} %")
+        if not pd.isna(n["sensacion"]):
+            datos.append(f"sensación {n['sensacion']:.0f}º")
+        datos.append(f"{n['horas_oscuras']} h de noche oscura")
+        ventana = _ventana(n, factores)
+        ventana = ventana[0].upper() + ventana[1:]
+        cabecera = f'<span class="noche-nombre">{nombre_noche(n["fecha"], ahora)}</span>'
+        centro = (f'<div class="noche-centro"><div class="noche-anillo"><span class="noche-puntos">'
+                  f'{n["puntuacion"]:.1f}</span></div><div><div class="noche-veredicto">{n["valoracion"]}</div>'
+                  f'<div class="noche-ventana">{ventana}</div></div></div>')
+        estilo = f'style="--nivel: {n["color"]}; --p: {10 * n["puntuacion"]:.0f}"'
+
+        if compacta:
+            titulo = escape(f"{ventana}. Confianza {n['confianza']}. " + " · ".join(datos))
+            html += f'<div class="noche" {estilo} title="{titulo}"><div class="noche-cabecera">{cabecera}</div>{centro}</div>'
+            continue
+
+        filas = ""
+        for clave, (nombre, explicacion, _) in factores.items():
+            valor = n["factores"][clave]
+            filas += (f'<div class="factor" title="{escape(explicacion)}"><span>{nombre}</span>'
+                      f'<i><b style="width: {100 * valor:.0f}%; --color: {_color_factor(valor)}"></b></i>'
+                      f'<em>{10 * valor:.0f}</em></div>')
+        html += (f'<div class="noche" {estilo}><div class="noche-cabecera">{cabecera}'
+                 f'<span class="noche-confianza {n["confianza"]}">confianza {n["confianza"]}</span></div>'
+                 f'{centro}<div class="noche-factores">{filas}</div>'
+                 f'<div class="noche-detalle">{" · ".join(datos)}</div></div>')
+
+    _html(f'<div class="noches{" compactas" if compacta else ""}">{html}</div>')

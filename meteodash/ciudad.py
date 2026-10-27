@@ -12,8 +12,9 @@ from .aemet import cargar_aemet_horario, get_aemet_horario, temperatura_actual_y
 from .aemet_opendata import (DIAS_PREDICCION, get_comentario_aemet, get_resumen_mensual, hay_clave, normales_mensuales,
                              racha_maxima, valor_y_dia)
 from .avisos import avisos_vigentes, get_avisos
-from .fuentes import (ENSEMBLES, POLENES, UMBRAL_LLUVIA, dia_historico, en_paralelo, extremos_diarios,
-                      get_calidad_aire, get_deterministas, get_ensemble, get_ensemble_arome, get_ensemble_ukmo,
+from .auroras import render_auroras
+from .fuentes import (ENSEMBLES, ENSEMBLES_48H, POLENES, UMBRAL_LLUVIA, dia_historico, en_paralelo, extremos_diarios,
+                      get_calidad_aire, get_deterministas, get_ensemble, get_ensemble_48h, get_ensemble_arome,
                       get_historico, get_open_meteo_detalle, hora_local_run, prob_diaria, prob_miembros,
                       probabilidad_lluvia)
 from .radar import render_radar
@@ -37,9 +38,16 @@ class Ciudad:
     calidad_aire: bool = True  # índice europeo de calidad del aire y polen
     pais: str = "spain"  # feed de avisos de Meteoalarm
     zonas_aviso: tuple[str, ...] = ()  # códigos o nombres de las zonas de aviso de Meteoalarm
+    avisos_por_poligono: bool = False  # también los avisos cuyo polígono contiene el punto (sin código de zona)
     camaras: tuple[str, ...] = ()
     mapas_arome: str | None = None  # clave de mapas_arome.LOCATIONS
-    ensemble: str = "arome"  # 48 h: "arome" (PE-AROME de Meteociel) o "ukmo" (Met Office, fuera del dominio de AROME)
+    # 48 h: "arome" (PE-AROME de Meteociel) o, fuera de su dominio, una clave de fuentes.ENSEMBLES_48H
+    ensemble: str = "arome"
+    kp_auroras: float | None = None  # Kp desde el que suelen verse auroras: añade la pestaña de auroras
+
+    @property
+    def con_avisos(self):
+        return bool(self.zonas_aviso) or self.avisos_por_poligono
 
 
 def extremos_del_dia(serie, fecha):
@@ -279,7 +287,7 @@ def _cabecera(ciudad, titulo):
 
     if titulo:
         st.header(titulo)
-    if ciudad.zonas_aviso:
+    if ciudad.con_avisos:
         en_paralelo(get_avisos, ciudad.pais)
     return st.empty()
 
@@ -315,14 +323,15 @@ def render_48h(ciudad, titulo=None):
     hueco_datos = st.empty()
 
     variables = ["temperatura", "precipitacion", "rachas"] + (["presion", "mucape"] if ciudad.presion_y_cape else [])
-    if ciudad.ensemble == "ukmo":
+    if ciudad.ensemble in ENSEMBLES_48H:
+        nombre = ENSEMBLES_48H[ciudad.ensemble]["nombre"]
         try:
-            run, arome = get_ensemble_ukmo(ciudad.lat, ciudad.lon, ciudad.tz, tuple(variables))
+            run, arome = get_ensemble_48h(ciudad.lat, ciudad.lon, ciudad.tz, tuple(variables), ciudad.ensemble)
         except Exception:
-            st.error("No se ha podido descargar el ensemble de la Met Office (Open-Meteo). Prueba a recargar en unos minutos.")
+            st.error(f"No se ha podido descargar el ensemble {nombre} (Open-Meteo). Prueba a recargar en unos minutos.")
             _avisos(ciudad, ahora, hueco_avisos)
             return
-        fuentes = [f"Met Office de las {run.tz_convert(ciudad.tz):%H} h"] if run is not None else []
+        fuentes = [f"{nombre} de las {run.tz_convert(ciudad.tz):%H} h"] if run is not None else []
     else:
         try:
             run, arome = get_ensemble_arome(ciudad.lat, ciudad.lon, ciudad.tz, variables)
@@ -568,11 +577,12 @@ def render_largo(ciudad, titulo=None):
 def _avisos(ciudad, ahora, hueco):
     """Avisos oficiales de Meteoalarm en el hueco reservado al principio de la página."""
 
-    if not ciudad.zonas_aviso:
+    if not ciudad.con_avisos:
         return
     with hueco.container():
         try:
-            vigentes = avisos_vigentes(ciudad.pais, ciudad.zonas_aviso, ahora)
+            punto = (ciudad.lat, ciudad.lon) if ciudad.avisos_por_poligono else None
+            vigentes = avisos_vigentes(ciudad.pais, ciudad.zonas_aviso, ahora, punto)
         except Exception:
             st.caption("No se han podido consultar los avisos oficiales (Meteoalarm).")
         else:
@@ -583,28 +593,32 @@ BLOQUES = [":material/schedule: Corto plazo", ":material/view_week: Medio plazo"
 RENDER_BLOQUES = [render_48h, render_medio, render_largo]
 
 
+def _mapas_arome(ciudad):
+    from .mapas_arome import render_arome_maps
+
+    render_arome_maps(location=ciudad.mapas_arome)
+
+
 def render_pagina(ciudad, titulo=None):
-    """Una ciudad en pestañas: corto, medio y largo plazo, radar y, si tiene, mapas AROME. Solo se descarga la abierta."""
+    """Una ciudad en pestañas: corto, medio y largo plazo, auroras (si tiene kp_auroras), radar y, si tiene, mapas
+    AROME. Solo se descarga la abierta."""
 
     titulo = titulo or ciudad.nombre
-    nombres = BLOQUES + [":material/radar: Radar"]
+    extras = [(":material/radar: Radar", lambda: render_radar([(ciudad.nombre, ciudad.lat, ciudad.lon)], ciudad.tz))]
+    if ciudad.kp_auroras is not None:
+        extras.insert(0, (":material/auto_awesome: Auroras", lambda: render_auroras(ciudad)))
     if ciudad.mapas_arome:
-        nombres.append(":material/map: Mapas AROME")
-    pestañas = st.tabs(nombres, key=f"vista_{ciudad.nombre}", on_change="rerun")
+        extras.append((":material/map: Mapas AROME", lambda: _mapas_arome(ciudad)))
+    pestañas = st.tabs(BLOQUES + [nombre for nombre, _ in extras], key=f"vista_{ciudad.nombre}", on_change="rerun")
 
     for pestaña, render in zip(pestañas, RENDER_BLOQUES):
         if pestaña.open:
             with pestaña:
                 render(ciudad, titulo)
-    radar = len(BLOQUES)
-    if pestañas[radar].open:
-        with pestañas[radar]:
-            render_radar([(ciudad.nombre, ciudad.lat, ciudad.lon)], ciudad.tz)
-    if ciudad.mapas_arome and pestañas[radar + 1].open:
-        from .mapas_arome import render_arome_maps
-
-        with pestañas[radar + 1]:
-            render_arome_maps(location=ciudad.mapas_arome)
+    for pestaña, (_, render) in zip(pestañas[len(BLOQUES):], extras):
+        if pestaña.open:
+            with pestaña:
+                render()
 
 
 def render_grupo(titulo, ciudades):

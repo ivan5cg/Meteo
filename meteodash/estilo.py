@@ -8,6 +8,11 @@ ROJO = "#d93856"
 AZUL = "#0277bd"
 AMBAR = "#d97706"
 
+# Pestaña de auroras: cielo nocturno
+AURORA = "#34d399"
+NOCHE_TEXTO = "#e2e8f0"
+NOCHE_SUAVE = "#94a3b8"
+
 CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
@@ -377,6 +382,259 @@ section[data-testid="stSidebar"] {
     font-weight: 500;
     letter-spacing: 0.01em;
 }
+
+/* ---------------------------------------------------------------- Auroras: cielo nocturno */
+/* El contenedor de la pestaña (st.container(key="auroras")) y lo que Streamlit dibuja dentro */
+.st-key-auroras {
+    background: radial-gradient(120% 50% at 50% 0%, #13254d 0%, #0b1530 45%, #070b18 100%);
+    border: 1px solid rgba(110, 231, 183, 0.14);
+    border-radius: 22px;
+    padding: 14px 18px 22px;
+    box-shadow: 0 24px 60px -28px rgba(7, 11, 24, 0.9);
+}
+.st-key-auroras h1, .st-key-auroras h2, .st-key-auroras h3, .st-key-auroras strong { color: #f1f5f9 !important; }
+.st-key-auroras p, .st-key-auroras li { color: #cbd5e1; }
+.st-key-auroras [data-testid="stCaptionContainer"], .st-key-auroras [data-testid="stCaptionContainer"] p {
+    color: #8193ad !important;
+}
+.st-key-auroras hr, .st-key-auroras [data-testid="stDivider"] {
+    background: linear-gradient(90deg, transparent, rgba(52, 211, 153, 0.35) 30%, rgba(167, 139, 250, 0.35) 70%,
+                transparent) !important;
+}
+.st-key-auroras [data-testid="stExpander"] details {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(148, 163, 184, 0.2);
+}
+.st-key-auroras [data-testid="stExpander"] summary, .st-key-auroras [data-testid="stExpander"] summary * {
+    color: #e2e8f0 !important;
+}
+.st-key-auroras .metric-card {
+    background: rgba(15, 23, 42, 0.65);
+    border-color: rgba(148, 163, 184, 0.18);
+    box-shadow: none;
+}
+.st-key-auroras .metric-card.static-card:hover {
+    background: rgba(30, 41, 59, 0.85);
+    border-color: rgba(52, 211, 153, 0.45);
+    box-shadow: 0 0 24px -8px rgba(52, 211, 153, 0.5);
+}
+.st-key-auroras .metric-label, .st-key-auroras .metric-nota { color: #94a3b8; }
+.st-key-auroras .metric-value { color: #f1f5f9; }
+
+/* Cabecera: cielo estrellado, cortinas de aurora animadas y un bosque de abetos */
+.aurora-hero {
+    position: relative;
+    overflow: hidden;
+    min-height: 240px;
+    border-radius: 16px;
+    margin-bottom: 18px;
+    background: linear-gradient(180deg, #050a1a 0%, #0b1736 55%, #12305a 100%);
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    isolation: isolate;
+}
+.aurora-estrellas {
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(1.5px 1.5px at 12% 18%, #fff, transparent),
+        radial-gradient(1px 1px at 27% 42%, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 41% 12%, #fff, transparent),
+        radial-gradient(1px 1px at 58% 30%, #fff, transparent),
+        radial-gradient(1.6px 1.6px at 73% 9%, #fff, transparent),
+        radial-gradient(1px 1px at 86% 36%, #fff, transparent),
+        radial-gradient(1.2px 1.2px at 93% 16%, #fff, transparent),
+        radial-gradient(1px 1px at 6% 52%, #fff, transparent),
+        radial-gradient(1px 1px at 64% 55%, #fff, transparent),
+        radial-gradient(1.3px 1.3px at 34% 66%, #fff, transparent);
+    background-size: 260px 170px;
+    opacity: 0.85;
+    animation: aurora-titila 5s ease-in-out infinite;
+}
+.aurora-cortina {
+    position: absolute;
+    left: -25%;
+    width: 150%;
+    height: 70%;
+    top: -8%;
+    border-radius: 50%;
+    filter: blur(26px);
+    mix-blend-mode: screen;
+    /* Rayos verticales suaves, como los de una cortina de aurora */
+    -webkit-mask-image: repeating-linear-gradient(90deg, #000 0, rgba(0, 0, 0, 0.7) 7px, #000 13px, rgba(0, 0, 0, 0.82) 21px, #000 27px);
+    mask-image: repeating-linear-gradient(90deg, #000 0, rgba(0, 0, 0, 0.7) 7px, #000 13px, rgba(0, 0, 0, 0.82) 21px, #000 27px);
+    animation: aurora-ondea 16s ease-in-out infinite alternate;
+}
+.aurora-cortina.uno {
+    background: linear-gradient(90deg, transparent 5%, rgba(52, 211, 153, 0.75) 30%, rgba(45, 212, 191, 0.6) 55%,
+                rgba(52, 211, 153, 0.2) 80%, transparent);
+}
+.aurora-cortina.dos {
+    top: 4%;
+    height: 55%;
+    background: linear-gradient(90deg, transparent 20%, rgba(167, 139, 250, 0.5) 45%, rgba(232, 121, 249, 0.45) 65%,
+                transparent 90%);
+    animation-duration: 21s;
+    animation-delay: -6s;
+}
+.aurora-cortina.tres {
+    top: 18%;
+    height: 40%;
+    background: linear-gradient(90deg, transparent, rgba(110, 231, 183, 0.45) 20%, transparent 45%,
+                rgba(52, 211, 153, 0.5) 75%, transparent);
+    animation-duration: 12s;
+    animation-delay: -3s;
+}
+@keyframes aurora-ondea {
+    0% { transform: translateX(-6%) skewY(-5deg) scaleY(1); opacity: 0.65; }
+    50% { transform: translateX(3%) skewY(-1deg) scaleY(1.18); opacity: 1; }
+    100% { transform: translateX(8%) skewY(-7deg) scaleY(0.9); opacity: 0.7; }
+}
+@keyframes aurora-titila {
+    0%, 100% { opacity: 0.85; }
+    50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .aurora-cortina, .aurora-estrellas { animation: none; }
+}
+.aurora-bosque {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    width: 100%;
+    height: 70px;
+    fill: #040812;
+}
+.aurora-hero-texto {
+    position: relative;
+    z-index: 1;
+    padding: 22px 24px 84px;
+    color: #f1f5f9;
+    text-shadow: 0 2px 12px rgba(4, 8, 18, 0.8);
+}
+.aurora-hero-lugar {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a7f3d0;
+}
+.aurora-hero-nota { font-size: 0.95rem; color: #cbd5e1; margin-top: 14px; }
+.aurora-hero-puntos {
+    font-size: 3.6rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    color: var(--nivel);
+    text-shadow: 0 0 28px var(--nivel), 0 2px 12px rgba(4, 8, 18, 0.8);
+}
+.aurora-hero-puntos span { font-size: 1.3rem; font-weight: 500; color: #cbd5e1; text-shadow: none; margin-left: 4px; }
+.aurora-hero-veredicto { font-size: 1.05rem; font-weight: 600; margin-top: 6px; }
+
+/* Tarjetas de cada noche: puntuación en un anillo, valoración, mejor ventana y factores */
+.noches {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin: 4px 0 14px;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+.noches.compactas { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.noche {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.78));
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-top: 3px solid var(--nivel);
+    border-radius: 16px;
+    padding: 14px 16px;
+    color: #e2e8f0;
+    box-shadow: 0 0 26px -14px var(--nivel);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.noche:hover { transform: translateY(-3px); box-shadow: 0 0 30px -8px var(--nivel); }
+.noche[title] { cursor: help; }
+.noche-cabecera {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+.noche-confianza {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.12);
+    white-space: nowrap;
+}
+.noche-confianza.alta { color: #6ee7b7; }
+.noche-confianza.media { color: #fcd34d; }
+.noche-confianza.baja { color: #94a3b8; }
+.noche-centro { display: flex; align-items: center; gap: 14px; margin: 12px 0; }
+.noche-anillo {
+    --tam: 76px;
+    width: var(--tam);
+    height: var(--tam);
+    flex-shrink: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: conic-gradient(var(--nivel) calc(var(--p) * 1%), rgba(148, 163, 184, 0.15) 0);
+    box-shadow: 0 0 18px -4px var(--nivel);
+}
+.noche-puntos {
+    width: calc(var(--tam) - 12px);
+    height: calc(var(--tam) - 12px);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #0d1426;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #f8fafc;
+}
+.noche-veredicto { font-size: 1.15rem; font-weight: 700; color: var(--nivel); }
+.noche-ventana { font-size: 0.8rem; color: #cbd5e1; margin-top: 2px; }
+.noche-factores { display: grid; gap: 6px; }
+.factor {
+    display: grid;
+    grid-template-columns: 76px 1fr 20px;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.74rem;
+    color: #94a3b8;
+}
+.factor[title] { cursor: help; }
+.factor i { display: block; height: 6px; border-radius: 3px; background: rgba(148, 163, 184, 0.15); overflow: hidden; }
+.factor i b { display: block; height: 100%; border-radius: 3px; background: var(--color); }
+.factor em { font-style: normal; text-align: right; font-weight: 700; color: #e2e8f0; }
+.noche-detalle {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+    font-size: 0.74rem;
+    color: #94a3b8;
+    line-height: 1.5;
+}
+.noches.compactas .noche { padding: 10px 8px; text-align: center; }
+.noches.compactas .noche-cabecera { justify-content: center; font-size: 0.66rem; }
+.noches.compactas .noche-centro { flex-direction: column; gap: 6px; margin: 8px 0 0; }
+.noches.compactas .noche-anillo { --tam: 54px; }
+.noches.compactas .noche-puntos { font-size: 1.1rem; }
+.noches.compactas .noche-veredicto { font-size: 0.85rem; }
+.noches.compactas .noche-ventana { font-size: 0.7rem; color: #94a3b8; }
+@media (max-width: 460px) {
+    .st-key-auroras { padding: 10px 10px 16px; border-radius: 16px; }
+    .aurora-hero { min-height: 210px; }
+    .aurora-hero-texto { padding: 16px 16px 70px; }
+    .aurora-hero-puntos { font-size: 2.9rem; }
+    .noches.compactas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 </style>
 """
 
@@ -416,4 +674,25 @@ def tema_plotly(fig, titulo, titulo_y="", leyenda=True, hovermode="x unified"):
         ) if leyenda else None,
         showlegend=leyenda,
     )
+    return fig
+
+
+def tema_noche(fig, titulo, titulo_y="", leyenda=True, hovermode="x unified"):
+    """El tema común con los colores del cielo nocturno de la pestaña de auroras (en todos los ejes)."""
+
+    tema_plotly(fig, titulo, titulo_y, leyenda, hovermode)
+    fuente = dict(color=NOCHE_SUAVE, family=FUENTE, size=11)
+    # automargin: sin el tema de Streamlit (theme=None, que aclararía los gráficos), las etiquetas se saldrían
+    ejes = dict(gridcolor="rgba(148, 163, 184, 0.12)", linecolor="rgba(148, 163, 184, 0.25)", color=NOCHE_SUAVE,
+                tickfont=fuente, title_font=fuente, zerolinecolor="rgba(148, 163, 184, 0.2)", automargin=True)
+    fig.update_xaxes(**ejes)
+    fig.update_yaxes(**ejes)
+    fig.update_layout(
+        title_font_color=NOCHE_TEXTO,
+        hoverlabel=dict(bgcolor="rgba(15, 23, 42, 0.95)", bordercolor="rgba(52, 211, 153, 0.45)",
+                        font=dict(color=NOCHE_TEXTO, family=FUENTE, size=12)),
+        modebar=dict(bgcolor="rgba(0, 0, 0, 0)", color="#64748b", activecolor=NOCHE_TEXTO),
+    )
+    if leyenda:
+        fig.update_layout(legend_font_color=NOCHE_SUAVE)
     return fig

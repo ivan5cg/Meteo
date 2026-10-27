@@ -31,11 +31,29 @@ def _parametro(info, nombre):
     return None
 
 
+def _poligono(texto):
+    """Polígono CAP ("lat,lon lat,lon ...") como tupla de (lat, lon)."""
+
+    return tuple(tuple(float(v) for v in punto.split(",")) for punto in texto.split())
+
+
+def _dentro(punto, poligono):
+    """Si el punto (lat, lon) está dentro del polígono (algoritmo del rayo)."""
+
+    lat, lon = punto
+    dentro = False
+    for (lat1, lon1), (lat2, lon2) in zip(poligono, poligono[-1:] + poligono[:-1]):
+        if (lat1 > lat) != (lat2 > lat) and lon < (lon2 - lon1) * (lat - lat1) / (lat2 - lat1) + lon1:
+            dentro = not dentro
+    return dentro
+
+
 @st.cache_data(ttl="15m", show_spinner=False)
 def get_avisos(pais):
     """Avisos amarillos o superiores publicados para un país (`pais`: nombre del feed de Meteoalarm, p. ej. "spain").
 
-    Se descartan los cancelados y los que una actualización posterior sustituye.
+    Se descartan los cancelados y los que una actualización posterior sustituye. El texto, en español o, si no lo
+    hay, en inglés; los nombres de las zonas, en todos los idiomas del aviso.
     """
 
     alertas = [a["alert"] for a in descargar(f"https://feeds.meteoalarm.org/api/v1/warnings/feeds-{pais}",
@@ -48,7 +66,8 @@ def get_avisos(pais):
     for alerta in alertas:
         if alerta.get("msgType") == "Cancel" or alerta.get("identifier") in sustituidas or not alerta.get("info"):
             continue
-        info = next((i for i in alerta["info"] if i.get("language", "").startswith("es")), alerta["info"][0])
+        infos = alerta["info"]
+        info = next((i for idioma in ("es", "en") for i in infos if i.get("language", "").startswith(idioma)), infos[0])
         nivel, tipo = _parametro(info, "awareness_level"), _parametro(info, "awareness_type")
         if nivel not in NIVELES or tipo is None:
             continue
@@ -58,25 +77,29 @@ def get_avisos(pais):
             "tipo": tipo,
             "inicio": pd.Timestamp(info.get("onset") or info.get("effective")),
             "fin": pd.Timestamp(info["expires"]),
-            "nombres": tuple(a.get("areaDesc", "").lower() for a in areas),
+            "nombres": tuple({a.get("areaDesc", "").lower() for i in infos for a in i.get("area", [])}),
             "codigos": tuple(g.get("value") for a in areas for g in a.get("geocode", [])),
+            # Solo de las zonas sin código: las que lo tienen se identifican por él
+            "poligonos": tuple(_poligono(p) for a in areas if not a.get("geocode") for p in a.get("polygon", [])),
             "descripcion": info.get("description") or "",
         })
     return avisos
 
 
-def avisos_vigentes(pais, zonas, ahora):
+def avisos_vigentes(pais, zonas, ahora, punto=None):
     """Avisos de las zonas indicadas que aún no han terminado.
 
     Orden: cronológico (los ya activos primero, del que antes termina al que más dura); a igual periodo, el de más
     nivel y, a igual nivel, según PRIORIDAD.
 
-    Cada zona es un código (EMMA_ID, FIPS...: "ES219") o parte del nombre de la zona ("lombardia").
+    Cada zona es un código (EMMA_ID, FIPS...: "ES219") o parte del nombre de la zona ("lombardia"). Con `punto`
+    (lat, lon), también los avisos cuyo polígono lo contiene (Letonia delimita así los avisos en tierra).
     """
 
     def es_de_la_zona(aviso):
-        return any(zona in aviso["codigos"] or any(zona.lower() in nombre for nombre in aviso["nombres"])
-                   for zona in zonas)
+        return (any(zona in aviso["codigos"] or any(zona.lower() in nombre for nombre in aviso["nombres"])
+                    for zona in zonas)
+                or (punto is not None and any(_dentro(punto, poligono) for poligono in aviso["poligonos"])))
 
     # Del mismo fenómeno y periodo (p. ej. el interior y la costa de una zona) solo se muestra el nivel más alto
     vistos, vigentes = set(), []

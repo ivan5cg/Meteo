@@ -1,6 +1,6 @@
 # Meteo Dash
 
-Panel meteorológico en Streamlit con previsiones de ensemble para varias ciudades: en tres plazos: corto, 48 h (PE-AROME: temperatura, lluvia, viento, presión y potencial de tormentas), medio, de hoy hasta donde llega el ICON-EU, unos 5 días (ensemble y determinista ICON-EU), y largo, de hoy a 15 días (ensembles ECMWF y GEFS, con probabilidad y cantidad de lluvia); además, avisos oficiales, condiciones actuales (sensación térmica, humedad, UV...), nieve, calidad del aire y polen, comparación con el histórico, radar y mapas AROME.
+Panel meteorológico en Streamlit con previsiones de ensemble para varias ciudades: en tres plazos: corto, 48 h (PE-AROME: temperatura, lluvia, viento, presión y potencial de tormentas), medio, de hoy hasta donde llega el ICON-EU, unos 5 días (ensemble y determinista ICON-EU), y largo, de hoy a 15 días (ensembles ECMWF y GEFS, con probabilidad y cantidad de lluvia); además, avisos oficiales, condiciones actuales (sensación térmica, humedad, UV...), nieve, calidad del aire y polen, comparación con el histórico, radar y mapas AROME. En Rovaniemi, también una pestaña de auroras.
 
 ## Ejecutar en local
 
@@ -21,6 +21,7 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `meteodash/fuentes.py` | Descarga y caché de Meteociel (PE-AROME), Open-Meteo (ensembles ICON-EU, ECMWF, GEFS y Met Office, determinista ICON-EU, variables complementarias, calidad del aire), probabilidad de lluvia por miembros e históricos |
 | `meteodash/avisos.py` | Avisos oficiales de Meteoalarm (AEMET y los servicios meteorológicos europeos) |
 | `meteodash/radar.py` | Radar de precipitación de RainViewer (pestaña Radar de cada página) |
+| `meteodash/auroras.py` | Pestaña de auroras, con tema de cielo nocturno: puntuación de 0 a 10 de las próximas 7 noches (actividad geomagnética, cielo despejado según 91 miembros de ensemble y las capas de nubes, oscuridad, luna, visibilidad y hora), viento solar, óvalo OVATION y Kp a 27 días |
 | `meteodash/aemet.py` | Observaciones horarias de AEMET (temperatura, rachas y su dirección, lluvia y humedad) |
 | `meteodash/aemet_opendata.py` | API OpenData de AEMET (con clave): comentario de los predictores por comunidad y resumen mensual de estación |
 | `actualizar_historicos.py` | Script que añade a los CSV de `datos/` los días que faltan (requiere `AEMET_API_KEY`) |
@@ -48,11 +49,12 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - `resumen_mensual`: último mes publicado por AEMET para `estacion_aemet` frente al promedio 1991-2020 del histórico. Requiere `AEMET_API_KEY` e `historico` para la comparación.
 - `nieve`: nieve prevista, espesor y cota de nieve, solo de noviembre a abril. Con `nieve_fuera_de_temporada`, también el resto del año cuando se prevé nieve en la semana (Pirineos).
 - `calidad_aire`: índice europeo de calidad del aire y polen (activado por defecto).
-- `pais` y `zonas_aviso`: feed de Meteoalarm (`spain`, `ireland`...) y zonas de aviso, por código (`ES219`, `EI07`) o por parte del nombre (`lombardia`).
+- `pais` y `zonas_aviso`: feed de Meteoalarm (`spain`, `ireland`...) y zonas de aviso, por código (`ES219`, `EI07`) o por parte del nombre (`lombardia`). Con `avisos_por_poligono`, también los avisos cuyo polígono contiene el punto (Letonia no pone código a las zonas en tierra).
 - `presion_y_cape`: gráficos de presión y MUCAPE (activado por defecto).
 - `camaras`: URLs de cámaras.
 - `mapas_arome`: clave de `meteodash.mapas_arome.LOCATIONS` para añadir la pestaña de mapas.
-- `ensemble`: fuente de los gráficos a 48 h: `"arome"` (PE-AROME de Meteociel, por defecto) o `"ukmo"` (MOGREPS-UK 2 km + MOGREPS-G de la Met Office vía Open-Meteo), para lugares fuera del dominio de AROME como Escocia.
+- `ensemble`: fuente de los gráficos a 48 h: `"arome"` (PE-AROME de Meteociel, por defecto) o, fuera del dominio de AROME, `"ukmo"` (MOGREPS-UK 2 km + MOGREPS-G de la Met Office, para Escocia) o `"icon_eu"` (ICON-EU EPS, para Finlandia y el Báltico), ambos vía Open-Meteo.
+- `kp_auroras`: Kp a partir del cual suelen verse auroras en el lugar (Rovaniemi: 2); añade la pestaña de auroras.
 - `tz`: zona horaria (por defecto `Europe/Madrid`).
 
 ## Fuentes de datos
@@ -62,6 +64,7 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - [AEMET OpenData](https://opendata.aemet.es): comentario de los predictores por comunidad, resúmenes mensuales e históricos diarios. Clave gratuita en `AEMET_API_KEY`: en local, `.streamlit/secrets.toml` (`AEMET_API_KEY = "..."`, ya ignorado por git) o variable de entorno; en Streamlit Cloud, en *Secrets*. Sin clave, esas secciones no se muestran.
 - [Open-Meteo](https://open-meteo.com): ICON-EU determinista; ensembles ICON-EU EPS, ECMWF, GEFS y Met Office (MOGREPS-UK y MOGREPS-G); calidad del aire y polen (CAMS).
 - [Meteoalarm](https://meteoalarm.org): avisos oficiales de AEMET y del resto de servicios europeos.
+- [NOAA SWPC](https://www.swpc.noaa.gov): índice Kp observado y previsto (3 y 27 días), probabilidad de tormenta geomagnética, viento solar y modelo de auroras OVATION.
 - [RainViewer](https://www.rainviewer.com): radar de precipitación animado (plan gratuito: últimas 2 h, zoom máximo 7).
 
 La app no escribe nada en disco (en Streamlit Cloud no persiste): todo se cachea en memoria.
