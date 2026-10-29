@@ -53,7 +53,7 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - `presion_y_cape`: gráficos de presión y MUCAPE (activado por defecto).
 - `camaras`: URLs de cámaras.
 - `mapas_arome`: clave de `meteodash.mapas_arome.LOCATIONS` para añadir la pestaña de mapas.
-- `ensemble`: fuente de los gráficos a 48 h: `"arome"` (PE-AROME de Meteociel, por defecto) o, fuera del dominio de AROME, `"ukmo"` (MOGREPS-UK 2 km + MOGREPS-G de la Met Office, para Escocia) o `"icon_eu"` (ICON-EU EPS, para Finlandia y el Báltico), ambos vía Open-Meteo.
+- `ensemble`: fuente de los gráficos a 48 h: `"arome"` (PE-AROME de Meteociel, por defecto) o, fuera del dominio de AROME, `"ukmo"` (MOGREPS-UK 2 km + MOGREPS-G de la Met Office, para Escocia) o `"icon_eu"` (ICON-EU EPS, para Finlandia, el Báltico y Eslovenia), ambos vía Open-Meteo.
 - `kp_auroras`: Kp a partir del cual suelen verse auroras en el lugar (Rovaniemi: 2); añade la pestaña de auroras.
 - `tz`: zona horaria (por defecto `Europe/Madrid`).
 

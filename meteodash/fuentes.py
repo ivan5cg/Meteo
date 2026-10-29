@@ -227,7 +227,7 @@ ENSEMBLES_48H = {
     "ukmo": {"nombre": "Met Office", "modelos": {"ukmo_uk_ensemble_2km": ("UK", True),
                                                  "ukmo_global_ensemble_20km": ("G", False)},
              "meta": "ukmo_uk_ensemble_2km"},
-    # Finlandia y el Báltico: ICON-EU EPS, 40 miembros (sus metadatos en Open-Meteo están parados)
+    # Finlandia, el Báltico y Eslovenia: ICON-EU EPS, 40 miembros (sus metadatos en Open-Meteo están parados)
     "icon_eu": {"nombre": "ICON-EU", "modelos": {"icon_eu": ("", False)}, "horizonte": 120},
 }
 VARIABLES_48H = {"temperatura": "temperature_2m", "precipitacion": "precipitation", "rachas": "wind_gusts_10m",

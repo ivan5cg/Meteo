@@ -29,6 +29,7 @@ paginas = st.navigation({
     "Europa": [
         st.Page("paginas/dublin.py", title="Dublín", icon=":material/public:"),
         st.Page("paginas/milan.py", title="Milán", icon=":material/public:"),
+        st.Page("paginas/eslovenia.py", title="Liubliana y Bled", icon=":material/public:"),
         st.Page("paginas/belgica.py", title="Bélgica", icon=":material/public:"),
         st.Page("paginas/escocia.py", title="Edimburgo y Highlands", icon=":material/public:"),
     ],
