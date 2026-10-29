@@ -3,7 +3,6 @@
 import pandas as pd
 import streamlit as st
 
-from meteodash.aemet import get_aemet_horario
 from meteodash.aemet_opendata import get_comentario_aemet
 from meteodash.auroras import (get_cielo, get_kp, get_kp_27_dias, get_nubes_ensemble, get_ovation, get_prob_tormenta,
                                get_viento_solar)
@@ -11,6 +10,7 @@ from meteodash.avisos import get_avisos
 from meteodash.estilo import aplicar_estilos
 from meteodash.fuentes import (get_calidad_aire, get_deterministas, get_ensemble, get_ensemble_48h,
                                get_meteociel_table, get_open_meteo_detalle)
+from meteodash.observaciones import DESCARGAS as OBSERVACIONES
 
 # La caché es común a todos los visitantes: como mucho una actualización forzada cada tanto
 INTERVALO_ACTUALIZAR = pd.Timedelta(minutes=5)
@@ -61,7 +61,7 @@ def actualizar_datos():
         return
     ultima["momento"] = ahora
     for funcion in (get_meteociel_table, get_ensemble_48h, get_deterministas, get_open_meteo_detalle, get_ensemble,
-                    get_calidad_aire, get_aemet_horario, get_avisos, get_comentario_aemet, get_kp, get_prob_tormenta,
+                    get_calidad_aire, *OBSERVACIONES, get_avisos, get_comentario_aemet, get_kp, get_prob_tormenta,
                     get_viento_solar, get_ovation, get_kp_27_dias, get_cielo, get_nubes_ensemble):
         funcion.clear()
     st.rerun()

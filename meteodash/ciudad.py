@@ -8,15 +8,15 @@ import streamlit as st
 
 from . import graficos, tarjetas
 from .estilo import AZUL, ROJO
-from .aemet import cargar_aemet_horario, get_aemet_horario, temperatura_actual_y_ayer
 from .aemet_opendata import (DIAS_PREDICCION, get_comentario_aemet, get_resumen_mensual, hay_clave, normales_mensuales,
                              racha_maxima, valor_y_dia)
 from .avisos import avisos_vigentes, get_avisos
 from .auroras import render_auroras
 from .fuentes import (ENSEMBLES, ENSEMBLES_48H, POLENES, UMBRAL_LLUVIA, dia_historico, en_paralelo, extremos_diarios,
-                      get_calidad_aire, get_deterministas, get_ensemble, get_ensemble_48h, get_ensemble_arome,
-                      get_historico, get_open_meteo_detalle, hora_local_run, prob_diaria, prob_miembros,
-                      probabilidad_lluvia)
+                      get_bandas, get_calidad_aire, get_deterministas, get_ensemble, get_ensemble_48h,
+                      get_ensemble_arome, get_historico, get_open_meteo_detalle, hora_local_run, prob_diaria,
+                      prob_miembros, probabilidad_lluvia)
+from .observaciones import Estacion, cargar_observaciones, descargar_en, temperatura_actual_y_ayer
 from .radar import render_radar
 
 MESES_NIEVE = {11, 12, 1, 2, 3, 4}
@@ -29,7 +29,11 @@ class Ciudad:
     lon: float
     tz: str = "Europe/Madrid"
     estacion_aemet: str | None = None  # observaciones de las últimas 24 h
+    # Observaciones de otras redes (ver observaciones.REDES), o de AEMET citando la estación: con varias, cada variable
+    # sale de la primera que la mida. Sustituyen a las de estacion_aemet
+    estaciones: tuple[Estacion, ...] = ()
     historico: str | None = None  # CSV diario de AEMET: récords, percentiles, avisos y rangos habituales
+    bandas: str | None = None  # sin histórico, CSV de datos/bandas/ con los rangos habituales (ver generar_bandas.py)
     ccaa_aemet: tuple[str, str] | None = None  # (código, nombre) de la comunidad: comentario de los predictores de AEMET
     resumen_mensual: bool = False  # último mes publicado por AEMET frente a lo normal (requiere estacion_aemet y clave)
     presion_y_cape: bool = True
@@ -48,6 +52,12 @@ class Ciudad:
     @property
     def con_avisos(self):
         return bool(self.zonas_aviso) or self.avisos_por_poligono
+
+    @property
+    def observaciones(self):
+        if self.estaciones or not self.estacion_aemet:
+            return self.estaciones
+        return (Estacion("aemet", self.estacion_aemet),)
 
 
 def extremos_del_dia(serie, fecha):
@@ -311,8 +321,8 @@ def render_48h(ciudad, titulo=None):
 
     # Las demás fuentes se descargan mientras llega el ensemble; luego se leen de la caché
     hueco_avisos = _cabecera(ciudad, titulo)
-    if ciudad.estacion_aemet:
-        en_paralelo(get_aemet_horario, ciudad.estacion_aemet)
+    for estacion in ciudad.observaciones:
+        en_paralelo(*descargar_en(estacion))
     en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
     usa_opendata = hay_clave()
     if ciudad.ccaa_aemet and usa_opendata:
@@ -347,15 +357,13 @@ def render_48h(ciudad, titulo=None):
     temp_actual = temp_ayer = None
     obs = None
 
-    if ciudad.estacion_aemet:
-        obs = cargar_aemet_horario(ciudad.estacion_aemet, ciudad.nombre)
+    if ciudad.observaciones:
+        obs, cita = cargar_observaciones(ciudad.observaciones, ciudad.tz, ciudad.nombre)
+        fuentes.append(cita)
         if obs is not None:
-            fuentes.append(f"observación AEMET de las {obs.index[-1].hour} h")
             temp["Observado"] = obs["temperatura"]
             rachas["Observado"] = obs["racha"]
             arome["precipitacion"]["Observado"] = obs["precipitacion"]
-        else:
-            fuentes.append("observación AEMET no disponible")
         temp_actual, temp_ayer = temperatura_actual_y_ayer(obs)
     if fuentes:
         hueco_datos.markdown(f'<p class="datos-de">Pase {" · ".join(fuentes)}</p>', unsafe_allow_html=True)
@@ -379,6 +387,9 @@ def render_48h(ciudad, titulo=None):
 
     # --- Histórico ---
     datos_hist, bandas = _historico_sidebar(ciudad, ahora)
+    origen_bandas = None
+    if bandas is None and ciudad.bandas:
+        bandas, origen_bandas = get_bandas(ciudad.bandas)
     percentiles = {}
     if datos_hist is not None:
         def percentil(fecha, columna, valor, horas):
@@ -431,6 +442,8 @@ def render_48h(ciudad, titulo=None):
 
     # --- Ensemble a 48 h ---
     st.plotly_chart(graficos.temperatura(temp, bandas, dia_historico(ahora)))
+    if origen_bandas:
+        st.caption(f"Máxima y mínima habituales: {origen_bandas}.")
     st.plotly_chart(graficos.lluvia(arome["precipitacion"]))
     st.plotly_chart(graficos.viento(rachas, obs["dir_racha"] if obs is not None else None))
     if ciudad.presion_y_cape:

@@ -376,6 +376,18 @@ def get_historico(ruta_csv):
     return datos, bandas
 
 
+@st.cache_data(show_spinner=False)
+def get_bandas(ruta_csv):
+    """Rangos habituales precalculados por generar_bandas.py, con el formato de las bandas de get_historico, y su
+    origen (estación, periodo y fuente), que va en la primera línea del CSV."""
+
+    with open(ruta_csv, encoding="utf-8") as f:
+        origen = f.readline().removeprefix("#").strip()
+    bandas = pd.read_csv(ruta_csv, comment="#", index_col="día_del_año")
+    bandas.columns = pd.MultiIndex.from_tuples([(c.split("_p")[0], int(c.split("_p")[1]) / 100) for c in bandas.columns])
+    return bandas, origen
+
+
 def probabilidad_lluvia(datos, fecha, margen=7, umbral=UMBRAL_LLUVIA):
     """Porcentaje de días con al menos `umbral` L/m² en el histórico, a ±`margen` días de la fecha."""
 

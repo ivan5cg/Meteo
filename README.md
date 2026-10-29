@@ -23,13 +23,16 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `meteodash/radar.py` | Radar de precipitación de RainViewer (pestaña Radar de cada página) |
 | `meteodash/auroras.py` | Pestaña de auroras, con tema de cielo nocturno: puntuación de 0 a 10 de las próximas 7 noches (actividad geomagnética, cielo despejado según 91 miembros de ensemble y las capas de nubes, oscuridad, luna, visibilidad y hora), viento solar, óvalo OVATION y Kp a 27 días |
 | `meteodash/aemet.py` | Observaciones horarias de AEMET (temperatura, rachas y su dirección, lluvia y humedad) |
+| `meteodash/observaciones.py` | Observaciones horarias de las últimas 24 h de AEMET y del resto de redes (FMI, ARSO, KMI, LVĢMC, Met Éireann y METAR), todas con el mismo formato, y su carga común |
 | `meteodash/aemet_opendata.py` | API OpenData de AEMET (con clave): comentario de los predictores por comunidad y resumen mensual de estación |
 | `actualizar_historicos.py` | Script que añade a los CSV de `datos/` los días que faltan (requiere `AEMET_API_KEY`) |
+| `generar_bandas.py` | Script que calcula los rangos habituales de máxima y mínima de `datos/bandas/` (las estaciones de AEMET requieren `AEMET_API_KEY`) |
 | `meteodash/graficos.py` | Gráficos Plotly |
 | `meteodash/tarjetas.py` | Tarjetas, avisos y tabla de récords |
 | `meteodash/estilo.py` | CSS de la app y tema de los gráficos |
 | `meteodash/mapas_arome.py` | Mapas AROME interactivos (Madrid y Torrelavega); las rejillas se descargan en segundo plano y se guardan en memoria, compartidas entre visitantes |
 | `datos/` | Históricos diarios de AEMET, solo lectura (Retiro desde 1950, Ávila desde 1990; se actualizan con `actualizar_historicos.py`) |
+| `datos/bandas/` | Rangos habituales de máxima y mínima por día del año de las páginas sin histórico; la primera línea de cada CSV dice de qué estación, periodo y fuente salen |
 
 ## Añadir una ciudad
 
@@ -44,7 +47,9 @@ render_pagina(Ciudad(nombre="Nueva", lat=40.0, lon=-3.0))
 y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad`:
 
 - `estacion_aemet`: código de estación para la temperatura y las rachas observadas.
+- `estaciones`: observaciones de otras redes, o de AEMET citando la estación, como tupla de `Estacion(red, código, nombre)` (`from meteodash.observaciones import Estacion`). Redes: `aemet`, `fmi` (fmisid), `arso` (identificador sin el guion bajo final, `LJUBL-ANA_BEZIGRAD`), `kmi`, `lvgmc`, `met_eireann` (`phoenix-park`) y `metar` (código OACI). Con varias, cada variable sale de la primera que la mida (Rovaniemi: temperatura del centro, viento y lluvia del aeropuerto). Si la última observación tiene más de 3 h, no se muestra.
 - `historico`: CSV diario de AEMET; activa récords (también de lluvia), percentiles, avisos y rangos habituales.
+- `bandas`: sin histórico, CSV de `datos/bandas/` con los rangos habituales de máxima y mínima del gráfico de temperatura. Se añaden en `ESTACIONES` de `generar_bandas.py` y se generan con `python generar_bandas.py <página>`.
 - `ccaa_aemet`: `(código, nombre)` de la comunidad (`("mad", "Comunidad de Madrid")`); añade antes del primer gráfico el comentario de los predictores de AEMET (hoy, mañana y pasado mañana). Requiere `AEMET_API_KEY`.
 - `resumen_mensual`: último mes publicado por AEMET para `estacion_aemet` frente al promedio 1991-2020 del histórico. Requiere `AEMET_API_KEY` e `historico` para la comparación.
 - `nieve`: nieve prevista, espesor y cota de nieve, solo de noviembre a abril. Con `nieve_fuera_de_temporada`, también el resto del año cuando se prevé nieve en la semana (Pirineos).
@@ -61,6 +66,8 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 
 - [Meteociel](https://www.meteociel.fr): ensemble PE-AROME (tablas HTML, sin API oficial).
 - [AEMET](https://www.aemet.es): observaciones de las últimas 24 h (XML interno de su web, sin API oficial).
+- Observaciones fuera de España, todas de servicios oficiales y sin clave: [FMI](https://en.ilmatieteenlaitos.fi/open-data) (Helsinki y Rovaniemi), [ARSO](https://meteo.arso.gov.si/met/sl/service/) (Liubliana y Bled), [KMI/IRM](https://opendata.meteo.be) (Bruselas y Gante), [LVĢMC](https://data.gov.lv/dati/lv/dataset/hidrometeorologiskie-noverojumi) (Riga), [Met Éireann](https://data.gov.ie/organization/meteireann) (Dublín, temperatura en grados enteros) y partes METAR de [aviationweather.gov](https://aviationweather.gov/data/api/) (Milán, Edimburgo, Inverness y Tallin: temperatura en grados enteros, sin lluvia y con racha solo cuando es destacable). Solo se usan estaciones cercanas y representativas del punto; Sallent, Torla-Ordesa, Brujas, Fort William, Aviemore y Portree no tienen ninguna.
+- Rangos habituales (`datos/bandas/`): [GHCN-Daily](https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily) de NOAA, datos diarios de las estaciones automáticas del KMI y AEMET OpenData; periodo 1991-2020 (o los años disponibles, con un mínimo de 15).
 - [AEMET OpenData](https://opendata.aemet.es): comentario de los predictores por comunidad, resúmenes mensuales e históricos diarios. Clave gratuita en `AEMET_API_KEY`: en local, `.streamlit/secrets.toml` (`AEMET_API_KEY = "..."`, ya ignorado por git) o variable de entorno; en Streamlit Cloud, en *Secrets*. Sin clave, esas secciones no se muestran.
 - [Open-Meteo](https://open-meteo.com): ICON-EU determinista; ensembles ICON-EU EPS, ECMWF, GEFS y Met Office (MOGREPS-UK y MOGREPS-G); calidad del aire y polen (CAMS).
 - [Meteoalarm](https://meteoalarm.org): avisos oficiales de AEMET y del resto de servicios europeos.
@@ -69,4 +76,4 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 
 La app no escribe nada en disco (en Streamlit Cloud no persiste): todo se cachea en memoria.
 
-Meteociel y AEMET no son APIs estables: si cambian el formato, la página afectada muestra un aviso en lugar de romperse.
+Meteociel y AEMET no son APIs estables: si cambian el formato, la página afectada muestra un aviso en lugar de romperse. Igual con las observaciones de las demás redes: si fallan, la página avisa y muestra solo la previsión.

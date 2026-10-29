@@ -38,27 +38,3 @@ def get_aemet_horario(estacion):
     numericas = list(VARIABLES.values())
     df[numericas] = df[numericas].apply(pd.to_numeric, errors="coerce")
     return df.sort_index()
-
-
-def cargar_aemet_horario(estacion, nombre):
-    """Como get_aemet_horario, pero avisa en la página y devuelve None si AEMET falla."""
-
-    try:
-        return get_aemet_horario(estacion)
-    except Exception:
-        st.warning(f"No se han podido descargar las observaciones de AEMET ({nombre}). Se muestra solo la previsión.")
-        return None
-
-
-def temperatura_actual_y_ayer(obs):
-    """Temperatura observada más reciente y la de 24 h antes (o la más antigua disponible).
-
-    Devuelve (None, None) si no hay observaciones de temperatura (AEMET caído o la estación sin ese sensor).
-    """
-
-    temp = obs["temperatura"].dropna() if obs is not None else pd.Series(dtype=float)
-    if temp.empty:
-        return None, None
-
-    temp_ayer = temp.asof(temp.index[-1] - pd.Timedelta(hours=24))
-    return temp.iloc[-1], temp_ayer if not pd.isna(temp_ayer) else temp.iloc[0]

@@ -5,6 +5,7 @@ render_pagina(Ciudad(
     lat=43.35,
     lon=-4.047,
     estacion_aemet="1154H",  # Sierrapando
+    bandas="datos/bandas/torrelavega.csv",
     zonas_aviso=("ES133",),  # Litoral cántabro
     mapas_arome="Torrelavega",
 ))
