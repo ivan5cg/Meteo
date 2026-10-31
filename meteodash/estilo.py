@@ -105,7 +105,13 @@ section[data-testid="stSidebar"] {
     height: auto;
     display: block;
 }
-a.camera-card { cursor: zoom-in; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.camara-pie {
+    display: block;
+    padding: 6px 10px;
+    color: #6b6158;
+    font: 500 0.8rem 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+a.camera-card { cursor: zoom-in; text-decoration: none; transition: transform 0.2s ease, box-shadow 0.2s ease; }
 a.camera-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -8px rgba(60, 50, 40, 0.3); }
 
 /* Cámara en grande (tarjetas.camaras): oculta salvo cuando la URL acaba en su #id */
@@ -149,6 +155,8 @@ a.camera-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -8px 
     bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
+    max-width: calc(100% - 140px);
+    text-align: center;
     color: #e5ded2;
     font: 600 0.85rem 'Plus Jakarta Sans', 'Inter', sans-serif;
 }

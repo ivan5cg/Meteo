@@ -65,7 +65,7 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - `mar`: temperatura del agua y olas en el punto de mar más cercano de los modelos de Météo-France (tarjetas en el corto plazo y gráfico de 7 días en el medio).
 - `pais` y `zonas_aviso`: feed de Meteoalarm (`spain`, `ireland`...) y zonas de aviso, por código (`ES219`, `EI07`) o por parte del nombre (`lombardia`). Con `avisos_por_poligono`, también los avisos cuyo polígono contiene el punto (Letonia no pone código a las zonas en tierra).
 - `presion_y_cape`: gráficos de presión y MUCAPE (activado por defecto).
-- `camaras`: URLs de cámaras.
+- `camaras`: `Camara(url, fuente, nombre)`. Mejor de sitios céntricos o emblemáticos y, si no hay, de carreteras cercanas. La URL es un JPG que se renueva en el servidor de origen o, si acaba en `.m3u8`, una emisión en directo (HLS) que solo se descarga al pulsar «Ver en directo» y requiere que el origen permita CORS.
 - `mapas_arome`: clave de `meteodash.mapas_arome.LOCATIONS` para añadir la pestaña de mapas.
 - `ensemble`: fuente de los gráficos a 48 h: `"arome"` (PE-AROME de Meteociel, por defecto) o, fuera del dominio de AROME, `"ukmo"` (MOGREPS-UK 2 km + MOGREPS-G de la Met Office, para Escocia) o `"icon_eu"` (ICON-EU EPS, para Finlandia, el Báltico y Eslovenia), ambos vía Open-Meteo.
 - `kp_auroras`: Kp a partir del cual suelen verse auroras en el lugar; añade la pestaña de auroras. Es el Kp con el que el borde del óvalo auroral llega a la latitud geomagnética del lugar, redondeado hacia arriba (NOAA: unos 66º con Kp 0 y 2º menos por cada punto): Rovaniemi 2, Portree 3, Edimburgo y el resto de las Highlands 4, Helsinki y Tallin 5 y Riga 6.

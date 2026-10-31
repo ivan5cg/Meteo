@@ -355,26 +355,83 @@ def records(del_dia, prob_lluvia=None):
         _html(f'<p class="records-nota">{"<br>".join(lineas)}</p>', destino=st.sidebar)
 
 
-def camaras(urls):
-    """Rejilla de cámaras; al pulsar una se ve en grande, a pantalla completa, con flechas a la anterior y la
-    siguiente. Sin JavaScript: cada vista grande es un elemento que se muestra cuando la URL acaba en su #id (:target);
-    cerrar vuelve a #ir-camaras, la sección. Escape también cierra (ver estilo.TOQUES)."""
+def camaras(imagenes):
+    """Rejilla de cámaras [(url, pie)]; al pulsar una se ve en grande, a pantalla completa, con flechas a la anterior
+    y la siguiente. Sin JavaScript: cada vista grande es un elemento que se muestra cuando la URL acaba en su #id
+    (:target); cerrar vuelve a #ir-camaras, la sección. Escape también cierra (ver estilo.TOQUES)."""
 
-    n = len(urls)
+    n = len(imagenes)
     celdas, grandes = "", ""
-    for i, url in enumerate(urls):
+    for i, (url, pie) in enumerate(imagenes):
+        pie = escape(pie)
         celdas += (f'<a class="camera-card" href="#camara-{i}" title="Ver en grande">'
-                   f'<img src="{url}" alt="Cámara de tráfico {i + 1}" loading="lazy"></a>')
+                   f'<img src="{url}" alt="Cámara: {pie}" loading="lazy"><span class="camara-pie">{pie}</span></a>')
         anterior, siguiente = (i - 1) % n, (i + 1) % n
         flechas = (f'<a class="camara-flecha anterior" href="#camara-{anterior}" aria-label="Cámara anterior">‹</a>'
                    f'<a class="camara-flecha siguiente" href="#camara-{siguiente}" aria-label="Cámara siguiente">›</a>'
                    if n > 1 else "")
         grandes += (f'<div class="camara-grande" id="camara-{i}">'
                     f'<a class="camara-fondo" href="#ir-camaras" aria-label="Cerrar"></a>'
-                    f'<img src="{url}" alt="Cámara de tráfico {i + 1}, en grande" loading="lazy">'
+                    f'<img src="{url}" alt="Cámara: {pie}, en grande" loading="lazy">'
                     f'<a class="camara-cerrar" href="#ir-camaras" aria-label="Cerrar">✕</a>{flechas}'
-                    f'<span class="camara-cuenta">{i + 1} / {n}</span></div>')
+                    f'<span class="camara-cuenta">{pie} · {i + 1} / {n}</span></div>')
     _html(f'<div class="camera-grid">{celdas}</div>{grandes}')
+
+
+VIDEO_CSS = """
+.video-directo { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #1c1814; }
+.video-directo video { width: 100%; height: 100%; display: block; object-fit: contain; }
+.video-directo button {
+    position: absolute; inset: 0; margin: auto; width: max-content; height: max-content; padding: 12px 20px;
+    border: none; border-radius: 999px; background: #d97706; color: white; cursor: pointer;
+    font: 600 15px 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+.video-directo .error {
+    position: absolute; inset: 0; display: none; place-items: center; color: #e5ded2;
+    font: 14px 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+"""
+
+VIDEO_JS = """
+const hlsjs = import("https://unpkg.com/hls.js@1.5.17/dist/hls.mjs");
+
+export default function(component) {
+  const { data, parentElement } = component;
+  const marco = parentElement.querySelector(".video-directo");
+  if (marco._listo) return;  // las recargas de la página no deben cortar el vídeo
+  marco._listo = true;
+  const video = marco.querySelector("video");
+  const fallo = () => { marco.querySelector(".error").style.display = "grid"; };
+  // La emisión solo se descarga al pulsar: el desplegable cerrado no gasta datos
+  marco.querySelector("button").onclick = async (e) => {
+    e.target.remove();
+    const Hls = (await hlsjs).default;
+    if (Hls.isSupported()) {
+      const hls = new Hls({liveSyncDurationCount: 3});
+      hls.on(Hls.Events.ERROR, (_, datos) => { if (datos.fatal) fallo(); });
+      hls.loadSource(`${data.url}?t=${Date.now()}`);  // una copia en caché de la web de origen puede venir sin CORS
+      hls.attachMedia(video);
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = data.url;  // Safari (iPhone) reproduce HLS sin hls.js
+    } else {
+      return fallo();
+    }
+    video.play().catch(() => {});
+  };
+}
+"""
+
+_video = st.components.v2.component(
+    "video_en_directo", css=VIDEO_CSS, js=VIDEO_JS, isolate_styles=False,
+    html='<div class="video-directo"><video muted playsinline controls></video><button>▶ Ver en directo</button>'
+         '<div class="error">La emisión no está disponible ahora mismo</div></div>')
+
+
+def video_en_directo(url, pie):
+    """Emisión HLS (.m3u8) con hls.js; requiere que el servidor de origen permita CORS."""
+
+    _video(data={"url": url}, key=f"video_{url}")
+    st.caption(pie)
 
 
 def ancla(nombre):

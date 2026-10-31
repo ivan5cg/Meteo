@@ -26,6 +26,19 @@ MESES_NIEVE = {11, 12, 1, 2, 3, 4}
 
 
 @dataclass(frozen=True)
+class Camara:
+    """Imagen JPG que se renueva en el servidor de origen o, si la URL es una lista .m3u8, vídeo en directo (HLS)."""
+
+    url: str
+    fuente: str  # quien la publica, para el pie
+    nombre: str = ""
+
+    @property
+    def video(self):
+        return self.url.endswith(".m3u8")
+
+
+@dataclass(frozen=True)
 class Ciudad:
     nombre: str
     lat: float
@@ -49,7 +62,7 @@ class Ciudad:
     pais: str = "spain"  # feed de avisos de Meteoalarm
     zonas_aviso: tuple[str, ...] = ()  # códigos o nombres de las zonas de aviso de Meteoalarm
     avisos_por_poligono: bool = False  # también los avisos cuyo polígono contiene el punto (sin código de zona)
-    camaras: tuple[str, ...] = ()
+    camaras: tuple[Camara, ...] = ()  # mejor de sitios céntricos o emblemáticos; si no, de carreteras cercanas
     mapas_arome: str | None = None  # clave de mapas_arome.LOCATIONS
     # 48 h: "arome" (PE-AROME de Meteociel) o, fuera de su dominio, una clave de fuentes.ENSEMBLES_48H
     ensemble: str = "arome"
@@ -373,6 +386,10 @@ def _cabecera(ciudad, titulo):
     return st.empty()
 
 
+def _pie_camara(camara):
+    return f"{camara.nombre} · {camara.fuente}" if camara.nombre else camara.fuente
+
+
 def _historico_sidebar(ciudad, ahora):
     """Histórico de la ciudad (o None) y, en el sidebar, los récords de hoy."""
 
@@ -585,9 +602,11 @@ def render_48h(ciudad, titulo=None):
     # --- Cámaras ---
     if ciudad.camaras:
         tarjetas.ancla("camaras")
-        with st.expander("Cámaras de tráfico", icon=":material/videocam:"):
+        with st.expander("Cámaras", icon=":material/videocam:"):
+            for camara in (c for c in ciudad.camaras if c.video):
+                tarjetas.video_en_directo(camara.url, _pie_camara(camara))
             marca = int(ahora.timestamp())  # evita que el navegador muestre imágenes antiguas en caché
-            tarjetas.camaras([f"{url}?rand={marca}" for url in ciudad.camaras])
+            tarjetas.camaras([(f"{c.url}?rand={marca}", _pie_camara(c)) for c in ciudad.camaras if not c.video])
 
     _avisos(ciudad, ahora, hueco_avisos)
 
