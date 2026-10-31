@@ -1,17 +1,4 @@
-from meteodash.ciudad import Ciudad, render_pagina
+from meteodash.ciudad import render_pagina
+from meteodash.lugares import MADRID
 
-render_pagina(Ciudad(
-    nombre="Madrid",
-    lat=40.41,
-    lon=-3.659,
-    estacion_aemet="3195",  # Retiro
-    historico="datos/retiro_1950.csv",
-    ccaa_aemet=("mad", "Comunidad de Madrid"),
-    resumen_mensual=True,
-    zonas_aviso=("ES219",),  # Metropolitana y Henares
-    camaras=tuple(
-        f"https://informo.madrid.es/cameras/Camara{codigo}.jpg"
-        for codigo in ["03310", "14303", "01304", "07306", "04301", "12305"]
-    ),
-    mapas_arome="Madrid",
-))
+render_pagina(MADRID)

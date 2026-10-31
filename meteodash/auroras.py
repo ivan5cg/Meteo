@@ -2,12 +2,12 @@
 
 La puntuación combina, hora a hora, la actividad geomagnética prevista (NOAA SWPC), el cielo despejado (91 miembros
 de ensemble y las capas de nubes de Open-Meteo), la oscuridad, la luna, la visibilidad y la cercanía a la medianoche
-magnética. Sirve para lugares bajo el óvalo auroral o cerca (Laponia): `Ciudad.kp_auroras` es el Kp a partir del cual
-suelen verse allí con el cielo despejado y oscuro.
+magnética. Sirve para lugares bajo el óvalo auroral (Laponia) o algo más al sur (sur de Finlandia, el Báltico y
+Escocia): `Ciudad.kp_auroras` es el Kp a partir del cual suelen verse allí con el cielo despejado y oscuro (ver
+lugares.py).
 """
 
 import re
-from math import cos, pi
 
 import numpy as np
 import pandas as pd
@@ -15,8 +15,8 @@ import pytz
 import streamlit as st
 from astral import Observer, moon, sun
 
-from . import graficos, tarjetas
-from .fuentes import descargar, en_paralelo
+from . import graficos, luna, tarjetas
+from .fuentes import descargar, en_paralelo, o_none
 from .graficos import valoracion_kp
 
 SWPC = "https://services.swpc.noaa.gov"
@@ -43,6 +43,7 @@ KP_27_DIAS = 2 / 3  # lo que se resta al Kp máximo del día de la previsión a 
 HORA_PICO = 23  # hora solar local de máxima actividad: la medianoche magnética, en Escandinavia ~1 h antes que la solar
 LUNA_MAX = 0.35  # lo que resta una luna llena a más de 30º de altura
 ELEVACION_OSCURIDAD = -12  # sol por debajo (crepúsculo náutico): la noche oscura de las tarjetas
+KP_LEJOS_DEL_OVALO = 4  # desde este kp_auroras el lugar queda al sur del óvalo: las auroras se ven hacia el norte
 
 # (desde, valoración, color) de la puntuación de una noche
 NIVELES_NOCHE = [(8, "Excelente", "#e879f9"), (6, "Buena", "#34d399"), (4, "Regular", "#a3e635"),
@@ -156,16 +157,15 @@ def get_nubes_ensemble(lat, lon, tz):
 # ---------------------------------------------------------------- Puntuación
 
 def iluminacion_luna(fecha):
-    """(fracción del disco iluminada, fase) de la Luna; astral da la edad de 0 (nueva) a 28, con 14 la llena."""
+    """(fracción del disco iluminada, fase) de la Luna hacia la medianoche de la noche que empieza el día `fecha`."""
 
-    edad = moon.phase(fecha)
-    iluminada = (1 - cos(2 * pi * edad / 28)) / 2
+    iluminada, crece = luna.iluminacion(pd.Timestamp(fecha, tz="UTC") + pd.Timedelta(days=1))
     if iluminada < 0.03:
         fase = "nueva"
     elif iluminada > 0.97:
         fase = "llena"
     else:
-        fase = "creciente" if edad < 14 else "menguante"
+        fase = "creciente" if crece else "menguante"
     return iluminada, fase
 
 
@@ -359,13 +359,6 @@ def _tarjetas_ahora(ciudad, ahora, kp, viento, ovation):
     tarjetas.condiciones(lista)
 
 
-def _o_none(funcion, *args):
-    try:
-        return funcion(*args)
-    except Exception:
-        return None
-
-
 def render_auroras(ciudad):
     """Pestaña de auroras, con fondo de cielo nocturno: puntuación de las próximas noches y sus factores,
     probabilidad hora a hora, la situación ahora (viento solar, OVATION, oscuridad y luna), el óvalo auroral y el Kp
@@ -377,9 +370,9 @@ def render_auroras(ciudad):
     for funcion in (get_cielo, get_nubes_ensemble):
         en_paralelo(funcion, ciudad.lat, ciudad.lon, ciudad.tz)
 
-    kp, kp_27, tormenta = _o_none(get_kp), _o_none(get_kp_27_dias), _o_none(get_prob_tormenta)
-    cielo = _o_none(get_cielo, ciudad.lat, ciudad.lon, ciudad.tz)
-    nubes_ens = _o_none(get_nubes_ensemble, ciudad.lat, ciudad.lon, ciudad.tz)
+    kp, kp_27, tormenta = o_none(get_kp), o_none(get_kp_27_dias), o_none(get_prob_tormenta)
+    cielo = o_none(get_cielo, ciudad.lat, ciudad.lon, ciudad.tz)
+    nubes_ens = o_none(get_nubes_ensemble, ciudad.lat, ciudad.lon, ciudad.tz)
     horario = horario_noches(ciudad, ahora, kp, kp_27, tormenta, cielo, nubes_ens)
     noches = puntuar_noches(horario)
 
@@ -403,13 +396,15 @@ def render_auroras(ciudad):
                     f"La puntuación de la noche es la de su mejor ventana de {VENTANA} h seguidas.\n\n"
                     + "\n".join(f"- **{nombre}**: {texto}." for nombre, texto, _ in FACTORES.values())
                     + f"\n\nEn {ciudad.nombre} suelen verse desde Kp {ciudad.kp_auroras} con el cielo despejado y "
-                      "oscuro. Las noches a partir de la cuarta usan la previsión a 27 días de la NOAA, mucho menos "
+                      "oscuro" + (", bajas sobre el horizonte norte salvo en las tormentas más fuertes"
+                                  if ciudad.kp_auroras >= KP_LEJOS_DEL_OVALO else "")
+                    + ". Las noches a partir de la cuarta usan la previsión a 27 días de la NOAA, mucho menos "
                       "fiable. Mejor lejos de las luces y mirando al norte.")
             st.plotly_chart(graficos.auroras(horario, kp, kp_27, ciudad.kp_auroras, ahora), theme=None)
         st.divider()
 
         st.subheader("Ahora")
-        viento, ovation = _o_none(get_viento_solar), _o_none(get_ovation)
+        viento, ovation = o_none(get_viento_solar), o_none(get_ovation)
         _tarjetas_ahora(ciudad, ahora, kp, viento, ovation)
         if ovation is not None:
             st.plotly_chart(graficos.ovalo_auroral(ovation[1], ciudad.lat, ciudad.lon, ciudad.nombre), theme=None)

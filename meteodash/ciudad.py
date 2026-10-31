@@ -6,17 +6,19 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from . import graficos, tarjetas
+from . import graficos, luna, tarjetas
 from .estilo import AZUL, ROJO
-from .aemet_opendata import (DIAS_PREDICCION, get_comentario_aemet, get_resumen_mensual, hay_clave, normales_mensuales,
-                             racha_maxima, valor_y_dia)
+from .aemet_opendata import (DIAS_MONTAÑA, DIAS_PREDICCION, get_boletin_aludes, get_comentario_aemet,
+                             get_prediccion_montaña, get_resumen_mensual, hay_clave, normales_mensuales, racha_maxima,
+                             valor_y_dia)
 from .avisos import avisos_vigentes, get_avisos
 from .auroras import render_auroras
-from .fuentes import (ENSEMBLES, ENSEMBLES_48H, POLENES, UMBRAL_LLUVIA, dia_historico, en_paralelo, extremos_diarios,
-                      get_bandas, get_calidad_aire, get_deterministas, get_ensemble, get_ensemble_48h,
-                      get_ensemble_arome, get_historico, get_open_meteo_detalle, hora_local_run, prob_diaria,
-                      prob_miembros, probabilidad_lluvia)
-from .observaciones import Estacion, cargar_observaciones, descargar_en, temperatura_actual_y_ayer
+from .hidrologico import lluvia_diaria, render_año_hidrologico
+from .fuentes import (ENSEMBLES, ENSEMBLES_48H, POLENES, UMBRAL_LLUVIA, UMBRAL_LLUVIA_HORA, dia_historico, en_paralelo,
+                      extremos_diarios, get_bandas, get_calidad_aire, get_deterministas, get_ensemble,
+                      get_ensemble_48h, get_ensemble_arome, get_historico, get_mar, get_open_meteo_detalle,
+                      hora_local_run, o_none, prob_diaria, prob_miembros, probabilidad_lluvia)
+from .observaciones import Estacion, cardinal, cargar_observaciones, descargar_en, temperatura_actual_y_ayer
 from .radar import render_radar
 
 MESES_NIEVE = {11, 12, 1, 2, 3, 4}
@@ -35,11 +37,14 @@ class Ciudad:
     historico: str | None = None  # CSV diario de AEMET: récords, percentiles, avisos y rangos habituales
     bandas: str | None = None  # sin histórico, CSV de datos/bandas/ con los rangos habituales (ver generar_bandas.py)
     ccaa_aemet: tuple[str, str] | None = None  # (código, nombre) de la comunidad: comentario de los predictores de AEMET
+    montaña_aemet: tuple[str, str] | None = None  # (zona, nombre): predicción de montaña de AEMET ("arn1": P. aragonés)
+    aludes_aemet: str | None = None  # zona del boletín de peligro de aludes de AEMET ("1": Pirineo navarro y aragonés)
     resumen_mensual: bool = False  # último mes publicado por AEMET frente a lo normal (requiere estacion_aemet y clave)
     presion_y_cape: bool = True
     nieve: bool = False  # nieve prevista, espesor y cota de nieve (solo en MESES_NIEVE)
     nieve_fuera_de_temporada: bool = False  # también fuera de MESES_NIEVE si se prevé nieve en la semana
     calidad_aire: bool = True  # índice europeo de calidad del aire y polen
+    mar: bool = False  # oleaje y temperatura del agua en el punto de mar más cercano (modelo de Open-Meteo)
     pais: str = "spain"  # feed de avisos de Meteoalarm
     zonas_aviso: tuple[str, ...] = ()  # códigos o nombres de las zonas de aviso de Meteoalarm
     avisos_por_poligono: bool = False  # también los avisos cuyo polígono contiene el punto (sin código de zona)
@@ -69,15 +74,6 @@ def extremos_del_dia(serie, fecha):
     desde, hasta = del_dia.index[0].hour, del_dia.index[-1].hour
     horas = None if (desde, hasta) == (0, 23) else f"{desde}-{hasta} h"
     return round(del_dia.max(), 1), round(del_dia.min(), 1), horas
-
-
-def _o_none(funcion, *args):
-    """Resultado de una fuente secundaria, o None si falla (su sección simplemente no se muestra)."""
-
-    try:
-        return funcion(*args)
-    except Exception:
-        return None
 
 
 def _hora_actual(df, ahora):
@@ -111,8 +107,25 @@ def _texto_uv(uv):
     return "Extremo"
 
 
-def tarjetas_condiciones(ciudad, ahora, detalle, obs, aire):
-    """Sensación térmica, humedad, nubes, UV, nieve (en temporada) y calidad del aire."""
+def distancia_km(lat1, lon1, lat2, lon2):
+    """Distancia sobre la superficie de la Tierra (fórmula del semiverseno)."""
+
+    lat1, lon1, lat2, lon2 = map(np.radians, (lat1, lon1, lat2, lon2))
+    a = np.sin((lat2 - lat1) / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin((lon2 - lon1) / 2) ** 2
+    return 2 * 6371 * np.arcsin(np.sqrt(a))
+
+
+def texto_mar(ciudad, mar):
+    """De dónde salen el oleaje y la temperatura del agua (ver fuentes.get_mar)."""
+
+    km = distancia_km(ciudad.lat, ciudad.lon, mar["lat"], mar["lon"])
+    return (f"Modelos de Météo-France (vía Open-Meteo) en el punto de su rejilla de mar más cercano, a {km:.0f} km de "
+            f"{ciudad.nombre}: es mar abierto, en la playa las olas suelen ser algo menores")
+
+
+def tarjetas_condiciones(ciudad, ahora, detalle, obs, aire, mar=None):
+    """Sensación térmica, humedad, nubes, UV, nieve (en temporada), mar (temperatura del agua y olas) y calidad del
+    aire."""
 
     lista = []
     if detalle is not None:
@@ -138,6 +151,18 @@ def tarjetas_condiciones(ciudad, ahora, detalle, obs, aire):
             if not pd.isna(espesor):
                 lista.append({"label": "Espesor nieve", "valor": f"{100 * espesor:.0f}", "unidad": "cm",
                               "nota": "según el modelo"})
+
+    if mar is not None and mar["horario"]["olas"].notna().any():
+        fila = _hora_actual(mar["horario"].dropna(subset=["olas"]), ahora)
+        titulo = texto_mar(ciudad, mar)
+        if not pd.isna(fila["agua"]):
+            lista.append({"label": "Agua", "valor": f"{fila['agua']:.0f}º", "nota": "temperatura del mar",
+                          "title": titulo})
+        detalle_olas = [f"periodo {fila['periodo']:.0f} s"] if not pd.isna(fila["periodo"]) else []
+        if (rumbo := cardinal(fila["direccion"])) is not None:
+            detalle_olas.append(f"del {rumbo}")
+        lista.append({"label": "Olas", "valor": f"{fila['olas']:.1f}", "unidad": "m", "nota": ", ".join(detalle_olas),
+                      "title": titulo})
 
     if aire is not None and aire["european_aqi"].notna().any():
         ica = _hora_actual(aire.dropna(subset=["european_aqi"]), ahora)["european_aqi"]
@@ -247,15 +272,59 @@ def _lluvia_por_periodos(prec, fecha, desde=None):
     return periodos, prob_miembros(del_dia)
 
 
-def _frase_lluvia(periodos, prob):
+HORAS_SALIR = (8, 22)  # horas del día en las que se busca el mejor rato sin lluvia
+SECO_MIN = 70  # % de los miembros que no deben mojar en ninguna hora del rato
+RATO_SECO_MIN = 2  # horas
+
+
+def _rato_seco(prec, fecha, desde=None):
+    """Rato más largo del día, dentro de HORAS_SALIR, en el que al menos el SECO_MIN % de los miembros del ensemble no
+    da ninguna hora con UMBRAL_LLUVIA_HORA: (hora de inicio, hora de fin), o None si no hay ninguno de RATO_SECO_MIN h o
+    si lo es todo el día (la lluvia probable cae fuera de esas horas).
+
+    La lluvia de cada fila es la de la hora anterior; los miembros sin dato no cuentan como lluvia.
+    """
+
+    ens = prec.drop(columns="Observado", errors="ignore").dropna(axis=1, how="all")
+    horas = ens.index - pd.Timedelta(hours=1)  # inicio de la hora a la que se refiere cada fila
+    filas = (ens.index.date == fecha.date()) & (horas.hour >= HORAS_SALIR[0]) & (ens.index.hour <= HORAS_SALIR[1])
+    filas &= ens.index.hour != 0  # la última hora del día cae ya en el siguiente
+    if desde is not None:
+        filas &= ens.index > desde
+    del_dia = ens[filas]
+    if len(del_dia) < RATO_SECO_MIN or ens.shape[1] == 0:
+        return None
+
+    moja = (del_dia >= UMBRAL_LLUVIA_HORA).to_numpy()
+    mejor = None
+    for i in range(len(del_dia)):
+        seco = np.ones(moja.shape[1], dtype=bool)
+        for j in range(i, len(del_dia)):
+            seco &= ~moja[j]
+            if 100 * seco.mean() < SECO_MIN:
+                break
+            if mejor is None or j - i > mejor[1] - mejor[0]:
+                mejor = (i, j)
+    if mejor is None or mejor[1] - mejor[0] + 1 < RATO_SECO_MIN or mejor[1] - mejor[0] + 1 == len(del_dia):
+        return None
+    return (del_dia.index[mejor[0]] - pd.Timedelta(hours=1)).hour, del_dia.index[mejor[1]].hour
+
+
+def _frase_lluvia(periodos, prob, seco=None):
+    """Lluvia del día en texto; `seco`, el mejor rato sin lluvia (ver _rato_seco) si llueve solo en parte del día."""
+
     if prob is None:
         return ""
     if len(periodos) == len(PERIODOS):
-        return f", con lluvia probable todo el día ({prob:.0f} %)"
-    if periodos:
+        frase = f", con lluvia probable todo el día ({prob:.0f} %)"
+    elif periodos:
         cuando = " y ".join([", ".join(periodos[:-1]), periodos[-1]]) if len(periodos) > 1 else periodos[0]
-        return f", con lluvia probable {cuando} ({prob:.0f} %)"
-    return ", sin lluvia" if prob < 10 else ""
+        frase = f", con lluvia probable {cuando} ({prob:.0f} %)"
+    else:
+        return ", sin lluvia" if prob < 10 else ""
+    if seco is not None:
+        frase += f"; mejor rato sin lluvia, de {seco[0]} a {seco[1]} h"
+    return frase
 
 
 def frases_resumen(ahora, max_hoy, horas_hoy, max_mañana, min_mañana, prec, rachas):
@@ -264,10 +333,11 @@ def frases_resumen(ahora, max_hoy, horas_hoy, max_mañana, min_mañana, prec, ra
     mañana = ahora + pd.Timedelta(days=1)
     frases = []
 
-    lluvia_hoy = _lluvia_por_periodos(prec, ahora, desde=ahora.floor("h"))
+    lluvia_hoy = _frase_lluvia(*_lluvia_por_periodos(prec, ahora, desde=ahora.floor("h")),
+                               _rato_seco(prec, ahora, desde=ahora.floor("h")))
     if ahora.hour < 15 and not pd.isna(max_hoy) and not horas_hoy:
-        frases.append(f"Hoy, máxima de {max_hoy:.0f}º{_frase_lluvia(*lluvia_hoy)}.")
-    elif (resto := _frase_lluvia(*lluvia_hoy).removeprefix(", ")):
+        frases.append(f"Hoy, máxima de {max_hoy:.0f}º{lluvia_hoy}.")
+    elif (resto := lluvia_hoy.removeprefix(", ")):
         frases.append(f"Resto del día: {resto.removeprefix('con ')}.")
 
     if not pd.isna(max_mañana):
@@ -282,7 +352,7 @@ def frases_resumen(ahora, max_hoy, horas_hoy, max_mañana, min_mañana, prec, ra
             como = "temperaturas parecidas"
         minima = f" y {min_mañana:.0f}º de mínima" if not pd.isna(min_mañana) else ""
         frases.append(f"Mañana, {como}: {max_mañana:.0f}º de máxima{minima}"
-                      f"{_frase_lluvia(*_lluvia_por_periodos(prec, mañana))}.")
+                      f"{_frase_lluvia(*_lluvia_por_periodos(prec, mañana), _rato_seco(prec, mañana))}.")
 
     media_rachas = rachas.drop(columns="Observado", errors="ignore").mean(axis=1)
     media_rachas = media_rachas[media_rachas.index >= ahora.floor("h")]
@@ -328,8 +398,15 @@ def render_48h(ciudad, titulo=None):
     if ciudad.ccaa_aemet and usa_opendata:
         for dia in DIAS_PREDICCION:
             en_paralelo(get_comentario_aemet, ciudad.ccaa_aemet[0], dia)
+    if ciudad.montaña_aemet and usa_opendata:
+        for dia in range(DIAS_MONTAÑA):
+            en_paralelo(get_prediccion_montaña, ciudad.montaña_aemet[0], dia)
+    if ciudad.aludes_aemet and usa_opendata:
+        en_paralelo(get_boletin_aludes, ciudad.aludes_aemet)
     if ciudad.calidad_aire:
         en_paralelo(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz)
+    if ciudad.mar:
+        en_paralelo(get_mar, ciudad.lat, ciudad.lon, ciudad.tz)
     hueco_datos = st.empty()
 
     variables = ["temperatura", "precipitacion", "rachas"] + (["presion", "mucape"] if ciudad.presion_y_cape else [])
@@ -427,18 +504,33 @@ def render_48h(ciudad, titulo=None):
     if tarjetas.avisos(percentiles.get("max_hoy"), percentiles.get("max_mañana")):
         st.divider()
 
-    detalle = _o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
-    aire = _o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
-    tarjetas_condiciones(ciudad, ahora, detalle, obs, aire)
+    detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    aire = o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
+    mar = o_none(get_mar, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.mar else None
+    tarjetas_condiciones(ciudad, ahora, detalle, obs, aire, mar)
 
     # --- Comentario de los predictores de AEMET ---
     if ciudad.ccaa_aemet and usa_opendata:
         codigo, lugar = ciudad.ccaa_aemet
-        textos = [t for t in (_o_none(get_comentario_aemet, codigo, dia) for dia in DIAS_PREDICCION) if t is not None]
+        textos = [t for t in (o_none(get_comentario_aemet, codigo, dia) for dia in DIAS_PREDICCION) if t is not None]
         if not textos:
             st.caption("No se ha podido consultar el comentario de los predictores de AEMET.")
         elif tarjetas.comentario_predictores(textos, lugar, ahora):
             st.divider()
+
+    # --- Predicción de montaña y boletín de aludes de AEMET ---
+    if (ciudad.montaña_aemet or ciudad.aludes_aemet) and usa_opendata:
+        if ciudad.montaña_aemet:
+            zona, lugar = ciudad.montaña_aemet
+            dias = [(dia, p) for dia in range(DIAS_MONTAÑA)
+                    if (p := o_none(get_prediccion_montaña, zona, dia)) is not None]
+            if dias:
+                tarjetas.prediccion_montaña(dias, lugar, ahora)
+            else:
+                st.caption("No se ha podido consultar la predicción de montaña de AEMET.")
+        if ciudad.aludes_aemet:
+            tarjetas.boletin_aludes(o_none(get_boletin_aludes, ciudad.aludes_aemet), ahora)
+        st.divider()
 
     # --- Ensemble a 48 h ---
     st.plotly_chart(graficos.temperatura(temp, bandas, dia_historico(ahora)))
@@ -467,6 +559,8 @@ def render_48h(ciudad, titulo=None):
         st.divider()
 
     st.plotly_chart(graficos.elevacion_solar(ciudad.lat, ciudad.lon, ciudad.tz))
+    tarjetas.luna(luna.fase(ahora), luna.fases_principales(ahora),
+                  luna.salida_y_puesta(ciudad.lat, ciudad.lon, ciudad.tz, ahora.date()), ahora)
 
     # --- Cámaras ---
     if ciudad.camaras:
@@ -487,7 +581,7 @@ MODELOS_LARGO = ["ecmwf_ifs025", "gfs_seamless"]
 
 def render_medio(ciudad, titulo=None):
     """Medio plazo, de ahora hasta donde llegue el ensemble ICON-EU (40 miembros, unas 120 h), con el ICON-EU
-    determinista; nubes, nieve y calidad del aire."""
+    determinista; nubes, nieve, mar (7 días) y calidad del aire."""
 
     ahora = pd.Timestamp.now(tz=ciudad.tz)
     desde = ahora.floor("h")
@@ -498,6 +592,8 @@ def render_medio(ciudad, titulo=None):
     en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
     if ciudad.calidad_aire:
         en_paralelo(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz)
+    if ciudad.mar:
+        en_paralelo(get_mar, ciudad.lat, ciudad.lon, ciudad.tz)
     _historico_sidebar(ciudad, ahora)
 
     try:
@@ -506,7 +602,7 @@ def render_medio(ciudad, titulo=None):
         icon_completo = None
         st.warning("No se ha podido descargar el ensemble ICON-EU de Open-Meteo.")
     icon = {var: df[df.index >= desde] for var, df in icon_completo.items()} if icon_completo else None
-    detalle = _o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
     hasta = icon["temperatura"].index[-1] if icon is not None and not icon["temperatura"].empty else None
 
     if hasta is not None:
@@ -522,7 +618,7 @@ def render_medio(ciudad, titulo=None):
                                  f"los {icon['temperatura'].shape[1]} miembros del ensemble ICON-EU.")
         st.divider()
 
-        deterministas = _o_none(get_deterministas, ciudad.lat, ciudad.lon, ciudad.tz)
+        deterministas = o_none(get_deterministas, ciudad.lat, ciudad.lon, ciudad.tz)
         det_temp = deterministas["temperatura"] if deterministas is not None else pd.DataFrame()
         st.plotly_chart(graficos.medio_temperatura(icon["temperatura"], det_temp))
         st.plotly_chart(graficos.lluvia(icon["precipitacion"], titulo="Lluvia · medio plazo"))
@@ -542,8 +638,19 @@ def render_medio(ciudad, titulo=None):
                                            detalle["elevacion"]))
         st.divider()
 
+    # --- Mar: olas y temperatura del agua (7 días) ---
+    if ciudad.mar:
+        mar = o_none(get_mar, ciudad.lat, ciudad.lon, ciudad.tz)
+        if mar is not None and mar["horario"]["olas"].notna().any():
+            horario = mar["horario"][mar["horario"].index >= desde.tz_localize(None)]
+            st.plotly_chart(graficos.mar(horario, horario["direccion"].map(cardinal)))
+            st.caption(texto_mar(ciudad, mar) + ". Olas: altura significativa (la media del tercio más alto).")
+            st.divider()
+        else:
+            st.caption("No se ha podido descargar la previsión del mar (Open-Meteo).")
+
     # --- Calidad del aire y polen (los 4 días que da CAMS) ---
-    aire = _o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
+    aire = o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
     if aire is not None and aire["european_aqi"].notna().any():
         st.plotly_chart(graficos.calidad_aire(aire))
         con_polen = {f"{clave}_pollen": nombre for clave, nombre in POLENES.items() if aire[f"{clave}_pollen"].max() >= 1}
@@ -554,7 +661,8 @@ def render_medio(ciudad, titulo=None):
 
 
 def render_largo(ciudad, titulo=None):
-    """Largo plazo, de hoy a 15 días: ensembles ECMWF y GEFS juntos y, al final, el último resumen mensual de AEMET."""
+    """Largo plazo, de hoy a 15 días: ensembles ECMWF y GEFS juntos y, al final, el último resumen mensual de AEMET y,
+    con histórico, la lluvia del año hidrológico."""
 
     ahora = pd.Timestamp.now(tz=ciudad.tz)
     fechas = list(pd.date_range(ahora.tz_localize(None).normalize(), periods=15).date)
@@ -565,12 +673,14 @@ def render_largo(ciudad, titulo=None):
     usa_opendata = hay_clave()
     if ciudad.resumen_mensual and ciudad.estacion_aemet and usa_opendata:
         en_paralelo(get_resumen_mensual, ciudad.estacion_aemet, ahora.year)
+    if ciudad.historico:
+        en_paralelo(lluvia_diaria, ciudad, ahora)
     datos_hist, _ = _historico_sidebar(ciudad, ahora)
 
     ensembles = {}
     for modelo in MODELOS_LARGO:
         nombre = ENSEMBLES[modelo][0]
-        if (datos := _o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, modelo)) is not None:
+        if (datos := o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, modelo)) is not None:
             # La lluvia de hoy, solo la que queda; la temperatura, del día entero para sus extremos
             ensembles[nombre] = {**datos, "precipitacion": datos["precipitacion"][datos["precipitacion"].index >= ahora.floor("h")]}
         else:
@@ -583,6 +693,10 @@ def render_largo(ciudad, titulo=None):
     if ciudad.resumen_mensual and ciudad.estacion_aemet and usa_opendata:
         st.divider()
         mostrar_resumen_mensual(ciudad, ahora, datos_hist)
+
+    if ciudad.historico:
+        st.divider()
+        render_año_hidrologico(ciudad, ahora)
 
     _avisos(ciudad, ahora, hueco_avisos)
 
@@ -612,17 +726,19 @@ def _mapas_arome(ciudad):
     render_arome_maps(location=ciudad.mapas_arome)
 
 
-def render_pagina(ciudad, titulo=None):
-    """Una ciudad en pestañas: corto, medio y largo plazo, auroras (si tiene kp_auroras), radar y, si tiene, mapas
-    AROME. Solo se descarga la abierta."""
+def _pestañas(ciudad, titulo, clave, radar=True):
+    """Pestañas de una ciudad: corto, medio y largo plazo, auroras (si tiene kp_auroras), radar (salvo en los grupos,
+    que lo tienen aparte) y, si tiene, mapas AROME. Solo se descarga la abierta."""
 
-    titulo = titulo or ciudad.nombre
-    extras = [(":material/radar: Radar", lambda: render_radar([(ciudad.nombre, ciudad.lat, ciudad.lon)], ciudad.tz))]
+    extras = []
     if ciudad.kp_auroras is not None:
-        extras.insert(0, (":material/auto_awesome: Auroras", lambda: render_auroras(ciudad)))
+        extras.append((":material/auto_awesome: Auroras", lambda: render_auroras(ciudad)))
+    if radar:
+        extras.append((":material/radar: Radar",
+                       lambda: render_radar([(ciudad.nombre, ciudad.lat, ciudad.lon)], ciudad.tz)))
     if ciudad.mapas_arome:
         extras.append((":material/map: Mapas AROME", lambda: _mapas_arome(ciudad)))
-    pestañas = st.tabs(BLOQUES + [nombre for nombre, _ in extras], key=f"vista_{ciudad.nombre}", on_change="rerun")
+    pestañas = st.tabs(BLOQUES + [nombre for nombre, _ in extras], key=clave, on_change="rerun")
 
     for pestaña, render in zip(pestañas, RENDER_BLOQUES):
         if pestaña.open:
@@ -634,8 +750,14 @@ def render_pagina(ciudad, titulo=None):
                 render()
 
 
+def render_pagina(ciudad, titulo=None):
+    """Una ciudad en pestañas (ver _pestañas)."""
+
+    _pestañas(ciudad, titulo or ciudad.nombre, f"vista_{ciudad.nombre}")
+
+
 def render_grupo(titulo, ciudades):
-    """Varias localidades en pestañas (cada una con sus tres plazos), más una con el radar de la zona."""
+    """Varias localidades en pestañas (cada una con las suyas, ver _pestañas), más una con el radar de la zona."""
 
     st.header(titulo)
     pestañas = st.tabs([c.nombre for c in ciudades] + [":material/radar: Radar"], key=f"grupo_{titulo}",
@@ -643,11 +765,7 @@ def render_grupo(titulo, ciudades):
     for pestaña, ciudad in zip(pestañas, ciudades):
         if pestaña.open:
             with pestaña:
-                bloques = st.tabs(BLOQUES, key=f"bloque_{titulo}_{ciudad.nombre}", on_change="rerun")
-                for bloque, render in zip(bloques, RENDER_BLOQUES):
-                    if bloque.open:
-                        with bloque:
-                            render(ciudad)
+                _pestañas(ciudad, None, f"bloque_{titulo}_{ciudad.nombre}", radar=False)
     if pestañas[-1].open:
         with pestañas[-1]:
             render_radar([(c.nombre, c.lat, c.lon) for c in ciudades], ciudades[0].tz)

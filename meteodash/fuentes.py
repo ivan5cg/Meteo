@@ -48,6 +48,15 @@ def en_paralelo(funcion, *args):
     return _POOL.submit(tarea)
 
 
+def o_none(funcion, *args):
+    """Resultado de una fuente secundaria, o None si falla (su sección simplemente no se muestra)."""
+
+    try:
+        return funcion(*args)
+    except Exception:
+        return None
+
+
 def descargar(url, timeout=30, params=None):
     response = requests.get(url, params=params, timeout=timeout, headers=USER_AGENT)
     response.raise_for_status()
@@ -206,6 +215,24 @@ def get_nombre_lugar(lat, lon):
         if clave in direccion:
             return direccion[clave]
     return None
+
+
+@st.cache_data(ttl="1h", show_spinner=False)
+def get_mar(lat, lon, tz):
+    """Oleaje (MFWAM de Météo-France) y temperatura del agua (SMOC de Météo-France) en el punto de la rejilla de mar más
+    cercano, según la API marina de Open-Meteo, 7 días: {"horario", "lat", "lon"} con la posición de ese punto.
+
+    Columnas: olas y mar de fondo (altura significativa, m), periodo (s), direccion (de donde vienen, grados) y agua (ºC).
+    """
+
+    variables = {"olas": "wave_height", "mar_fondo": "swell_wave_height", "periodo": "wave_period",
+                 "direccion": "wave_direction", "agua": "sea_surface_temperature"}
+    params = {"latitude": lat, "longitude": lon, "timezone": tz, "forecast_days": 7,
+              "hourly": ",".join(variables.values())}
+    datos = descargar("https://marine-api.open-meteo.com/v1/marine", params=params).json()
+    horario = datos["hourly"]
+    df = pd.DataFrame({nombre: horario.get(v) for nombre, v in variables.items()}, index=pd.to_datetime(horario["time"]))
+    return {"horario": df.apply(pd.to_numeric, errors="coerce"), "lat": datos["latitude"], "lon": datos["longitude"]}
 
 
 @st.cache_data(ttl="1h", show_spinner=False)
@@ -374,6 +401,13 @@ def get_historico(ruta_csv):
     bandas = rolling.groupby("día_del_año").quantile([0.15, 0.85]).unstack()
 
     return datos, bandas
+
+
+@st.cache_data(show_spinner=False)
+def get_lluvia_diaria(ruta_csv):
+    """Lluvia diaria (L/m²) del histórico, con los 29 de febrero (get_historico los quita): Series por fecha."""
+
+    return pd.read_csv(ruta_csv, usecols=["fecha", "prec"], index_col="fecha", parse_dates=True)["prec"]
 
 
 @st.cache_data(show_spinner=False)

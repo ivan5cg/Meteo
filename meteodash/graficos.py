@@ -331,6 +331,41 @@ def nieve(horario, diario, titulo, elevacion=None):
     return fig
 
 
+# ---------------------------------------------------------------- Mar
+
+def mar(horario, rumbos, titulo="Mar · 7 días"):
+    """Altura de las olas y del mar de fondo y temperatura del agua (ver fuentes.get_mar); `rumbos`: de dónde vienen
+    las olas, en puntos cardinales, para el hover."""
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_trace(go.Scatter(
+        x=horario.index, y=horario["olas"], mode="lines", fill="tozeroy", fillcolor="rgba(2, 119, 189, 0.15)",
+        line=dict(color=AZUL, width=2.5), name="Olas",
+        customdata=np.stack([horario["periodo"].round().to_numpy(), rumbos.fillna("").to_numpy()], axis=-1),
+        hovertemplate="Olas: <b>%{y:.1f} m</b> · periodo %{customdata[0]:.0f} s · del %{customdata[1]}<extra></extra>",
+    ), secondary_y=False)
+    fig.add_trace(go.Scatter(
+        x=horario.index, y=horario["mar_fondo"], mode="lines", line=dict(color="#0284c7", width=1.5, dash="dot"),
+        name="Mar de fondo", hovertemplate="Mar de fondo: <b>%{y:.1f} m</b><extra></extra>",
+    ), secondary_y=False)
+    fig.add_trace(go.Scatter(
+        x=horario.index, y=horario["agua"], mode="lines", line=dict(color=ROJO, width=2), name="Agua",
+        hovertemplate="Agua: <b>%{y:.1f}°C</b><extra></extra>",
+    ), secondary_y=True)
+
+    tema_plotly(fig, titulo, "Altura (m)")
+    fig.update_yaxes(rangemode="tozero", range=[0, max(1, 1.2 * horario["olas"].max())], secondary_y=False)
+    agua = horario["agua"].dropna()
+    if not agua.empty:  # al menos 4º de rango: si no, unas décimas parecen grandes cambios
+        centro = (agua.min() + agua.max()) / 2
+        mitad = max((agua.max() - agua.min()) / 2 + 0.5, 2)
+        fig.update_yaxes(range=[centro - mitad, centro + mitad], secondary_y=True)
+    fig.update_yaxes(title_text="Agua (°C)", showgrid=False, tickfont=dict(color=TEXTO, family=FUENTE, size=11),
+                     secondary_y=True)
+    _eje_fechas_es(fig, horario.index, cada_horas=12)
+    return fig
+
+
 # ---------------------------------------------------------------- Calidad del aire
 
 # Índice europeo de calidad del aire: (límite superior, categoría, color)
@@ -513,6 +548,51 @@ def historico_vs_prevision(datos, dia, hoy, mañana):
 
     tema_plotly(fig, "", "Temperatura (°C)", hovermode="closest")
     fig.update_layout(xaxis=dict(showgrid=False, title_text=""), legend_title_text="")
+    return fig
+
+
+MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+
+
+def año_hidrologico(fechas, actual, anterior, normal, rango, nombre_actual, nombre_anterior):
+    """Lluvia acumulada del año hidrológico en curso y del anterior, la normal y el rango 10-90 % de los años del
+    histórico (ver hidrologico.py). Las series van por posición (0-364) sobre `fechas`, las del año en curso."""
+
+    fig = go.Figure()
+    if not rango.empty:
+        p10, p90 = rango.quantile(0.1, axis=1), rango.quantile(0.9, axis=1)
+        fig.add_trace(go.Scatter(x=fechas, y=p90, mode="lines", line=dict(width=0), showlegend=False, hoverinfo="skip"))
+        fig.add_trace(go.Scatter(
+            x=fechas, y=p10, mode="lines", fill="tonexty", fillcolor="rgba(99, 91, 83, 0.13)", line=dict(width=0),
+            name="Rango 10-90 %", customdata=p90,
+            hovertemplate="Rango 10-90 %: <b>%{y:.0f} - %{customdata:.0f} L/m²</b><extra></extra>",
+        ))
+    fig.add_trace(go.Scatter(
+        x=fechas, y=normal, mode="lines", line=dict(color="#635b53", width=1.8, dash="dash"), name="Normal",
+        hovertemplate="Normal 1991-2020: <b>%{y:.0f} L/m²</b><extra></extra>",
+    ))
+    if not anterior.empty:
+        fig.add_trace(go.Scatter(
+            x=fechas[:len(anterior)], y=anterior, mode="lines", line=dict(color=AMBAR, width=1.8), name=nombre_anterior,
+            hovertemplate=f"{nombre_anterior}: <b>%{{y:.0f}} L/m²</b><extra></extra>",
+        ))
+    if not actual.empty:
+        x = fechas[:len(actual)]
+        fig.add_trace(go.Scatter(
+            x=x, y=actual, mode="lines", line=dict(color=AZUL, width=3), name=nombre_actual,
+            hovertemplate=f"{nombre_actual}: <b>%{{y:.0f}} L/m²</b><extra></extra>",
+        ))
+        fig.add_trace(go.Scatter(
+            x=[x[-1]], y=[actual.iloc[-1]], mode="markers+text", marker=dict(size=10, color=AZUL, line=dict(width=2, color="white")),
+            text=[f"<b>{actual.iloc[-1]:.0f}</b>"], textposition="top center",
+            textfont=dict(color=AZUL, size=11, family=FUENTE), showlegend=False, hoverinfo="skip",
+        ))
+
+    tema_plotly(fig, "Lluvia acumulada desde el 1 de octubre", "L/m²")
+    meses = [f for f in fechas if f.day == 1]
+    fig.update_xaxes(tickvals=meses, ticktext=[MESES_CORTOS[f.month - 1] for f in meses], hoverformat="%d/%m",
+                     range=[fechas[0], fechas[-1]])
+    fig.update_yaxes(rangemode="tozero")
     return fig
 
 

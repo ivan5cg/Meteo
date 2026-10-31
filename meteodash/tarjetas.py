@@ -5,6 +5,7 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
+from .aemet_opendata import MESES, NIVELES_ALUDES
 from .avisos import NIVELES, TIPOS
 from .estilo import AMBAR, AZUL, ROJO
 from .graficos import dia_semana
@@ -162,19 +163,86 @@ def comentario_predictores(textos, lugar, ahora):
     if not vigentes:
         return False
 
-    def nombre(fecha):
-        dia = {0: "Hoy", 1: "Mañana", 2: "Pasado mañana"}.get((fecha - hoy).days)
-        return f"{dia} · {dia_semana(fecha)}" if dia else dia_semana(fecha, largo=True)
-
     st.markdown(f"**Comentario de los predictores de AEMET · {lugar}**")
     with st.container(border=True):
-        for pestaña, texto in zip(st.tabs([nombre(t["fecha"]) for t in vigentes]), vigentes):
+        for pestaña, texto in zip(st.tabs([_nombre_dia(t["fecha"], hoy) for t in vigentes]), vigentes):
             with pestaña:
                 st.caption(f"Elaborado {_momento(texto['elaborado'], ahora)} h")
                 for titulo, cuerpo in texto["secciones"]:
                     st.markdown(f"**{titulo}**")
                     st.markdown(cuerpo)
     return True
+
+
+def _nombre_dia(fecha, hoy):
+    """"Hoy · Sáb 31", "Mañana · Dom 1", "Pasado mañana · Lun 2" o, más adelante, "Martes 3"."""
+
+    dia = {0: "Hoy", 1: "Mañana", 2: "Pasado mañana"}.get((fecha - hoy).days)
+    return f"{dia} · {dia_semana(fecha)}" if dia else dia_semana(fecha, largo=True)
+
+
+def _valor_y_unidad(texto):
+    """"3300 m" -> ("3300", "m"); "NE 30 km/h" -> ("NE 30", "km/h"); "VRB 10 km/h" -> ("Var. 10", "km/h")."""
+
+    valor, _, unidad = texto.replace("VRB", "Var.").rpartition(" ")
+    return (valor, unidad) if unidad in ("m", "km/h") else (texto, "")
+
+
+def prediccion_montaña(dias, lugar, ahora):
+    """Predicción de montaña de AEMET (ver aemet_opendata.get_prediccion_montaña), con una pestaña por día.
+
+    `dias`: [(días desde hoy, predicción)]. Cada día: el texto por apartados y, para hoy y mañana, la atmósfera libre
+    y las temperaturas y la sensación térmica de varios puntos de la zona, de los valles a las cumbres.
+    """
+
+    hoy = ahora.normalize().tz_localize(None)
+    st.markdown(f"**Predicción de montaña de AEMET · {lugar}**")
+    with st.container(border=True):
+        nombres = [_nombre_dia(hoy + pd.Timedelta(days=d), hoy) for d, _ in dias]
+        for pestaña, (_, dia) in zip(st.tabs(nombres), dias):
+            with pestaña:
+                for titulo, texto in dia["apartados"]:
+                    st.markdown(f"**{titulo}.** {texto}")
+                if dia["atmosfera"]:
+                    condiciones([{"label": titulo, "valor": valor, "unidad": unidad, "nota": "atmósfera libre"}
+                                 for titulo, (valor, unidad) in ((t, _valor_y_unidad(v)) for t, v in dia["atmosfera"])])
+                if dia["lugares"]:
+                    filas = "".join(
+                        f'<tr><td>{escape(l["nombre"])} <span class="altitud">{escape(l["altitud"])}</span></td>'
+                        f'<td class="temp-min">{_grados(l["minima"])}</td><td class="temp-max">{_grados(l["maxima"])}</td>'
+                        f'<td>{_grados(l["st_minima"])} / {_grados(l["st_maxima"])}</td></tr>'
+                        for l in dia["lugares"])
+                    _html(f'<table class="records-table tabla-lugares"><thead><tr><th>Lugar</th><th>Mín.</th>'
+                          f'<th>Máx.</th><th>Sensación térmica</th></tr></thead><tbody>{filas}</tbody></table>')
+        st.caption("AEMET la actualiza a diario. Atmósfera libre: lejos del relieve, sin el efecto del terreno.")
+
+
+def boletin_aludes(boletin, ahora):
+    """Boletín de peligro de aludes de AEMET (ver aemet_opendata.get_boletin_aludes): plegado, con el nivel más alto
+    que cita en el título, si es reciente; si no, una nota (fuera de campaña AEMET no lo publica)."""
+
+    if boletin is None:
+        st.caption("No se ha podido consultar el boletín de peligro de aludes de AEMET.")
+        return
+    elaborado = boletin["elaborado"]
+    fecha = f"{elaborado.day} de {list(MESES)[elaborado.month - 1].lower()}"
+    if (ahora.tz_localize(None).normalize() - elaborado).days > 2:
+        st.caption(f"AEMET no publica el boletín de peligro de aludes fuera de temporada: el último es del {fecha} de "
+                   f"{elaborado.year}.")
+        return
+
+    nivel = boletin["nivel"]
+    etiqueta = "Boletín de peligro de aludes de AEMET"
+    if nivel is not None:
+        etiqueta += f" · peligro {NIVELES_ALUDES[nivel][0]} ({nivel})"
+    with st.expander(etiqueta, icon=":material/landslide:", expanded=nivel is not None and nivel >= 3):
+        if nivel is not None:
+            nombre, color = NIVELES_ALUDES[nivel]
+            _html(f'<p class="nivel-aludes" style="--nivel: {color}">Nivel más alto que cita: <b>{nivel} · {nombre}</b> '
+                  f'(escala europea de 1 a 5)</p>')
+        st.caption(f"{boletin['titulo']}. Elaborado el {fecha}.")
+        for parrafo in boletin["parrafos"]:
+            st.markdown(escape(parrafo))
 
 
 def _momento(t, ahora):
@@ -321,6 +389,48 @@ def tira_dias(dias, nota):
     if html:
         _html(f'<div class="tira-semana" style="--dias: {len(dias)}">{html}</div>')
         st.caption(nota)
+
+
+# ---------------------------------------------------------------- Luna
+
+def svg_luna(iluminada, crece, clase="luna-disco"):
+    """La Luna como se ve desde el hemisferio norte: iluminada por la derecha cuando crece y por la izquierda cuando
+    mengua. La parte iluminada es medio disco más (o menos) media elipse, la del terminador."""
+
+    limbo = 1 if crece else 0  # el arco del borde iluminado, por la derecha o por la izquierda
+    rx = 40 * abs(1 - 2 * iluminada)
+    terminador = 1 if (iluminada >= 0.5) == crece else 0
+    return (f'<svg class="{clase}" viewBox="0 0 100 100" aria-hidden="true">'
+            '<circle cx="50" cy="50" r="40" class="luna-sombra"/>'
+            f'<path d="M50,10 A40,40 0 0 {limbo} 50,90 A{rx:.2f},40 0 0 {terminador} 50,10 Z" class="luna-luz"/>'
+            '<circle cx="50" cy="50" r="40" class="luna-borde"/></svg>')
+
+
+def luna(fase, proximas, salida_puesta, ahora):
+    """Fase de la Luna ahora (ver luna.fase), su salida y puesta hoy y las próximas fases principales."""
+
+    salida, puesta, arriba = salida_puesta
+    if salida is None and puesta is None:
+        horario = "Todo el día sobre el horizonte" if arriba else "Hoy no sale"
+    else:
+        partes = [f"sale a las {salida:%H:%M}" if salida else "no sale", f"se pone a las {puesta:%H:%M}" if puesta
+                  else "no se pone"]
+        horario = " · ".join(partes)
+        horario = horario[0].upper() + horario[1:]
+    edad = f" · {fase['edad']:.0f} días desde la nueva".replace(" 1 días", " 1 día") if fase["edad"] is not None else ""
+
+    def cuando(momento):
+        dia = (momento.normalize() - ahora.normalize()).days
+        nombre = {0: "hoy", 1: "mañana"}.get(dia, dia_semana(momento).lower())
+        return f"{nombre}, {momento:%H:%M}"
+
+    fases = "".join(f'<div class="luna-fase"><span class="luna-emoji">{emoji}</span><b>{nombre}</b>'
+                    f'<span>{cuando(momento)}</span></div>' for nombre, emoji, momento in proximas)
+    _html(f'<div class="rejilla"><div class="luna"><div class="luna-hoy">{svg_luna(fase["iluminada"], fase["crece"])}'
+          f'<div><div class="metric-label">Luna hoy</div><div class="luna-nombre">{fase["nombre"]}</div>'
+          f'<div class="luna-dato">{100 * fase["iluminada"]:.0f} % iluminada{edad}</div>'
+          f'<div class="luna-dato">{horario}</div></div></div>'
+          f'<div class="luna-proximas">{fases}</div></div></div>')
 
 
 # ---------------------------------------------------------------- Auroras

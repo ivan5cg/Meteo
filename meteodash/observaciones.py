@@ -28,7 +28,7 @@ class Estacion:
     nombre: str | None = None  # cómo se cita en la página ("Uccle", "aeropuerto de Linate")
 
 
-def _cardinal(grados):
+def cardinal(grados):
     return None if pd.isna(grados) else RUMBOS[int((grados % 360 + 22.5) // 45) % 8]
 
 
@@ -68,7 +68,7 @@ def _racha_horaria(racha, direccion):
     racha = racha.dropna()
     maxima = _por_horas(racha, "max")
     momento = pd.DatetimeIndex(_por_horas(racha, "idxmax"))
-    rumbo = pd.Series(direccion.reindex(momento).map(_cardinal).to_numpy(), index=maxima.index)
+    rumbo = pd.Series(direccion.reindex(momento).map(cardinal).to_numpy(), index=maxima.index)
     return maxima, rumbo
 
 
@@ -174,7 +174,7 @@ def get_lvgmc(estacion):
     tabla.index = pd.to_datetime(tabla.index, format="%Y.%m.%d %H:%M:%S").tz_localize("UTC")
     tabla = tabla.rename(columns=VARIABLES_LVGMC)
     return _tabla(tabla.get("temperatura"), 3.6 * tabla["racha"] if "racha" in tabla else None,
-                  tabla["dir_racha"].map(_cardinal) if "dir_racha" in tabla else None, tabla.get("precipitacion"),
+                  tabla["dir_racha"].map(cardinal) if "dir_racha" in tabla else None, tabla.get("precipitacion"),
                   tabla.get("humedad"))
 
 
@@ -202,7 +202,7 @@ def get_met_eireann(estacion):
         return pd.to_numeric(datos[columna].astype(str).str.strip(), errors="coerce")
 
     racha = numero("windGust")
-    rumbo = numero("windDirection").map(_cardinal).where(racha.notna())
+    rumbo = numero("windDirection").map(cardinal).where(racha.notna())
     return _tabla(numero("temperature"), racha, rumbo, numero("rainfall"), numero("humidity"))
 
 
@@ -224,7 +224,7 @@ def get_metar(icao):
     # Sin ninguna racha en las últimas horas no viene ni la columna; "VRB" (dirección variable) queda sin dirección
     datos = datos.reindex(columns=["temp", "wdir", "wgst"]).apply(pd.to_numeric, errors="coerce")
     racha = 1.852 * datos["wgst"]  # nudos -> km/h
-    return _tabla(datos["temp"], racha, datos["wdir"].map(_cardinal).where(racha.notna()))
+    return _tabla(datos["temp"], racha, datos["wdir"].map(cardinal).where(racha.notna()))
 
 
 # ---------------------------------------------------------------- Carga común
@@ -248,29 +248,52 @@ def descargar_en(estacion):
     return REDES[estacion.red][1], estacion.codigo
 
 
-def cargar_observaciones(estaciones, tz, lugar):
-    """Observaciones de las estaciones en hora local, o None si no hay ninguna reciente; y el texto que cita su origen.
+def _combinar(estaciones, tz):
+    """Observaciones de las estaciones en hora local, cada variable de la primera que la mida, o None si no hay
+    ninguna reciente (la temperatura más reciente con más de ANTIGUEDAD_MAXIMA no sería la actual); y si han fallado
+    todas las descargas."""
 
-    Con varias estaciones, cada variable sale de la primera que la mida. Si la temperatura más reciente tiene más de
-    ANTIGUEDAD_MAXIMA no se usa ninguna: no sería la actual. Si falla la descarga, avisa en la página.
-    """
-
-    redes = " y ".join(dict.fromkeys(REDES[e.red][0] for e in estaciones))
-    tablas, fallos = [], 0
+    tablas = []
     for estacion in estaciones:
         try:
             tablas.append(REDES[estacion.red][1](estacion.codigo).tz_convert(tz))
         except Exception:
-            fallos += 1
-    if fallos == len(estaciones):
-        st.warning(f"No se han podido descargar las observaciones de {redes} ({lugar}). Se muestra solo la previsión.")
-        return None, f"observación {redes} no disponible"
+            pass
+    if not tablas:
+        return None, True
 
     primeras = {c: next((t[c] for t in tablas if t[c].notna().any()), None) for c in COLUMNAS}
     obs = pd.DataFrame({c: s for c, s in primeras.items() if s is not None}).reindex(columns=COLUMNAS)
     temperatura = obs["temperatura"].dropna()
     if temperatura.empty or pd.Timestamp.now(tz=tz) - temperatura.index[-1] > ANTIGUEDAD_MAXIMA:
+        return None, False
+    return obs, False
+
+
+def temperatura_reciente(estaciones, tz):
+    """Última temperatura observada y su hora, o None si no hay ninguna reciente; sin avisos en la página (portada)."""
+
+    obs, _ = _combinar(estaciones, tz) if estaciones else (None, False)
+    if obs is None:
+        return None
+    temperatura = obs["temperatura"].dropna()
+    return temperatura.iloc[-1], temperatura.index[-1]
+
+
+def cargar_observaciones(estaciones, tz, lugar):
+    """Observaciones de las estaciones en hora local, o None si no hay ninguna reciente; y el texto que cita su origen.
+
+    Con varias estaciones, cada variable sale de la primera que la mida (ver _combinar). Si falla la descarga, avisa en
+    la página.
+    """
+
+    redes = " y ".join(dict.fromkeys(REDES[e.red][0] for e in estaciones))
+    obs, fallan = _combinar(estaciones, tz)
+    if fallan:
+        st.warning(f"No se han podido descargar las observaciones de {redes} ({lugar}). Se muestra solo la previsión.")
+    if obs is None:
         return None, f"observación {redes} no disponible"
+    temperatura = obs["temperatura"].dropna()
 
     nombres = [e.nombre for e in estaciones if e.nombre]
     cita = f"{redes} ({' y '.join(nombres)})" if nombres else redes

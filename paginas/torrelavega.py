@@ -1,11 +1,4 @@
-from meteodash.ciudad import Ciudad, render_pagina
+from meteodash.ciudad import render_pagina
+from meteodash.lugares import TORRELAVEGA
 
-render_pagina(Ciudad(
-    nombre="Torrelavega",
-    lat=43.35,
-    lon=-4.047,
-    estacion_aemet="1154H",  # Sierrapando
-    bandas="datos/bandas/torrelavega.csv",
-    zonas_aviso=("ES133",),  # Litoral cántabro
-    mapas_arome="Torrelavega",
-))
+render_pagina(TORRELAVEGA)

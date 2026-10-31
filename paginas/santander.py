@@ -1,10 +1,4 @@
-from meteodash.ciudad import Ciudad, render_pagina
+from meteodash.ciudad import render_pagina
+from meteodash.lugares import SANTANDER
 
-render_pagina(Ciudad(
-    nombre="Santander",
-    lat=43.4661,
-    lon=-3.798,
-    estacion_aemet="1111X",
-    bandas="datos/bandas/santander.csv",
-    zonas_aviso=("ES133",),  # Litoral cántabro
-))
+render_pagina(SANTANDER)

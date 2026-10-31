@@ -1,4 +1,4 @@
-"""Mapa en el que se elige un punto con un clic, dentro del dominio del ensemble PE-AROME de Meteociel.
+"""Mapa en el que se elige un punto de Europa con un clic, y el ensemble a 48 h que le corresponde.
 
 Es un componente bidireccional de Streamlit (`st.components.v2`) con Leaflet: al pulsar en el mapa devuelve a Python
 las coordenadas del punto, sin dependencias nuevas.
@@ -24,6 +24,12 @@ DOMINIO_AROME = [
 ]
 
 
+# Dominio del ICON-EU (sur, oeste, norte, este): el del ensemble del medio plazo, y donde se puede elegir el punto
+DOMINIO_EUROPA = (29.5, -23.5, 70.5, 62.5)
+# Gran Bretaña e Irlanda: fuera del PE-AROME, el ensemble a 48 h es el de la Met Office (como en Escocia)
+ISLAS_BRITANICAS = (49.8, -11.0, 61.0, 2.0)
+
+
 def dentro_de_arome(lat, lon):
     """Si el punto cae dentro de DOMINIO_AROME (algoritmo del rayo)."""
 
@@ -32,6 +38,24 @@ def dentro_de_arome(lat, lon):
         if (lat1 > lat) != (lat2 > lat) and lon < lon1 + (lat - lat1) * (lon2 - lon1) / (lat2 - lat1):
             dentro = not dentro
     return dentro
+
+
+def _en(caja, lat, lon):
+    sur, oeste, norte, este = caja
+    return sur <= lat <= norte and oeste <= lon <= este
+
+
+def dentro_de_europa(lat, lon):
+    return _en(DOMINIO_EUROPA, lat, lon)
+
+
+def ensemble_del_punto(lat, lon):
+    """Ensemble a 48 h del punto (ver Ciudad.ensemble): el PE-AROME dentro de su dominio; fuera, el de la Met Office en
+    Gran Bretaña e Irlanda y el ICON-EU en el resto de Europa."""
+
+    if dentro_de_arome(lat, lon):
+        return "arome"
+    return "ukmo" if _en(ISLAS_BRITANICAS, lat, lon) else "icon_eu"
 
 
 HTML = '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><div class="mapa-punto"></div>'
@@ -57,19 +81,23 @@ export default async function(component) {
       attribution: "Mapa &copy; Esri", maxZoom: 16,
     }).addTo(mapa);
     L.tileLayer(`${ESRI}/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`, {maxZoom: 16}).addTo(mapa);
+    const [sur, oeste, norte, este] = data.europa;
+    const europa = L.rectangle([[sur, oeste], [norte, este]], {color: "#635b53", weight: 1.5, dashArray: "6 6",
+                                                                fill: false, interactive: false}).addTo(mapa);
     const dominio = L.polygon(data.dominio, {color: "#d97706", weight: 2, fillOpacity: 0.04, interactive: false})
       .addTo(mapa);
-    mapa.setMaxBounds(dominio.getBounds().pad(0.3));
+    mapa.setMaxBounds(europa.getBounds().pad(0.1));
 
     div._marcador = L.circleMarker([0, 0], {radius: 7, color: "#111", weight: 2, fillColor: "#d97706",
                                             fillOpacity: 1});
     mapa.on("click", (e) => {
       const lat = Math.round(e.latlng.lat * 1000) / 1000, lon = Math.round(e.latlng.lng * 1000) / 1000;
+      if (!europa.getBounds().contains([lat, lon])) return;
       div._marcador.setLatLng([lat, lon]).addTo(mapa);
       setTriggerValue("punto", {lat, lon});
     });
     div._mapa = mapa;
-    if (data.lat === null) mapa.fitBounds(dominio.getBounds());
+    if (data.lat === null) mapa.fitBounds(dominio.getBounds().pad(0.15));
   }
 
   const clave = `${data.lat},${data.lon}`;
@@ -89,5 +117,5 @@ _mapa = st.components.v2.component("selector_punto", html=HTML, css=CSS, js=JS, 
 def selector_punto(lat=None, lon=None, key="selector_punto"):
     """Muestra el mapa con el punto (lat, lon) marcado; devuelve {"lat", "lon"} si se acaba de pulsar en él."""
 
-    datos = {"lat": lat, "lon": lon, "dominio": DOMINIO_AROME}
+    datos = {"lat": lat, "lon": lon, "dominio": DOMINIO_AROME, "europa": DOMINIO_EUROPA}
     return _mapa(data=datos, key=key, on_punto_change=lambda: None).punto

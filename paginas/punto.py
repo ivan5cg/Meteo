@@ -1,4 +1,6 @@
-"""Previsión para cualquier punto del dominio del PE-AROME, elegido en el mapa, buscando una localidad o por coordenadas.
+"""Previsión para cualquier punto de Europa (el dominio del ICON-EU), elegido en el mapa, buscando una localidad o por
+coordenadas. El corto plazo sale del PE-AROME dentro de su dominio y, fuera, del ensemble de la Met Office (Gran Bretaña
+e Irlanda) o del ICON-EU (ver selector_punto.ensemble_del_punto).
 
 El punto elegido se guarda en la URL (?lat=..&lon=..), así que se puede guardar en favoritos o compartir.
 """
@@ -6,8 +8,8 @@ El punto elegido se guarda en la URL (?lat=..&lon=..), así que se puede guardar
 import streamlit as st
 
 from meteodash.ciudad import Ciudad, render_pagina
-from meteodash.fuentes import buscar_lugares, get_nombre_lugar, get_zona_horaria
-from meteodash.selector_punto import dentro_de_arome, selector_punto
+from meteodash.fuentes import ENSEMBLES_48H, buscar_lugares, get_nombre_lugar, get_zona_horaria
+from meteodash.selector_punto import DOMINIO_EUROPA, dentro_de_europa, ensemble_del_punto, selector_punto
 
 
 def elegir(lat, lon, nombre=None, tz=None):
@@ -29,19 +31,20 @@ if "punto" not in st.session_state:
         elegir(*desde_url)
 
 st.header("Cualquier punto 📍")
-st.caption("Pulsa en el mapa, busca una localidad o escribe las coordenadas. Solo se puede elegir dentro del "
-           "contorno naranja: el dominio del ensemble AROME.")
+st.caption("Pulsa en el mapa, busca una localidad o escribe las coordenadas: cualquier punto de Europa dentro del "
+           "rectángulo gris. Dentro del contorno naranja, el corto plazo sale del ensemble AROME; fuera, del de la Met "
+           "Office en Gran Bretaña e Irlanda y del ICON-EU en el resto.")
 
-busqueda = st.text_input("Buscar localidad", placeholder="Ej.: Gredos, Biarritz, Annecy…",
+busqueda = st.text_input("Buscar localidad", placeholder="Ej.: Gredos, Biarritz, Annecy, Tromsø…",
                          label_visibility="collapsed", icon=":material/search:")
 if busqueda:
     try:
-        lugares = [l for l in buscar_lugares(busqueda.strip()) if dentro_de_arome(l["lat"], l["lon"])]
+        lugares = [l for l in buscar_lugares(busqueda.strip()) if dentro_de_europa(l["lat"], l["lon"])]
     except Exception:
         st.warning("No se ha podido consultar el buscador de localidades.")
     else:
         if not lugares:
-            st.caption("No se ha encontrado ninguna localidad con ese nombre dentro del dominio de AROME.")
+            st.caption("No se ha encontrado ninguna localidad de Europa con ese nombre.")
         else:
             def elegir_lugar(clave):
                 if (lugar := st.session_state[clave]) is not None:
@@ -59,11 +62,12 @@ if pulsado is not None and (punto is None or (pulsado["lat"], pulsado["lon"]) !=
     elegir(pulsado["lat"], pulsado["lon"])
     st.rerun()
 
+sur, oeste, norte, este = DOMINIO_EUROPA
 with st.expander("Coordenadas", icon=":material/my_location:"):
     with st.form("coordenadas", border=False):
         col_lat, col_lon = st.columns(2)
-        lat = col_lat.number_input("Latitud", 30.0, 60.0, punto["lat"] if punto else 40.4, step=0.01, format="%.3f")
-        lon = col_lon.number_input("Longitud", -20.0, 25.0, punto["lon"] if punto else -3.7, step=0.01, format="%.3f")
+        lat = col_lat.number_input("Latitud", sur, norte, punto["lat"] if punto else 40.4, step=0.01, format="%.3f")
+        lon = col_lon.number_input("Longitud", oeste, este, punto["lon"] if punto else -3.7, step=0.01, format="%.3f")
         if st.form_submit_button("Ver previsión", icon=":material/arrow_forward:"):
             elegir(lat, lon)
             st.rerun()
@@ -72,9 +76,9 @@ punto = st.session_state.punto
 if punto is None:
     st.stop()
 
-if not dentro_de_arome(punto["lat"], punto["lon"]):
-    st.error(f"El punto {punto['lat']:.3f}, {punto['lon']:.3f} está fuera del dominio de AROME. "
-             "Elige otro dentro del contorno naranja.")
+if not dentro_de_europa(punto["lat"], punto["lon"]):
+    st.error(f"El punto {punto['lat']:.3f}, {punto['lon']:.3f} está fuera de Europa (el dominio del ICON-EU). "
+             "Elige otro dentro del rectángulo gris.")
     st.stop()
 
 # Nombre y zona horaria del punto: los de la localidad buscada o, si se ha pulsado en el mapa, consultados aparte
@@ -90,9 +94,12 @@ if punto["tz"] is None:
         punto["tz"] = "Europe/Madrid"
 
 coordenadas = f"{punto['lat']:.3f}, {punto['lon']:.3f}"
+ensemble = ensemble_del_punto(punto["lat"], punto["lon"])
 st.divider()
+if ensemble != "arome":
+    st.caption(f"Fuera del dominio del AROME: el corto plazo sale del ensemble {ENSEMBLES_48H[ensemble]['nombre']}.")
 render_pagina(
     Ciudad(nombre=punto["nombre"] or coordenadas, lat=punto["lat"], lon=punto["lon"], tz=punto["tz"],
-           nieve=True),
+           ensemble=ensemble, nieve=True),
     titulo=f"{punto['nombre']} ({coordenadas})" if punto["nombre"] else coordenadas,
 )

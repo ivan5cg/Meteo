@@ -18,8 +18,11 @@ INTERVALO_ACTUALIZAR = pd.Timedelta(minutes=5)
 st.set_page_config(page_title="Meteo Dash", page_icon=":material/partly_cloudy_day:", layout="centered")
 
 paginas = st.navigation({
+    "": [
+        st.Page("paginas/inicio.py", title="Todos los lugares", icon=":material/dashboard:", default=True),
+    ],
     "España": [
-        st.Page("paginas/madrid.py", title="Madrid", icon=":material/location_city:", default=True),
+        st.Page("paginas/madrid.py", title="Madrid", icon=":material/location_city:"),
         st.Page("paginas/avila.py", title="Ávila", icon=":material/fort:"),
         st.Page("paginas/alicante.py", title="Alicante", icon=":material/beach_access:"),
         st.Page("paginas/santander.py", title="Santander", icon=":material/sailing:"),

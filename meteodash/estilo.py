@@ -71,6 +71,21 @@ section[data-testid="stSidebar"] {
     line-height: 1.6;
 }
 
+/* Temperaturas de la predicción de montaña: la tabla de récords, con la altitud junto al lugar */
+.tabla-lugares { margin-top: 4px; font-size: 0.88rem; }
+.tabla-lugares .altitud { font-size: 0.85em; color: #635b53; white-space: nowrap; }
+.tabla-lugares td:not(:first-child), .tabla-lugares th:not(:first-child) { text-align: center; white-space: nowrap; }
+@media (max-width: 460px) {
+    .tabla-lugares { font-size: 0.78rem; }
+    .tabla-lugares th, .tabla-lugares td { padding: 6px 4px; }
+}
+.nivel-aludes {
+    border-left: 5px solid var(--nivel);
+    background: color-mix(in srgb, var(--nivel) 12%, #fffdf8);
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
 /* Rejilla responsiva para cámaras */
 .camera-grid {
     display: grid;
@@ -246,6 +261,113 @@ section[data-testid="stSidebar"] {
     .dia-icono { font-size: 1.2rem; }
     .dia-max { font-size: 0.9rem; }
     .dia-min, .dia-lluvia { font-size: 0.7rem; }
+}
+
+/* Portada: una fila por lugar (enlace a su página) con la temperatura actual, hoy y mañana */
+.portada {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+.pl-fila {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.75fr) minmax(0, 1.4fr) minmax(0, 1.4fr);
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: #f7f4ee;
+    border: 1px solid #d6cfc4;
+    border-radius: 12px;
+    color: #2a241f !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease;
+}
+a.pl-fila:hover {
+    background: #ffffff;
+    border-color: rgba(217, 119, 6, 0.45);
+    box-shadow: 0 6px 18px -6px rgba(217, 119, 6, 0.25);
+    transform: translateY(-1px);
+}
+.pl-fila.pl-cabecera {
+    background: none;
+    border: none;
+    padding: 0 16px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #635b53 !important;
+}
+.pl-nombre { font-weight: 700; font-size: 0.98rem; min-width: 0; overflow-wrap: anywhere; }
+.pl-nombre small { display: block; font-weight: 400; font-size: 0.72rem; color: #635b53; }
+.pl-aviso {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: color-mix(in srgb, var(--aviso) 18%, #fffdf8);
+    border: 1px solid var(--aviso);
+    cursor: help;
+}
+.pl-ahora { font-size: 1.35rem; font-weight: 700; color: hsl(var(--hue, 30), 65%, 36%); line-height: 1.1; }
+.pl-ahora small { display: block; font-size: 0.68rem; font-weight: 500; color: #635b53; }
+.pl-ahora.vacio, .pl-dia.vacio { color: #b8b0a2; font-weight: 400; }
+.pl-dia { display: flex; align-items: center; gap: 8px; }
+.pl-icono { font-size: 1.45rem; line-height: 1; }
+.pl-temps b { font-size: 1.02rem; }
+.pl-temps span { color: #635b53; font-size: 0.9rem; }
+.pl-lluvia { font-size: 0.78rem; font-weight: 600; color: #0277bd; margin-left: 2px; }
+.pl-lluvia.vacia { color: #b8b0a2; }
+/* Móvil: el día en dos líneas (icono y temperaturas, y la lluvia debajo) */
+@container (max-width: 520px) {
+    .pl-fila { gap: 6px; padding: 9px 10px; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 1fr); }
+    .pl-fila.pl-cabecera { padding: 0 10px; font-size: 0.62rem; }
+    .pl-nombre { font-size: 0.84rem; }
+    .pl-ahora { font-size: 1.1rem; }
+    .pl-dia { flex-wrap: wrap; gap: 2px 5px; }
+    .pl-icono { font-size: 1.15rem; }
+    .pl-temps b { font-size: 0.88rem; }
+    .pl-temps span { font-size: 0.78rem; }
+    .pl-lluvia { flex-basis: 100%; margin-left: 0; font-size: 0.7rem; }
+}
+
+/* Luna: el disco con su fase, salida y puesta y las próximas fases principales */
+.rejilla .luna {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px 28px;
+    background: #f7f4ee;
+    border: 1px solid #d6cfc4;
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px -2px rgba(60, 50, 40, 0.08);
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+.luna-hoy { display: flex; align-items: center; gap: 16px; flex: 1 1 260px; }
+.luna-disco { width: 84px; height: 84px; flex-shrink: 0; filter: drop-shadow(0 0 10px rgba(217, 200, 150, 0.55)); }
+.luna-sombra { fill: #3b3a45; }
+.luna-luz { fill: #f3ead2; }
+.luna-borde { fill: none; stroke: rgba(42, 36, 31, 0.25); stroke-width: 1; }
+.luna-nombre { font-size: 1.35rem; font-weight: 700; color: #2a241f; line-height: 1.2; }
+.luna-dato { font-size: 0.84rem; color: #635b53; margin-top: 3px; }
+.luna-proximas {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    flex: 1 1 340px;
+}
+.luna-fase { text-align: center; font-size: 0.74rem; color: #635b53; line-height: 1.35; }
+.luna-fase b { display: block; color: #2a241f; font-size: 0.78rem; }
+.luna-emoji { display: block; font-size: 1.5rem; line-height: 1.2; }
+@container (max-width: 460px) {
+    .rejilla .luna { padding: 14px; gap: 14px; }
+    .luna-disco { width: 64px; height: 64px; }
+    .luna-nombre { font-size: 1.1rem; }
+    .luna-proximas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* Barra de fiabilidad */

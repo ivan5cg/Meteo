@@ -120,6 +120,99 @@ def get_comentario_aemet(ccaa, dia):
     return parsear_prediccion(_decodificar(_pedir_bruto(f"/prediccion/ccaa/{dia}/{ccaa}")), DIAS_PREDICCION[dia])
 
 
+# ---------------------------------------------------------------- Montaña y aludes
+
+DIAS_MONTAÑA = 4  # hoy y los tres días siguientes (los que publica AEMET)
+# Títulos más cortos para la atmósfera libre
+ATMOSFERA = {"isocero": "Isoterma de 0º", "iso10": "Isoterma de -10º", "v1500": "Viento a 1500 m",
+             "v3000": "Viento a 3000 m"}
+
+
+@st.cache_data(ttl="1h", show_spinner=False)
+def get_prediccion_montaña(zona, dia):
+    """Predicción de montaña de AEMET para una zona ("arn1": Pirineo aragonés) y un día (0 hoy ... 3).
+
+    {"apartados": [(título, texto)], "atmosfera": [(título, valor)], "lugares": [dict(nombre, altitud, minima, maxima,
+    st_minima, st_maxima)]}, con st_* la sensación térmica. La atmósfera libre y los lugares solo vienen para hoy y
+    mañana. AEMET no incluye la fecha: el día 0 es el de hoy (comprobado con su web, que rotula cada día).
+    """
+
+    secciones = {s["nombre"]: s for s in _pedir(f"/prediccion/especifica/montaña/pasada/area/{zona}/dia/{dia}")[0]["seccion"]}
+
+    def apartados(nombre):
+        return [(a["cabecera"], a["texto"]) for a in secciones.get(nombre, {}).get("apartado", []) if a.get("texto")]
+
+    lugares = [{"nombre": l["nombre"], "altitud": l.get("altitud", ""), "minima": l.get("minima"),
+                "maxima": l.get("maxima"), "st_minima": l.get("stminima"), "st_maxima": l.get("stmaxima")}
+               for l in secciones.get("sensacion_termica", {}).get("lugar", [])]
+    atmosfera = [(ATMOSFERA.get(a["nombre"], a["cabecera"]), a["texto"])
+                 for a in secciones.get("atmosferalibre", {}).get("apartado", []) if a.get("texto")]
+    return {"apartados": apartados("prediccion"), "atmosfera": atmosfera, "lugares": lugares}
+
+
+# Escala europea de peligro de aludes: nivel -> (nombre, color)
+NIVELES_ALUDES = {1: ("débil", "#9bd14b"), 2: ("limitado", "#e6d200"), 3: ("notable", "#f08a00"),
+                  4: ("fuerte", "#e2231a"), 5: ("muy fuerte", "#7a0b0b")}
+
+
+@st.cache_data(ttl="1h", show_spinner=False)
+def get_boletin_aludes(zona):
+    """Último boletín de peligro de aludes de AEMET ("1": Pirineo navarro y aragonés), o la nota de fin de campaña.
+
+    {"titulo", "elaborado" (fecha), "parrafos", "nivel" (el más alto que cita como "notable (3)", o None)}.
+    """
+
+    texto = _decodificar(_pedir_bruto(f"/prediccion/especifica/nivologica/{zona}"))
+    elaborado = re.search(r"[Ee]laborad[oa] el d[íi]a\s+(\d+)\s+de\s+(\w+)\s+de\s+(\d{4})", texto)
+    if not elaborado:
+        raise ValueError("No se reconoce la fecha del boletín de aludes de AEMET")
+    dia, mes, año = elaborado.groups()
+
+    # Párrafos separados por líneas en blanco; las líneas de cada uno vienen cortadas a unos 65 caracteres
+    parrafos = [" ".join(linea.strip() for linea in p.splitlines() if linea.strip())
+                for p in re.split(r"\n\s*\n", texto) if p.strip()]
+    titulo = next((p for p in parrafos if "nivol" in p.lower() or "aludes" in p.lower()), "")
+    cuerpo = [p for p in parrafos if p != titulo and not p.lower().startswith("agencia estatal")
+              and elaborado.group(0) not in p]
+    niveles = [int(n) for nombre, n in re.findall(r"(d[ée]bil|limitado|notable|fuerte)\s*\(([1-5])\)", texto, re.I)]
+    return {"titulo": titulo, "elaborado": pd.Timestamp(int(año), MESES[mes.upper()], int(dia)), "parrafos": cuerpo,
+            "nivel": max(niveles) if niveles else None}
+
+
+# ---------------------------------------------------------------- Valores diarios de una estación
+
+TROZO_DIAS = 180  # AEMET admite como máximo 6 meses por consulta
+
+
+@st.cache_data(ttl="6h", show_spinner=False)
+def get_lluvia_reciente(estacion, desde):
+    """Lluvia diaria (L/m²) de una estación desde `desde` ("AAAA-MM-DD") hasta lo último que ha publicado AEMET, que
+    llega con unos días de retraso: Series por fecha. "Ip" (inapreciable) cuenta como 0; los acumulados de varios días
+    y los días sin dato quedan como NaN."""
+
+    hoy = pd.Timestamp.now(tz="Europe/Madrid").tz_localize(None).normalize()
+    filas, inicio = [], pd.Timestamp(desde)
+    while inicio <= hoy:
+        fin = min(inicio + pd.Timedelta(days=TROZO_DIAS - 1), hoy)
+        try:
+            filas += _pedir(f"/valores/climatologicos/diarios/datos/fechaini/{inicio:%Y-%m-%d}T00:00:00UTC/"
+                            f"fechafin/{fin:%Y-%m-%d}T23:59:59UTC/estacion/{estacion}")
+        except ValueError:  # "No hay datos que satisfagan esos criterios": aún no ha publicado esas fechas
+            pass
+        inicio = fin + pd.Timedelta(days=1)
+
+    def numero(texto):
+        if texto == "Ip":
+            return 0.0
+        try:
+            return float(str(texto).replace(",", "."))
+        except ValueError:
+            return float("nan")
+
+    lluvia = {pd.Timestamp(f["fecha"]): numero(f.get("prec")) for f in filas if "fecha" in f}
+    return pd.Series(lluvia, dtype=float).sort_index()
+
+
 # ---------------------------------------------------------------- Resumen mensual de una estación
 
 @st.cache_data(ttl="12h", show_spinner=False)
