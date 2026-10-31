@@ -333,36 +333,51 @@ a.pl-fila:hover {
     .pl-lluvia { flex-basis: 100%; margin-left: 0; font-size: 0.7rem; }
 }
 
-/* Luna: el disco con su fase, salida y puesta y las próximas fases principales */
+/* Luna: el disco con su fase, salida y puesta y las próximas fases principales. Siempre en oscuro, como un cielo
+   de noche, con el tema claro de la app o sin él */
 .rejilla .luna {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 18px 28px;
-    background: #f7f4ee;
-    border: 1px solid #d6cfc4;
+    background: radial-gradient(120% 90% at 15% 0%, #1b2c55 0%, #0f1a36 50%, #080d1c 100%);
+    border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 14px;
     padding: 18px 20px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 16px -2px rgba(60, 50, 40, 0.08);
+    box-shadow: 0 14px 34px -18px rgba(7, 11, 24, 0.85);
+    color-scheme: dark;
     font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
 }
 .luna-hoy { display: flex; align-items: center; gap: 16px; flex: 1 1 260px; }
-.luna-disco { width: 84px; height: 84px; flex-shrink: 0; filter: drop-shadow(0 0 10px rgba(217, 200, 150, 0.55)); }
-.luna-sombra { fill: #3b3a45; }
+.luna-disco { width: 84px; height: 84px; flex-shrink: 0; filter: drop-shadow(0 0 14px rgba(243, 234, 210, 0.35)); }
+.luna-sombra { fill: #1f2940; }
 .luna-luz { fill: #f3ead2; }
-.luna-borde { fill: none; stroke: rgba(42, 36, 31, 0.25); stroke-width: 1; }
-.luna-nombre { font-size: 1.35rem; font-weight: 700; color: #2a241f; line-height: 1.2; }
-.luna-dato { font-size: 0.84rem; color: #635b53; margin-top: 3px; }
+.luna-borde { fill: none; stroke: rgba(226, 232, 240, 0.28); stroke-width: 1; }
+.rejilla .luna .metric-label { color: #94a3b8; }
+.luna-nombre { font-size: 1.35rem; font-weight: 700; color: #f1f5f9; line-height: 1.2; }
+.luna-dato { font-size: 0.84rem; color: #cbd5e1; margin-top: 3px; }
 .luna-proximas {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 10px;
     flex: 1 1 340px;
 }
-.luna-fase { text-align: center; font-size: 0.74rem; color: #635b53; line-height: 1.35; }
-.luna-fase b { display: block; color: #2a241f; font-size: 0.78rem; }
+.luna-fase { text-align: center; font-size: 0.74rem; color: #94a3b8; line-height: 1.35; }
+.luna-fase b { display: block; color: #e2e8f0; font-size: 0.78rem; }
 .luna-emoji { display: block; font-size: 1.5rem; line-height: 1.2; }
+.luna-donde { color: #f3ead2; font-weight: 600; }
+/* Mapa del cielo: el horizonte en el borde, el cénit en el centro */
+.luna-cielo { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
+.luna-cielo span { font-size: 0.7rem; color: #94a3b8; }
+.cielo { width: 136px; height: 136px; }
+.cielo-horizonte { fill: rgba(148, 163, 184, 0.06); stroke: rgba(226, 232, 240, 0.4); stroke-width: 1; }
+.cielo-altura { fill: none; stroke: rgba(226, 232, 240, 0.14); stroke-width: 0.6; stroke-dasharray: 2 2; }
+.cielo-rotulo { fill: #94a3b8; font-size: 7.5px; font-weight: 700; text-anchor: middle; dominant-baseline: central;
+                font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; }
+.cielo-recorrido { fill: none; stroke: rgba(243, 234, 210, 0.55); stroke-width: 1.4; stroke-dasharray: 3 2.5;
+                   stroke-linecap: round; }
+.cielo-luna { fill: #f3ead2; filter: drop-shadow(0 0 4px rgba(243, 234, 210, 0.9)); }
 @container (max-width: 460px) {
     .rejilla .luna { padding: 14px; gap: 14px; }
     .luna-disco { width: 64px; height: 64px; }

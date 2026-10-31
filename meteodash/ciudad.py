@@ -559,8 +559,14 @@ def render_48h(ciudad, titulo=None):
         st.divider()
 
     st.plotly_chart(graficos.elevacion_solar(ciudad.lat, ciudad.lon, ciudad.tz))
-    tarjetas.luna(luna.fase(ahora), luna.fases_principales(ahora),
-                  luna.salida_y_puesta(ciudad.lat, ciudad.lon, ciudad.tz, ahora.date()), ahora)
+    salida_puesta = luna.salida_y_puesta(ciudad.lat, ciudad.lon, ciudad.tz, ahora.date())
+    azimut, altura = luna.posicion(ciudad.lat, ciudad.lon, ahora)
+    salida, puesta, _ = salida_puesta
+    cielo = {"azimut": azimut, "altura": altura,
+             "recorrido": luna.recorrido(ciudad.lat, ciudad.lon, ciudad.tz, ahora.date()),
+             "az_salida": luna.posicion(ciudad.lat, ciudad.lon, salida)[0] if salida else None,
+             "az_puesta": luna.posicion(ciudad.lat, ciudad.lon, puesta)[0] if puesta else None}
+    tarjetas.luna(luna.fase(ahora), luna.fases_principales(ahora), salida_puesta, cielo, ahora)
 
     # --- Cámaras ---
     if ciudad.camaras:

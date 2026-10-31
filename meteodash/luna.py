@@ -128,3 +128,27 @@ def salida_y_puesta(lat, lon, tz, fecha):
             resultado.append(None)
     mediodia = zona.localize(pd.Timestamp(fecha).to_pydatetime().replace(hour=12))
     return resultado[0], resultado[1], moon.elevation(observador, mediodia) > 0
+
+
+RUMBOS = ["norte", "nordeste", "este", "sudeste", "sur", "suroeste", "oeste", "noroeste"]
+
+
+def rumbo(azimut):
+    """Punto cardinal (de 8) de un azimut en grados desde el norte."""
+
+    return RUMBOS[int((azimut % 360 + 22.5) // 45) % 8]
+
+
+def posicion(lat, lon, momento):
+    """(azimut desde el norte, altura sobre el horizonte) de la Luna en grados, según astral (coincide con el USNO en
+    menos de 0,1º)."""
+
+    observador, instante = Observer(lat, lon), pd.Timestamp(momento).to_pydatetime()
+    return moon.azimuth(observador, instante), moon.elevation(observador, instante)
+
+
+def recorrido(lat, lon, tz, fecha, minutos=10):
+    """Posición de la Luna cada `minutos` durante el día local `fecha`: DataFrame (azimut, altura) por hora local."""
+
+    horas = pd.date_range(pd.Timestamp(fecha, tz=tz), periods=24 * 60 // minutos + 1, freq=f"{minutos}min")
+    return pd.DataFrame([posicion(lat, lon, h) for h in horas], index=horas, columns=["azimut", "altura"])

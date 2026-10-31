@@ -2,6 +2,7 @@
 
 from html import escape
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -9,6 +10,7 @@ from .aemet_opendata import MESES, NIVELES_ALUDES
 from .avisos import NIVELES, TIPOS
 from .estilo import AMBAR, AZUL, ROJO
 from .graficos import dia_semana
+from .luna import rumbo
 
 TEXTO_PERCENTIL = "Percentil: posición frente a los registros históricos de este día (100 = el más alto)."
 
@@ -406,17 +408,63 @@ def svg_luna(iluminada, crece, clase="luna-disco"):
             '<circle cx="50" cy="50" r="40" class="luna-borde"/></svg>')
 
 
-def luna(fase, proximas, salida_puesta, ahora):
-    """Fase de la Luna ahora (ver luna.fase), su salida y puesta hoy y las próximas fases principales."""
+def svg_cielo(recorrido, azimut, altura):
+    """Mapa del cielo visto desde arriba, como una brújula (norte arriba, este a la derecha): el borde es el horizonte
+    y el centro, el cénit. El recorrido de la Luna en el día (ver luna.recorrido) y, si está sobre el horizonte, dónde
+    está ahora."""
+
+    radio, centro = 42, 55
+
+    def xy(az, alt):
+        r = radio * (90 - alt) / 90
+        return centro + r * np.sin(np.radians(az)), centro - r * np.cos(np.radians(az))
+
+    # El recorrido, en tramos sobre el horizonte (puede salir y ponerse en el mismo día)
+    tramos, tramo = [], []
+    for az, alt in recorrido[["azimut", "altura"]].itertuples(index=False):
+        if alt > 0:
+            tramo.append("{:.1f},{:.1f}".format(*xy(az, alt)))
+        elif tramo:
+            tramos.append(tramo)
+            tramo = []
+    tramos += [tramo] if tramo else []
+    lineas = "".join(f'<polyline points="{" ".join(t)}" class="cielo-recorrido"/>' for t in tramos if len(t) > 1)
+
+    rotulos = "".join(f'<text x="{x:.1f}" y="{y:.1f}" class="cielo-rotulo">{texto}</text>'
+                      for texto, (x, y) in [(t, (centro + 50 * np.sin(np.radians(a)), centro - 50 * np.cos(np.radians(a))))
+                                            for t, a in [("N", 0), ("E", 90), ("S", 180), ("O", 270)]])
+    luna = ""
+    if altura > 0:
+        x, y = xy(azimut, altura)
+        luna = f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5" class="cielo-luna"/>'
+    return (f'<svg class="cielo" viewBox="0 0 110 110" role="img" aria-label="Posición de la Luna en el cielo">'
+            f'<circle cx="{centro}" cy="{centro}" r="{radio}" class="cielo-horizonte"/>'
+            f'<circle cx="{centro}" cy="{centro}" r="{radio * 2 / 3:.0f}" class="cielo-altura"/>'
+            f'<circle cx="{centro}" cy="{centro}" r="{radio / 3:.0f}" class="cielo-altura"/>'
+            f'<path d="M{centro},{centro - radio} V{centro + radio} M{centro - radio},{centro} H{centro + radio}" '
+            f'class="cielo-altura"/>{rotulos}{lineas}{luna}</svg>')
+
+
+def luna(fase, proximas, salida_puesta, cielo, ahora):
+    """Fase de la Luna ahora (ver luna.fase), su salida y puesta hoy, dónde está en el cielo y las próximas fases
+    principales.
+
+    `cielo`: dict(azimut, altura) de ahora, `recorrido` del día (ver luna.recorrido) y azimut de la salida y de la puesta
+    (`az_salida`, `az_puesta`, o None).
+    """
 
     salida, puesta, arriba = salida_puesta
     if salida is None and puesta is None:
         horario = "Todo el día sobre el horizonte" if arriba else "Hoy no sale"
     else:
-        partes = [f"sale a las {salida:%H:%M}" if salida else "no sale", f"se pone a las {puesta:%H:%M}" if puesta
-                  else "no se pone"]
+        partes = [f"sale a las {salida:%H:%M} por el {rumbo(cielo['az_salida'])}" if salida else "no sale",
+                  f"se pone a las {puesta:%H:%M} por el {rumbo(cielo['az_puesta'])}" if puesta else "no se pone"]
         horario = " · ".join(partes)
         horario = horario[0].upper() + horario[1:]
+    if cielo["altura"] > 0:
+        donde = f"Ahora al {rumbo(cielo['azimut'])}, a {cielo['altura']:.0f}º sobre el horizonte"
+    else:
+        donde = "Ahora bajo el horizonte"
     edad = f" · {fase['edad']:.0f} días desde la nueva".replace(" 1 días", " 1 día") if fase["edad"] is not None else ""
 
     def cuando(momento):
@@ -429,7 +477,9 @@ def luna(fase, proximas, salida_puesta, ahora):
     _html(f'<div class="rejilla"><div class="luna"><div class="luna-hoy">{svg_luna(fase["iluminada"], fase["crece"])}'
           f'<div><div class="metric-label">Luna hoy</div><div class="luna-nombre">{fase["nombre"]}</div>'
           f'<div class="luna-dato">{100 * fase["iluminada"]:.0f} % iluminada{edad}</div>'
-          f'<div class="luna-dato">{horario}</div></div></div>'
+          f'<div class="luna-dato">{horario}</div><div class="luna-dato luna-donde">{donde}</div></div></div>'
+          f'<div class="luna-cielo">{svg_cielo(cielo["recorrido"], cielo["azimut"], cielo["altura"])}'
+          f'<span>Recorrido de hoy</span></div>'
           f'<div class="luna-proximas">{fases}</div></div></div>')
 
 
