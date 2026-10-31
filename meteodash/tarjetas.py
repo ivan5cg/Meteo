@@ -8,7 +8,7 @@ import streamlit as st
 
 from .aemet_opendata import MESES, NIVELES_ALUDES
 from .avisos import NIVELES, TIPOS
-from .estilo import AMBAR, AZUL, ROJO
+from .estilo import AMBAR, AZUL, ROJO, coma
 from .graficos import dia_semana
 from .luna import rumbo
 
@@ -53,7 +53,7 @@ def _rejilla(tarjetas, n, por_fila, clase=""):
 
 
 def _grados(t):
-    return "–" if t is None or pd.isna(t) else f"{t}º"
+    return "–" if t is None or pd.isna(t) else f"{coma(t)}º"
 
 
 def _delta(valor, nota):
@@ -63,7 +63,7 @@ def _delta(valor, nota):
         return f'<div class="metric-delta" style="color: #635b53">= 0º <span class="nota">{nota}</span></div>'
     color = ROJO if valor > 0 else AZUL
     flecha = "▲" if valor > 0 else "▼"
-    return f'<div class="metric-delta" style="color: {color}">{flecha} {abs(valor)}º <span class="nota">{nota}</span></div>'
+    return f'<div class="metric-delta" style="color: {color}">{flecha} {coma(abs(valor))}º <span class="nota">{nota}</span></div>'
 
 
 def principales(temp_mañana, fiabilidad, temp_actual=None, temp_ayer=None):
@@ -88,7 +88,7 @@ def principales(temp_mañana, fiabilidad, temp_actual=None, temp_ayer=None):
     </div>
     <div class="metric-card static-card">
     <div class="metric-label">Fiabilidad</div>
-    <div class="metric-value">{fiabilidad}<span class="unidad"> / 10</span></div>
+    <div class="metric-value">{coma(fiabilidad)}<span class="unidad"> / 10</span></div>
     <div class="progress-bg"><div class="progress-fill" style="width: {fiabilidad * 10}%; background: {color};"></div></div>
     <div class="metric-nota">Acuerdo {nivel} del ensemble</div>
     </div>"""
@@ -332,7 +332,7 @@ def records(del_dia, prob_lluvia=None):
         if serie.empty:
             return f'<td class="{clase}">–</td>'
         fecha = serie.idxmax() if funcion == "max" else serie.idxmin()
-        return f'<td class="{clase}">{serie[fecha]}º <span style="font-size: 0.85em; opacity: 0.5;">({fecha.year})</span></td>'
+        return f'<td class="{clase}">{coma(serie[fecha])}º <span style="font-size: 0.85em; opacity: 0.5;">({fecha.year})</span></td>'
 
     st.sidebar.markdown("### Récords para hoy")
     _html(f"""
@@ -348,11 +348,24 @@ def records(del_dia, prob_lluvia=None):
     lineas = []
     lluvia = del_dia["prec"].dropna() if "prec" in del_dia else pd.Series(dtype=float)
     if not lluvia.empty and lluvia.max() > 0:
-        lineas.append(f"Día más lluvioso: <b>{lluvia.max():.1f} L/m²</b> ({lluvia.idxmax().year})")
+        lineas.append(f"Día más lluvioso: <b>{coma(lluvia.max(), '.1f')} L/m²</b> ({lluvia.idxmax().year})")
     if prob_lluvia is not None:
         lineas.append(f"Llueve (≥ 1 L/m²) el <b>{prob_lluvia:.0f} %</b> de los días en estas fechas")
     if lineas:
         _html(f'<p class="records-nota">{"<br>".join(lineas)}</p>', destino=st.sidebar)
+
+
+def ancla(nombre):
+    """Punto de la página al que salta un enlace del índice (ver indice)."""
+
+    _html(f'<div id="ir-{nombre}" class="ancla"></div>')
+
+
+def indice(secciones):
+    """Enlaces a las secciones de más abajo (`secciones`: [(ancla, texto)]): en el móvil, la página es larga."""
+
+    enlaces = "".join(f'<a href="#ir-{nombre}">{texto}</a>' for nombre, texto in secciones)
+    _html(f'<nav class="indice"><span>Ir a</span>{enlaces}</nav>')
 
 
 def resumen(frases):
@@ -531,7 +544,7 @@ def cabecera_auroras(lugar, noche, ahora, factores):
     else:
         resumen = (f'<div class="aurora-hero-nota">{nombre_noche(noche["fecha"], ahora)}</div>'
                    f'<div class="aurora-hero-puntos" style="--nivel: {noche["color"]}">'
-                   f'{noche["puntuacion"]:.1f}<span>/ 10</span></div>'
+                   f'{coma(noche["puntuacion"], ".1f")}<span>/ 10</span></div>'
                    f'<div class="aurora-hero-veredicto">{noche["valoracion"]}: {_ventana(noche, factores)}</div>')
     _html(f'<div class="aurora-hero"><div class="aurora-estrellas"></div>'
           f'<div class="aurora-cortina uno"></div><div class="aurora-cortina dos"></div>'
@@ -552,7 +565,7 @@ def noches_aurora(noches, ahora, factores, compacta=False):
 
     html = ""
     for n in noches:
-        kp = f"Kp ~{n['kp']:.0f} (27 días)" if n["kp_27"] else f"Kp {n['kp']:.1f}"
+        kp = f"Kp ~{n['kp']:.0f} (27 días)" if n["kp_27"] else f"Kp {coma(n['kp'], '.1f')}"
         datos = [kp]
         if n["tormenta"] >= 10:
             datos.append(f"tormenta {n['tormenta']:.0f} %")
@@ -566,7 +579,7 @@ def noches_aurora(noches, ahora, factores, compacta=False):
         ventana = ventana[0].upper() + ventana[1:]
         cabecera = f'<span class="noche-nombre">{nombre_noche(n["fecha"], ahora)}</span>'
         centro = (f'<div class="noche-centro"><div class="noche-anillo"><span class="noche-puntos">'
-                  f'{n["puntuacion"]:.1f}</span></div><div><div class="noche-veredicto">{n["valoracion"]}</div>'
+                  f'{coma(n["puntuacion"], ".1f")}</span></div><div><div class="noche-veredicto">{n["valoracion"]}</div>'
                   f'<div class="noche-ventana">{ventana}</div></div></div>')
         estilo = f'style="--nivel: {n["color"]}; --p: {10 * n["puntuacion"]:.0f}"'
 

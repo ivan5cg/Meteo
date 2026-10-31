@@ -17,6 +17,7 @@ from astral import Observer, moon, sun
 
 from . import graficos, luna, tarjetas
 from .fuentes import descargar, en_paralelo, o_none
+from .estilo import coma
 from .graficos import valoracion_kp
 
 SWPC = "https://services.swpc.noaa.gov"
@@ -304,7 +305,7 @@ def _tarjetas_ahora(ciudad, ahora, kp, viento, ovation):
     if kp is not None and (pasado := kp[kp.index <= ahora.tz_convert("UTC")]).shape[0]:
         actual = pasado.iloc[-1]
         texto, color = valoracion_kp(actual["kp"], ciudad.kp_auroras)
-        lista.append({"label": "Kp ahora", "valor": f"{actual['kp']:.1f}", "color": color,
+        lista.append({"label": "Kp ahora", "valor": coma(actual["kp"], ".1f"), "color": color,
                       "nota": f"{actual['tipo']} · {texto.lower()}",
                       "title": "Índice Kp planetario del bloque de 3 h en curso (0 tranquilo ... 9 tormenta extrema)"})
     if ovation is not None:
@@ -325,14 +326,14 @@ def _tarjetas_ahora(ciudad, ahora, kp, viento, ovation):
             nota = "al norte: desfavorable"
         else:
             nota = "neutro"
-        lista.append({"label": "Bz", "valor": f"{bz:+.1f}", "unidad": "nT", "nota": nota,
+        lista.append({"label": "Bz", "valor": coma(bz, "+.1f"), "unidad": "nT", "nota": nota,
                       "title": "Componente norte-sur del campo magnético del viento solar: cuanto más negativa (hacia "
                                f"el sur), más auroras. Llega a la Tierra hacia las "
                                f"{viento['llegada'].tz_convert(ciudad.tz):%H:%M} h"})
         velocidad = viento["velocidad"]
         lista.append({"label": "Viento solar", "valor": f"{velocidad:.0f}", "unidad": "km/s",
                       "nota": "muy rápido" if velocidad >= 650 else "rápido" if velocidad >= 500 else "normal",
-                      "title": f"Densidad: {viento['densidad']:.1f} protones/cm³. Más rápido y denso, más actividad"})
+                      "title": f"Densidad: {coma(viento['densidad'], '.1f')} protones/cm³. Más rápido y denso, más actividad"})
 
     oscura = _noche_oscura(ciudad, ahora)
     if oscura is None:
@@ -400,14 +401,14 @@ def render_auroras(ciudad):
                                   if ciudad.kp_auroras >= KP_LEJOS_DEL_OVALO else "")
                     + ". Las noches a partir de la cuarta usan la previsión a 27 días de la NOAA, mucho menos "
                       "fiable. Mejor lejos de las luces y mirando al norte.")
-            st.plotly_chart(graficos.auroras(horario, kp, kp_27, ciudad.kp_auroras, ahora), theme=None)
+            graficos.mostrar(graficos.auroras(horario, kp, kp_27, ciudad.kp_auroras, ahora), theme=None)
         st.divider()
 
         st.subheader("Ahora")
         viento, ovation = o_none(get_viento_solar), o_none(get_ovation)
         _tarjetas_ahora(ciudad, ahora, kp, viento, ovation)
         if ovation is not None:
-            st.plotly_chart(graficos.ovalo_auroral(ovation[1], ciudad.lat, ciudad.lon, ciudad.nombre), theme=None)
+            graficos.mostrar(graficos.ovalo_auroral(ovation[1], ciudad.lat, ciudad.lon, ciudad.nombre), theme=None)
             st.caption("Probabilidad de ver auroras en la vertical de cada punto en la próxima hora, según el modelo "
                        "OVATION de la NOAA. Desde un lugar, también se ven las que quedan algo más al norte.")
         else:
@@ -415,6 +416,6 @@ def render_auroras(ciudad):
 
         if kp_27 is not None and not kp_27.empty:
             st.divider()
-            st.plotly_chart(graficos.kp_27_dias(kp_27, ciudad.kp_auroras, ahora.date()), theme=None)
+            graficos.mostrar(graficos.kp_27_dias(kp_27, ciudad.kp_auroras, ahora.date()), theme=None)
             st.caption("Previsión de la NOAA a partir de la rotación del Sol (27 días): las zonas activas tienden a "
                        "repetirse, pero es muy aproximada. No tiene en cuenta las nubes.")

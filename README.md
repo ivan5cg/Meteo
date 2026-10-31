@@ -18,6 +18,7 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `main_page.py` | Punto de entrada: navegación entre páginas (la portada, por defecto), estilo y botón de actualizar previsiones, observaciones y avisos (como mucho una vez cada 5 min, porque la caché es común a todos) |
 | `paginas/` | Una página por ciudad o grupo, que solo muestra su configuración de `meteodash/lugares.py`; además, `inicio.py` (la portada) y `punto.py` (cualquier punto de Europa) |
 | `meteodash/lugares.py` | Configuración (`Ciudad`) de todos los lugares, compartida por sus páginas y la portada, y las secciones de la portada |
+| `meteodash/actualizar.py` | Actualización forzada de los datos (botón del sidebar y, para el móvil, el de la línea de datos del corto plazo y de la portada) y antigüedad de lo descargado |
 | `meteodash/portada.py` | Portada: temperatura observada, hoy y mañana (ensemble ICON-EU) y avisos de todos los lugares, con enlace a su página |
 | `meteodash/ciudad.py` | `Ciudad` (configuración) y las pestañas de cada página: `render_48h` (corto plazo: resumen, tarjetas y ensemble a 48 h), `render_medio` (medio plazo: ICON-EU) y `render_largo` (largo plazo, 15 días: ECMWF y GEFS) |
 | `meteodash/fuentes.py` | Descarga y caché de Meteociel (PE-AROME), Open-Meteo (ensembles ICON-EU, ECMWF, GEFS y Met Office, determinista ICON-EU, variables complementarias, mar, calidad del aire), probabilidad de lluvia por miembros e históricos |

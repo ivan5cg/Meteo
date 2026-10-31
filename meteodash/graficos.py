@@ -12,7 +12,7 @@ from astral import LocationInfo
 from astral.sun import elevation, sun
 from plotly.subplots import make_subplots
 
-from .estilo import (AMBAR, AURORA, AZUL, FUENTE, NOCHE_SUAVE, NOCHE_TEXTO, ROJO, TEXTO, tema_noche,
+from .estilo import (AMBAR, AURORA, AZUL, FUENTE, NOCHE_SUAVE, NOCHE_TEXTO, ROJO, TEXTO, coma, tema_noche,
                      tema_plotly)
 from .fuentes import UMBRAL_LLUVIA, UMBRAL_LLUVIA_HORA, extremos_diarios, prob_diaria, prob_por_hora
 
@@ -20,6 +20,16 @@ DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 DIAS_LARGOS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
 OBSERVADO = "Observado"  # columna que añade ciudad.py con los datos de AEMET
+
+# Gráficos fijos y sin barra de herramientas: en el móvil, arrastrar el dedo sobre ellos desplaza la página en lugar de
+# hacer zoom (los ejes fijos y sin arrastre, en estilo.tema_plotly). Tocar un punto sigue mostrando sus valores
+CONFIG = {"displayModeBar": False, "scrollZoom": False, "doubleClick": False, "showAxisDragHandles": False}
+
+
+def mostrar(fig, **kwargs):
+    """st.plotly_chart con CONFIG."""
+
+    st.plotly_chart(fig, config=CONFIG, **kwargs)
 
 
 def dia_semana(fecha, largo=False):
@@ -101,7 +111,7 @@ def _extremos_diarios(fig, media, formato, sufijo=""):
             continue
         for momento, color, desplazamiento in [(dia.idxmin(), AZUL, -15), (dia.idxmax(), ROJO, 15)]:
             fig.add_annotation(
-                x=momento, y=dia[momento], text=f"<b>{dia[momento]:{formato}}{sufijo}</b>",
+                x=momento, y=dia[momento], text=f"<b>{coma(dia[momento], formato)}{sufijo}</b>",
                 showarrow=False, yshift=desplazamiento, font=dict(color=color, size=11, family=FUENTE),
             )
 
@@ -541,7 +551,7 @@ def historico_vs_prevision(datos, dia, hoy, mañana):
             x=[tipo for tipo, _ in puntos], y=[valor for _, valor in puntos], mode="markers+text",
             name=f"Prev. {nombre}",
             marker=dict(size=16, color=color, line=dict(width=2, color="white"), symbol=simbolo),
-            text=[f"<b>{nombre}: {valor}º</b>" for _, valor in puntos], textposition=posicion,
+            text=[f"<b>{nombre}: {coma(valor)}º</b>" for _, valor in puntos], textposition=posicion,
             textfont=dict(color=TEXTO, size=11, family=FUENTE),
             hovertemplate=f"<b>Previsión {nombre} (%{{x}}): %{{y:.1f}}°C</b><extra></extra>",
         ))
@@ -654,7 +664,7 @@ def elevacion_solar(latitud, longitud, zona="UTC"):
     fig.add_trace(go.Scatter(
         x=[etiquetas[i_ahora]], y=[elevaciones[i_ahora]], mode="markers+text",
         marker=dict(size=12, color=AZUL, symbol="circle", line=dict(width=2, color="white")),
-        text=[f"<b>Ahora ({elevaciones[i_ahora]:.1f}°)</b>"], textposition="top center",
+        text=[f"<b>Ahora ({coma(elevaciones[i_ahora], '.1f')}°)</b>"], textposition="top center",
         textfont=dict(color=AZUL, size=11, family=FUENTE), name="Ahora",
         hovertemplate="Actual (%{x}): <b>%{y:.1f}°</b><extra></extra>",
     ))
@@ -663,7 +673,7 @@ def elevacion_solar(latitud, longitud, zona="UTC"):
         y=[0, elevaciones[i_cenit], 0], mode="markers+text",
         marker=dict(size=9, color=[AMBAR, ROJO, "#ea580c"]),
         text=[f"<b>Amanecer {etiquetas[i_amanecer]}</b>",
-              f"<b>Cénit {etiquetas[i_cenit]} ({elevaciones[i_cenit]:.1f}°)</b>",
+              f"<b>Cénit {etiquetas[i_cenit]} ({coma(elevaciones[i_cenit], '.1f')}°)</b>",
               f"<b>Atardecer {etiquetas[i_atardecer]}</b>"],
         textposition=["bottom center", "top center", "bottom center"],
         textfont=dict(color=TEXTO, size=10.5, family=FUENTE), showlegend=False,

@@ -7,7 +7,8 @@ import pandas as pd
 import streamlit as st
 
 from . import graficos, luna, tarjetas
-from .estilo import AZUL, ROJO
+from .actualizar import antiguedad, linea_datos
+from .estilo import AZUL, ROJO, coma
 from .aemet_opendata import (DIAS_MONTAÑA, DIAS_PREDICCION, get_boletin_aludes, get_comentario_aemet,
                              get_prediccion_montaña, get_resumen_mensual, hay_clave, normales_mensuales, racha_maxima,
                              valor_y_dia)
@@ -161,7 +162,7 @@ def tarjetas_condiciones(ciudad, ahora, detalle, obs, aire, mar=None):
         detalle_olas = [f"periodo {fila['periodo']:.0f} s"] if not pd.isna(fila["periodo"]) else []
         if (rumbo := cardinal(fila["direccion"])) is not None:
             detalle_olas.append(f"del {rumbo}")
-        lista.append({"label": "Olas", "valor": f"{fila['olas']:.1f}", "unidad": "m", "nota": ", ".join(detalle_olas),
+        lista.append({"label": "Olas", "valor": coma(fila["olas"], ".1f"), "unidad": "m", "nota": ", ".join(detalle_olas),
                       "title": titulo})
 
     if aire is not None and aire["european_aqi"].notna().any():
@@ -205,21 +206,21 @@ def mostrar_resumen_mensual(ciudad, ahora, datos_hist):
         valor = numero(clave)
         if valor is None:
             continue
-        tarjeta = {"label": etiqueta, "valor": f"{valor:.1f}º"}
+        tarjeta = {"label": etiqueta, "valor": f"{coma(valor, '.1f')}º"}
         if normal:
             desvio = valor - normal[clave_normal]
-            tarjeta["nota"] = f"{desvio:+.1f}º sobre lo normal" if desvio >= 0 else f"{desvio:+.1f}º bajo lo normal"
-            tarjeta["title"] = f"Normal de {MESES[mes - 1]} (1991-2020): {normal[clave_normal]:.1f}º"
+            tarjeta["nota"] = f"{coma(desvio, '+.1f')}º " + ("sobre lo normal" if desvio >= 0 else "bajo lo normal")
+            tarjeta["title"] = f"Normal de {MESES[mes - 1]} (1991-2020): {coma(normal[clave_normal], '.1f')}º"
             if abs(desvio) >= 1:
                 tarjeta["color"] = ROJO if desvio > 0 else AZUL
         lista.append(tarjeta)
 
     lluvia = numero("p_mes")
     if lluvia is not None:
-        tarjeta = {"label": "Lluvia", "valor": f"{lluvia:.1f}", "unidad": "L/m²"}
+        tarjeta = {"label": "Lluvia", "valor": coma(lluvia, ".1f"), "unidad": "L/m²"}
         if normal and normal["lluvia"] > 0:
             tarjeta["nota"] = f"{100 * lluvia / normal['lluvia']:.0f} % de lo normal"
-            tarjeta["title"] = f"Normal de {MESES[mes - 1]} (1991-2020): {normal['lluvia']:.1f} L/m²"
+            tarjeta["title"] = f"Normal de {MESES[mes - 1]} (1991-2020): {coma(normal['lluvia'], '.1f')} L/m²"
         lista.append(tarjeta)
     dias_lluvia = numero("np_010")
     if dias_lluvia is not None:
@@ -231,13 +232,13 @@ def mostrar_resumen_mensual(ciudad, ahora, datos_hist):
     for etiqueta, clave in [("Máxima absoluta", "ta_max"), ("Mínima absoluta", "ta_min")]:
         valor, dia = valor_y_dia(v.get(clave))
         if valor is not None:
-            lista.append({"label": etiqueta, "valor": f"{valor:.1f}º", "nota": f"el día {dia}" if dia else ""})
+            lista.append({"label": etiqueta, "valor": f"{coma(valor, '.1f')}º", "nota": f"el día {dia}" if dia else ""})
     racha, dia = racha_maxima(v.get("w_racha"))
     if racha is not None:
         lista.append({"label": "Racha máxima", "valor": f"{racha:.0f}", "unidad": "km/h", "nota": f"el día {dia}" if dia else ""})
     sol = numero("inso")
     if sol is not None:
-        lista.append({"label": "Sol", "valor": f"{sol:.1f}", "unidad": "h/día", "nota": "insolación media"})
+        lista.append({"label": "Sol", "valor": coma(sol, ".1f"), "unidad": "h/día", "nota": "insolación media"})
     for etiqueta, clave, nota in [("Días ≥ 30º", "nt_30", "de máxima"), ("Días de helada", "nt_00", "de mínima ≤ 0º")]:
         dias = numero(clave)
         if dias:
@@ -413,7 +414,8 @@ def render_48h(ciudad, titulo=None):
     if ciudad.ensemble in ENSEMBLES_48H:
         nombre = ENSEMBLES_48H[ciudad.ensemble]["nombre"]
         try:
-            run, arome = get_ensemble_48h(ciudad.lat, ciudad.lon, ciudad.tz, tuple(variables), ciudad.ensemble)
+            with st.spinner(f"Descargando el ensemble {nombre}…", show_time=True):
+                run, arome = get_ensemble_48h(ciudad.lat, ciudad.lon, ciudad.tz, tuple(variables), ciudad.ensemble)
         except Exception:
             st.error(f"No se ha podido descargar el ensemble {nombre} (Open-Meteo). Prueba a recargar en unos minutos.")
             _avisos(ciudad, ahora, hueco_avisos)
@@ -421,7 +423,8 @@ def render_48h(ciudad, titulo=None):
         fuentes = [f"{nombre} de las {run.tz_convert(ciudad.tz):%H} h"] if run is not None else []
     else:
         try:
-            run, arome = get_ensemble_arome(ciudad.lat, ciudad.lon, ciudad.tz, variables)
+            with st.spinner("Descargando el ensemble AROME de Meteociel…", show_time=True):
+                run, arome = get_ensemble_arome(ciudad.lat, ciudad.lon, ciudad.tz, variables)
         except Exception:
             st.error("No se ha podido descargar el ensemble AROME de Meteociel. Prueba a recargar en unos minutos.")
             _avisos(ciudad, ahora, hueco_avisos)
@@ -443,7 +446,10 @@ def render_48h(ciudad, titulo=None):
             arome["precipitacion"]["Observado"] = obs["precipitacion"]
         temp_actual, temp_ayer = temperatura_actual_y_ayer(obs)
     if fuentes:
-        hueco_datos.markdown(f'<p class="datos-de">Pase {" · ".join(fuentes)}</p>', unsafe_allow_html=True)
+        if (hace := antiguedad(temp.attrs.get("descargado"))):
+            fuentes.append(f"descargado {hace}")
+        with hueco_datos.container():
+            linea_datos(f'Pase {" · ".join(fuentes)}', f"48h_{ciudad.nombre}")
 
     # --- Previsión a partir del ensemble ---
     ensemble = temp.drop(columns="Observado", errors="ignore")
@@ -489,6 +495,10 @@ def render_48h(ciudad, titulo=None):
     # --- Resumen, tarjetas y avisos ---
     tarjetas.resumen(frases_resumen(ahora, max_hoy, horas_hoy, max_mañana, min_mañana, arome["precipitacion"], rachas))
     tarjetas.principales(temp_mañana, fiabilidad, temp_actual, temp_ayer)
+    tarjetas.indice([("graficos", "Gráficos 48 h")]
+                    + ([("montaña", "Montaña")] if ciudad.montaña_aemet and usa_opendata else [])
+                    + ([("historico", "Histórico")] if datos_hist is not None else [])
+                    + [("sol-luna", "Sol y Luna")] + ([("camaras", "Cámaras")] if ciudad.camaras else []))
     st.divider()
 
     extremos = [
@@ -520,6 +530,7 @@ def render_48h(ciudad, titulo=None):
 
     # --- Predicción de montaña y boletín de aludes de AEMET ---
     if (ciudad.montaña_aemet or ciudad.aludes_aemet) and usa_opendata:
+        tarjetas.ancla("montaña")
         if ciudad.montaña_aemet:
             zona, lugar = ciudad.montaña_aemet
             dias = [(dia, p) for dia in range(DIAS_MONTAÑA)
@@ -533,32 +544,35 @@ def render_48h(ciudad, titulo=None):
         st.divider()
 
     # --- Ensemble a 48 h ---
-    st.plotly_chart(graficos.temperatura(temp, bandas, dia_historico(ahora)))
+    tarjetas.ancla("graficos")
+    graficos.mostrar(graficos.temperatura(temp, bandas, dia_historico(ahora)))
     if origen_bandas:
         st.caption(f"Máxima y mínima habituales: {origen_bandas}.")
-    st.plotly_chart(graficos.lluvia(arome["precipitacion"]))
-    st.plotly_chart(graficos.viento(rachas, obs["dir_racha"] if obs is not None else None))
+    graficos.mostrar(graficos.lluvia(arome["precipitacion"]))
+    graficos.mostrar(graficos.viento(rachas, obs["dir_racha"] if obs is not None else None))
     if ciudad.presion_y_cape:
         # Plegado salvo que el ensemble vea potencial de tormenta
         cape = arome["mucape"].drop(columns="Observado", errors="ignore").mean(axis=1).max()
         tormenta = not pd.isna(cape) and cape >= 500
         etiqueta = "Presión y tormentas" + (" · potencial de tormenta" if tormenta else "")
         with st.expander(etiqueta, icon=":material/thunderstorm:", expanded=tormenta):
-            st.plotly_chart(graficos.presion(arome["presion"]))
-            st.plotly_chart(graficos.mucape(arome["mucape"]))
+            graficos.mostrar(graficos.presion(arome["presion"]))
+            graficos.mostrar(graficos.mucape(arome["mucape"]))
     st.divider()
 
     # --- Histórico frente a la previsión ---
     if datos_hist is not None:
+        tarjetas.ancla("historico")
         desde = datos_hist.index.min().year
-        st.subheader("Hoy y mañana frente al histórico")
-        st.caption(f"Temperaturas registradas un día como hoy desde {desde}; los puntos grandes son la previsión.")
-        prev_hoy = (np.nan, np.nan) if horas_hoy else (min_hoy, max_hoy)
-        prev_mañana = (np.nan, np.nan) if horas_mañana else (min_mañana, max_mañana)
-        st.plotly_chart(graficos.historico_vs_prevision(datos_hist, dia_historico(ahora), prev_hoy, prev_mañana))
+        with st.expander("Hoy y mañana frente al histórico", icon=":material/history:"):
+            st.caption(f"Temperaturas registradas un día como hoy desde {desde}; los puntos grandes son la previsión.")
+            prev_hoy = (np.nan, np.nan) if horas_hoy else (min_hoy, max_hoy)
+            prev_mañana = (np.nan, np.nan) if horas_mañana else (min_mañana, max_mañana)
+            graficos.mostrar(graficos.historico_vs_prevision(datos_hist, dia_historico(ahora), prev_hoy, prev_mañana))
         st.divider()
 
-    st.plotly_chart(graficos.elevacion_solar(ciudad.lat, ciudad.lon, ciudad.tz))
+    tarjetas.ancla("sol-luna")
+    graficos.mostrar(graficos.elevacion_solar(ciudad.lat, ciudad.lon, ciudad.tz))
     salida_puesta = luna.salida_y_puesta(ciudad.lat, ciudad.lon, ciudad.tz, ahora.date())
     azimut, altura = luna.posicion(ciudad.lat, ciudad.lon, ahora)
     salida, puesta, _ = salida_puesta
@@ -570,14 +584,14 @@ def render_48h(ciudad, titulo=None):
 
     # --- Cámaras ---
     if ciudad.camaras:
-        st.divider()
-        st.subheader("Cámaras de tráfico")
-        marca = int(ahora.timestamp())  # evita que el navegador muestre imágenes antiguas en caché
-        celdas = "".join(
-            f'<div class="camera-card"><img src="{url}?rand={marca}" alt="Cámara de tráfico" loading="lazy"></div>'
-            for url in ciudad.camaras
-        )
-        st.markdown(f'<div class="camera-grid">{celdas}</div>', unsafe_allow_html=True)
+        tarjetas.ancla("camaras")
+        with st.expander("Cámaras de tráfico", icon=":material/videocam:"):
+            marca = int(ahora.timestamp())  # evita que el navegador muestre imágenes antiguas en caché
+            celdas = "".join(
+                f'<div class="camera-card"><img src="{url}?rand={marca}" alt="Cámara de tráfico" loading="lazy"></div>'
+                for url in ciudad.camaras
+            )
+            st.markdown(f'<div class="camera-grid">{celdas}</div>', unsafe_allow_html=True)
 
     _avisos(ciudad, ahora, hueco_avisos)
 
@@ -603,7 +617,8 @@ def render_medio(ciudad, titulo=None):
     _historico_sidebar(ciudad, ahora)
 
     try:
-        icon_completo = get_ensemble(ciudad.lat, ciudad.lon, ciudad.tz, "icon_eu")
+        with st.spinner("Descargando el ensemble ICON-EU…", show_time=True):
+            icon_completo = get_ensemble(ciudad.lat, ciudad.lon, ciudad.tz, "icon_eu")
     except Exception:
         icon_completo = None
         st.warning("No se ha podido descargar el ensemble ICON-EU de Open-Meteo.")
@@ -626,9 +641,9 @@ def render_medio(ciudad, titulo=None):
 
         deterministas = o_none(get_deterministas, ciudad.lat, ciudad.lon, ciudad.tz)
         det_temp = deterministas["temperatura"] if deterministas is not None else pd.DataFrame()
-        st.plotly_chart(graficos.medio_temperatura(icon["temperatura"], det_temp))
-        st.plotly_chart(graficos.lluvia(icon["precipitacion"], titulo="Lluvia · medio plazo"))
-        st.plotly_chart(graficos.viento(icon["rachas"], titulo="Rachas de viento · medio plazo"))
+        graficos.mostrar(graficos.medio_temperatura(icon["temperatura"], det_temp))
+        graficos.mostrar(graficos.lluvia(icon["precipitacion"], titulo="Lluvia · medio plazo"))
+        graficos.mostrar(graficos.viento(icon["rachas"], titulo="Rachas de viento · medio plazo"))
         st.divider()
 
     # --- Nubes, UV y nieve hasta donde llega el ICON-EU (o 5 días si no hay ensemble) ---
@@ -636,11 +651,11 @@ def render_medio(ciudad, titulo=None):
         hoy = ahora.tz_localize(None).normalize()
         fin = hasta.tz_localize(None) if hasta is not None else hoy + pd.Timedelta(days=5)
         dias_detalle = detalle["diario"][(detalle["diario"].index >= hoy) & (detalle["diario"].index <= fin)]
-        st.plotly_chart(graficos.nubes_uv(dias_detalle, "Nubosidad y UV · medio plazo"))
+        graficos.mostrar(graficos.nubes_uv(dias_detalle, "Nubosidad y UV · medio plazo"))
         if mostrar_nieve(ciudad, ahora, detalle):
             horas = detalle["horario"]
             horas = horas[(horas.index >= desde.tz_localize(None)) & (horas.index <= fin)]
-            st.plotly_chart(graficos.nieve(horas, dias_detalle, "Nieve y cota de nieve · medio plazo",
+            graficos.mostrar(graficos.nieve(horas, dias_detalle, "Nieve y cota de nieve · medio plazo",
                                            detalle["elevacion"]))
         st.divider()
 
@@ -649,7 +664,7 @@ def render_medio(ciudad, titulo=None):
         mar = o_none(get_mar, ciudad.lat, ciudad.lon, ciudad.tz)
         if mar is not None and mar["horario"]["olas"].notna().any():
             horario = mar["horario"][mar["horario"].index >= desde.tz_localize(None)]
-            st.plotly_chart(graficos.mar(horario, horario["direccion"].map(cardinal)))
+            graficos.mostrar(graficos.mar(horario, horario["direccion"].map(cardinal)))
             st.caption(texto_mar(ciudad, mar) + ". Olas: altura significativa (la media del tercio más alto).")
             st.divider()
         else:
@@ -658,10 +673,10 @@ def render_medio(ciudad, titulo=None):
     # --- Calidad del aire y polen (los 4 días que da CAMS) ---
     aire = o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
     if aire is not None and aire["european_aqi"].notna().any():
-        st.plotly_chart(graficos.calidad_aire(aire))
+        graficos.mostrar(graficos.calidad_aire(aire))
         con_polen = {f"{clave}_pollen": nombre for clave, nombre in POLENES.items() if aire[f"{clave}_pollen"].max() >= 1}
         if con_polen:
-            st.plotly_chart(graficos.polen(aire, con_polen))
+            graficos.mostrar(graficos.polen(aire, con_polen))
 
     _avisos(ciudad, ahora, hueco_avisos)
 
@@ -684,15 +699,17 @@ def render_largo(ciudad, titulo=None):
     datos_hist, _ = _historico_sidebar(ciudad, ahora)
 
     ensembles = {}
-    for modelo in MODELOS_LARGO:
+    with st.spinner("Descargando los ensembles ECMWF y GEFS…", show_time=True):
+        descargas = {modelo: o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, modelo) for modelo in MODELOS_LARGO}
+    for modelo, datos in descargas.items():
         nombre = ENSEMBLES[modelo][0]
-        if (datos := o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, modelo)) is not None:
+        if datos is not None:
             # La lluvia de hoy, solo la que queda; la temperatura, del día entero para sus extremos
             ensembles[nombre] = {**datos, "precipitacion": datos["precipitacion"][datos["precipitacion"].index >= ahora.floor("h")]}
         else:
             st.warning(f"No se ha podido descargar el ensemble {nombre} de Open-Meteo.")
     if ensembles:
-        st.plotly_chart(graficos.largo(ensembles, fechas, hoy=ahora.date()))
+        graficos.mostrar(graficos.largo(ensembles, fechas, hoy=ahora.date()))
         st.caption("Bandas: rango 10-90 % de todos los miembros; líneas finas: mediana de cada modelo. Barras, por "
                    f"modelo: probabilidad de al menos {UMBRAL_LLUVIA} L/m² en el día y lluvia media de sus miembros.")
 
@@ -763,11 +780,20 @@ def render_pagina(ciudad, titulo=None):
 
 
 def render_grupo(titulo, ciudades):
-    """Varias localidades en pestañas (cada una con las suyas, ver _pestañas), más una con el radar de la zona."""
+    """Varias localidades en pestañas (cada una con las suyas, ver _pestañas), más una con el radar de la zona.
+
+    Con ?lugar=<nombre> en la URL (desde la portada) se abre la pestaña de ese lugar.
+    """
 
     st.header(titulo)
-    pestañas = st.tabs([c.nombre for c in ciudades] + [":material/radar: Radar"], key=f"grupo_{titulo}",
-                       on_change="rerun")
+    clave, nombres = f"grupo_{titulo}", [c.nombre for c in ciudades]
+    lugar = st.query_params.get("lugar")
+    if lugar in nombres:
+        st.session_state.pop(clave, None)  # el lugar pedido manda sobre la última pestaña abierta
+        del st.query_params["lugar"]
+    else:
+        lugar = None
+    pestañas = st.tabs(nombres + [":material/radar: Radar"], key=clave, on_change="rerun", default=lugar)
     for pestaña, ciudad in zip(pestañas, ciudades):
         if pestaña.open:
             with pestaña:

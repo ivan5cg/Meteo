@@ -230,8 +230,36 @@ section[data-testid="stSidebar"] {
 .datos-de {
     font-size: 0.8rem;
     color: #635b53;
-    margin: -10px 0 14px;
+    margin: 0;
 }
+/* La línea de los datos y su botón de actualizar (actualizar.linea_datos) */
+[class*="st-key-datos_"] { margin: -10px 0 6px; row-gap: 0; }
+/* Streamlit resta 1rem bajo cada texto: en la fila, el botón se montaría sobre la última línea */
+[class*="st-key-datos_"] [data-testid="stMarkdownContainer"] { margin-bottom: 0; }
+[class*="st-key-datos_"] button { min-height: 0; padding: 0 4px; font-size: 0.8rem; color: #b45309; }
+
+/* Índice de secciones del corto plazo (tarjetas.indice) y los puntos a los que salta */
+.indice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: -8px 0 6px;
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    font-size: 0.8rem;
+}
+.indice span { color: #635b53; margin-right: 2px; }
+.indice a {
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid #d6cfc4;
+    background: #f7f4ee;
+    color: #2a241f !important;
+    text-decoration: none !important;
+    white-space: nowrap;
+}
+.indice a:hover { border-color: rgba(217, 119, 6, 0.5); background: #ffffff; }
+.ancla { scroll-margin-top: 70px; }
 
 /* Tira de 7 días */
 .tira-semana {
@@ -772,12 +800,90 @@ a.pl-fila:hover {
     .aurora-hero-puntos { font-size: 2.9rem; }
     .noches.compactas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Pantallas táctiles: lo que se explica al pasar el ratón (atributo title) se muestra al tocar, en una burbuja
+   (ver TOQUES); una "i" discreta indica qué tarjetas la tienen */
+.burbuja-info {
+    position: fixed;
+    z-index: 1000000;
+    max-width: min(300px, calc(100vw - 16px));
+    padding: 8px 11px;
+    border-radius: 9px;
+    background: #2a241f;
+    color: #f7f4ee;
+    font: 500 0.8rem/1.45 'Plus Jakarta Sans', 'Inter', sans-serif;
+    box-shadow: 0 10px 28px -10px rgba(20, 15, 10, 0.6);
+    pointer-events: none;
+}
+.burbuja-info[hidden] { display: none; }
+@media (hover: none) {
+    .metric-card[title]::after, .noche[title]::after {
+        content: "i";
+        position: absolute;
+        top: 8px;
+        right: 9px;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 1px solid currentColor;
+        font: italic 700 10px/13px Georgia, serif;
+        text-align: center;
+        opacity: 0.35;
+    }
+    .noche { position: relative; }
+}
 </style>
 """
+
+# Al tocar un elemento con explicación (title) en una pantalla táctil, la muestra en una burbuja; al tocar otra vez,
+# fuera o al desplazarse, la oculta. Dentro de un enlace (las filas de la portada) solo lo hace la insignia de avisos,
+# para que tocar la fila siga abriendo su página
+TOQUES = """
+<script>
+(() => {
+  if (window.meteoToques) return;
+  window.meteoToques = true;
+  const burbuja = document.createElement("div");
+  burbuja.className = "burbuja-info";
+  burbuja.hidden = true;
+  document.body.appendChild(burbuja);
+  let actual = null;
+  const ocultar = () => { burbuja.hidden = true; actual = null; };
+
+  document.addEventListener("click", (e) => {
+    if (!matchMedia("(hover: none)").matches) return;
+    const el = e.target.closest('[data-testid="stMarkdownContainer"] [title], .portada [title]');
+    if (!el || (el.closest("a") && !el.classList.contains("pl-aviso"))) { ocultar(); return; }
+    e.preventDefault();
+    e.stopPropagation();
+    if (actual === el) { ocultar(); return; }
+    actual = el;
+    burbuja.textContent = el.getAttribute("title");
+    burbuja.hidden = false;
+    const r = el.getBoundingClientRect(), b = burbuja.getBoundingClientRect();
+    const izquierda = Math.min(Math.max(8, r.left + r.width / 2 - b.width / 2), innerWidth - b.width - 8);
+    const arriba = r.bottom + 8 + b.height > innerHeight ? r.top - b.height - 8 : r.bottom + 8;
+    burbuja.style.left = `${izquierda}px`;
+    burbuja.style.top = `${Math.max(8, arriba)}px`;
+  }, true);
+  addEventListener("scroll", ocultar, true);
+})();
+</script>
+"""
+
+
+def coma(valor, formato=""):
+    """Número con coma decimal, como se escribe en español: coma(4.5) -> "4,5"; coma(3.14159, ".1f") -> "3,1".
+
+    Sin `formato`, el número tal cual (14.0 -> "14,0").
+    """
+
+    return format(valor, formato).replace(".", ",")
 
 
 def aplicar_estilos():
     st.markdown(CSS, unsafe_allow_html=True)
+    st.html(TOQUES, unsafe_allow_javascript=True)
 
 
 def tema_plotly(fig, titulo, titulo_y="", leyenda=True, hovermode="x unified"):
@@ -810,7 +916,12 @@ def tema_plotly(fig, titulo, titulo_y="", leyenda=True, hovermode="x unified"):
             bgcolor="rgba(0,0,0,0)",
         ) if leyenda else None,
         showlegend=leyenda,
+        dragmode=False,
+        separators=", ",  # coma decimal y, para los miles, un espacio
     )
+    # Ejes fijos: sin zoom ni desplazamiento al arrastrar (ver graficos.CONFIG)
+    fig.update_xaxes(fixedrange=True)
+    fig.update_yaxes(fixedrange=True)
     return fig
 
 

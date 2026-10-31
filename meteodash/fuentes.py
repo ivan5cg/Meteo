@@ -68,7 +68,8 @@ def descargar(url, timeout=30, params=None):
 def leer_tabla_meteociel(url, tz="Europe/Madrid"):
     """Descarga una tabla de ensemble de Meteociel como DataFrame, sin caché.
 
-    Las celdas no numéricas (vacías, "-") quedan como NaN en lugar de invalidar toda la tabla.
+    Las celdas no numéricas (vacías, "-") quedan como NaN en lugar de invalidar toda la tabla. En attrs["descargado"],
+    el momento de la descarga (UTC).
     """
 
     soup = BeautifulSoup(descargar(url).text, "html.parser")
@@ -83,8 +84,9 @@ def leer_tabla_meteociel(url, tz="Europe/Madrid"):
 
     df = pd.DataFrame(data, columns=headers)
     df.index = pd.DatetimeIndex(pd.to_datetime(df["Date"], utc=True)).tz_convert(tz)
-    df = df.drop(["Date", "Ech."], axis=1)
-    return df.apply(pd.to_numeric, errors="coerce")
+    df = df.drop(["Date", "Ech."], axis=1).apply(pd.to_numeric, errors="coerce")
+    df.attrs["descargado"] = pd.Timestamp.now(tz="UTC")
+    return df
 
 
 @st.cache_data(ttl="30m", show_spinner=False)
@@ -268,6 +270,7 @@ def get_ensemble_48h(lat, lon, tz, variables, origen):
 
     Empieza a las 00 h locales de hoy, así que los extremos de hoy salen del día completo. El control que se destaca
     es la columna "Ctrl"; el resto de miembros, prefijo y número: "UK1", "UK2", "G0"... "G17" o, sin prefijo, "0", "1"...
+    Como en las de Meteociel, attrs["descargado"] es el momento de la descarga.
     """
 
     config = ENSEMBLES_48H[origen]
@@ -292,6 +295,8 @@ def get_ensemble_48h(lat, lon, tz, variables, origen):
                     columnas[f"{prefijo}{int(miembro)}"] = valores
         completos[nombre] = pd.DataFrame(columnas, index=indice).apply(pd.to_numeric, errors="coerce").dropna(how="all")
     datos = {nombre: df[df.index <= fin] for nombre, df in completos.items()}
+    for df in datos.values():
+        df.attrs["descargado"] = pd.Timestamp.now(tz="UTC")
 
     run = None
     if "meta" in config:
@@ -310,6 +315,7 @@ def get_ensemble(lat, lon, tz, modelo):
     """Ensemble de Open-Meteo (ver ENSEMBLES): {"temperatura", "precipitacion", "rachas"}, un miembro por columna.
 
     El índice es la hora local con zona. El control, si el modelo lo tiene, es la columna "Ctrl"; el resto, "1", "2"...
+    En attrs["descargado"] de cada tabla, el momento de la descarga.
     """
 
     _, dias, con_control = ENSEMBLES[modelo]
@@ -327,6 +333,7 @@ def get_ensemble(lat, lon, tz, modelo):
             elif clave.startswith(f"{variable}_member"):
                 columnas[str(int(clave.removeprefix(f"{variable}_member")))] = valores
         datos[nombre] = pd.DataFrame(columnas, index=indice).apply(pd.to_numeric, errors="coerce").dropna(how="all")
+        datos[nombre].attrs["descargado"] = pd.Timestamp.now(tz="UTC")
     return datos
 
 

@@ -153,7 +153,7 @@ def render_año_hidrologico(ciudad, ahora):
 
     st.subheader(f"Año hidrológico {nombre_año(inicio)}")
     tarjetas.condiciones(lista)
-    st.plotly_chart(graficos.año_hidrologico(_dias_del_año(inicio), actual, previo, normal, rango,
+    graficos.mostrar(graficos.año_hidrologico(_dias_del_año(inicio), actual, previo, normal, rango,
                                              nombre_año(inicio), nombre_año(anterior)))
     desde = min(años) if años else inicio.year
     st.caption(f"Lluvia acumulada desde el 1 de octubre en la estación de AEMET de {ciudad.nombre}, con datos hasta el "
