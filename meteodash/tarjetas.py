@@ -355,6 +355,28 @@ def records(del_dia, prob_lluvia=None):
         _html(f'<p class="records-nota">{"<br>".join(lineas)}</p>', destino=st.sidebar)
 
 
+def camaras(urls):
+    """Rejilla de cámaras; al pulsar una se ve en grande, a pantalla completa, con flechas a la anterior y la
+    siguiente. Sin JavaScript: cada vista grande es un elemento que se muestra cuando la URL acaba en su #id (:target);
+    cerrar vuelve a #ir-camaras, la sección. Escape también cierra (ver estilo.TOQUES)."""
+
+    n = len(urls)
+    celdas, grandes = "", ""
+    for i, url in enumerate(urls):
+        celdas += (f'<a class="camera-card" href="#camara-{i}" title="Ver en grande">'
+                   f'<img src="{url}" alt="Cámara de tráfico {i + 1}" loading="lazy"></a>')
+        anterior, siguiente = (i - 1) % n, (i + 1) % n
+        flechas = (f'<a class="camara-flecha anterior" href="#camara-{anterior}" aria-label="Cámara anterior">‹</a>'
+                   f'<a class="camara-flecha siguiente" href="#camara-{siguiente}" aria-label="Cámara siguiente">›</a>'
+                   if n > 1 else "")
+        grandes += (f'<div class="camara-grande" id="camara-{i}">'
+                    f'<a class="camara-fondo" href="#ir-camaras" aria-label="Cerrar"></a>'
+                    f'<img src="{url}" alt="Cámara de tráfico {i + 1}, en grande" loading="lazy">'
+                    f'<a class="camara-cerrar" href="#ir-camaras" aria-label="Cerrar">✕</a>{flechas}'
+                    f'<span class="camara-cuenta">{i + 1} / {n}</span></div>')
+    _html(f'<div class="camera-grid">{celdas}</div>{grandes}')
+
+
 def ancla(nombre):
     """Punto de la página al que salta un enlace del índice (ver indice)."""
 

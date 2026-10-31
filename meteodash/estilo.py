@@ -105,6 +105,58 @@ section[data-testid="stSidebar"] {
     height: auto;
     display: block;
 }
+a.camera-card { cursor: zoom-in; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+a.camera-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -8px rgba(60, 50, 40, 0.3); }
+
+/* Cámara en grande (tarjetas.camaras): oculta salvo cuando la URL acaba en su #id */
+.camara-grande {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.camara-grande:target { display: flex; }
+.camara-fondo { position: absolute; inset: 0; background: rgba(12, 10, 8, 0.88); cursor: zoom-out; }
+.camara-grande img {
+    position: relative;
+    max-width: min(100%, 1100px);
+    max-height: calc(100vh - 96px);
+    width: auto;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.7);
+}
+.camara-cerrar, .camara-flecha {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(247, 244, 238, 0.14);
+    color: #f7f4ee !important;
+    text-decoration: none !important;
+    line-height: 1;
+}
+.camara-cerrar:hover, .camara-flecha:hover { background: rgba(247, 244, 238, 0.28); }
+.camara-cerrar { top: 14px; right: 14px; width: 42px; height: 42px; font-size: 1.2rem; }
+.camara-flecha { top: 50%; width: 48px; height: 48px; margin-top: -24px; font-size: 2rem; padding-bottom: 4px; }
+.camara-flecha.anterior { left: 12px; }
+.camara-flecha.siguiente { right: 12px; }
+.camara-cuenta {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #e5ded2;
+    font: 600 0.85rem 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+@media (max-width: 640px) {
+    .camara-grande { padding: 8px; }
+    .camara-flecha { top: auto; bottom: 8px; margin-top: 0; width: 44px; height: 44px; }
+    .camara-cuenta { bottom: 20px; }
+}
 
 /* Tarjetas de métricas */
 /* Filas equilibradas: tarjetas.py fija en --n las columnas; la última fila, si queda incompleta, va centrada.
@@ -867,6 +919,10 @@ TOQUES = """
     burbuja.style.top = `${Math.max(8, arriba)}px`;
   }, true);
   addEventListener("scroll", ocultar, true);
+  // Escape cierra la cámara en grande (tarjetas.camaras)
+  addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && location.hash.startsWith("#camara-")) location.hash = "ir-camaras";
+  });
 })();
 </script>
 """

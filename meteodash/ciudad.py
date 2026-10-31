@@ -587,11 +587,7 @@ def render_48h(ciudad, titulo=None):
         tarjetas.ancla("camaras")
         with st.expander("Cámaras de tráfico", icon=":material/videocam:"):
             marca = int(ahora.timestamp())  # evita que el navegador muestre imágenes antiguas en caché
-            celdas = "".join(
-                f'<div class="camera-card"><img src="{url}?rand={marca}" alt="Cámara de tráfico" loading="lazy"></div>'
-                for url in ciudad.camaras
-            )
-            st.markdown(f'<div class="camera-grid">{celdas}</div>', unsafe_allow_html=True)
+            tarjetas.camaras([f"{url}?rand={marca}" for url in ciudad.camaras])
 
     _avisos(ciudad, ahora, hueco_avisos)
 
