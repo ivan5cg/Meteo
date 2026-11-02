@@ -33,9 +33,12 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `actualizar_historicos.py` | Script que añade a los CSV de `datos/` los días que faltan (requiere `AEMET_API_KEY`) |
 | `generar_bandas.py` | Script que calcula los rangos habituales de máxima y mínima de `datos/bandas/` (las estaciones de AEMET requieren `AEMET_API_KEY`) |
 | `meteodash/graficos.py` | Gráficos Plotly |
+| `meteodash/meteograma.py`, `meteograma.js`, `meteograma.css` | Meteograma de las 48 h: temperatura, lluvia, rachas y, plegados salvo que haya potencial de tormenta, presión y MUCAPE, con un solo cursor (ratón, dedo o flechas) y los valores de esa hora encima de cada panel |
 | `meteodash/tarjetas.py` | Tarjetas, avisos y tabla de récords |
 | `meteodash/estilo.py` | CSS de la app y tema de los gráficos |
-| `meteodash/mapas_arome.py` | Mapas AROME interactivos (Madrid y Torrelavega); las rejillas se descargan en segundo plano y se guardan en memoria, compartidas entre visitantes |
+| `meteodash/mapas_arome.py` | Mapas AROME interactivos (Madrid, Ávila, Alicante, Santander y Torrelavega); las rejillas se descargan en segundo plano y se guardan en memoria, compartidas entre visitantes |
+| `meteodash/visor_arome.js`, `visor_arome.css` | Visor de esos mapas (MapLibre, en el navegador): campo interpolado sobre el relieve, isolíneas, valor bajo el ratón, reproducción y una línea de tiempo con la serie del punto elegido |
+| `meteodash/ovalo_auroral.py`, `ovalo_auroral.js`, `ovalo_auroral.css` | Globo del óvalo auroral (MapLibre): probabilidad OVATION de la próxima hora, día y noche de ese momento y el valor de cada celda bajo el ratón |
 | `meteodash/selector_punto.py` | Mapa de la página «Cualquier punto»: se elige un punto de Europa y el ensemble a 48 h que le toca (PE-AROME en su dominio, Met Office en Gran Bretaña e Irlanda e ICON-EU en el resto) |
 | `datos/` | Históricos diarios de AEMET, solo lectura (Retiro desde 1950, Ávila desde 1990; se actualizan con `actualizar_historicos.py`) |
 | `datos/bandas/` | Rangos habituales de máxima y mínima por día del año de las páginas sin histórico; la primera línea de cada CSV dice de qué estación, periodo y fuente salen |
@@ -66,7 +69,7 @@ y añádela a la lista de `st.navigation` en `main_page.py`. Opciones de `Ciudad
 - `pais` y `zonas_aviso`: feed de Meteoalarm (`spain`, `ireland`...) y zonas de aviso, por código (`ES219`, `EI07`) o por parte del nombre (`lombardia`). Con `avisos_por_poligono`, también los avisos cuyo polígono contiene el punto (Letonia no pone código a las zonas en tierra).
 - `presion_y_cape`: gráficos de presión y MUCAPE (activado por defecto).
 - `camaras`: `Camara(url, fuente, nombre)`. Mejor de sitios céntricos o emblemáticos y, si no hay, de carreteras cercanas. La URL es un JPG que se renueva en el servidor de origen o, si acaba en `.m3u8`, una emisión en directo (HLS) que solo se descarga al pulsar «Ver en directo» y requiere que el origen permita CORS.
-- `mapas_arome`: clave de `meteodash.mapas_arome.LOCATIONS` para añadir la pestaña de mapas.
+- `mapas_arome`: clave de `meteodash.mapas_arome.LOCATIONS` para añadir la pestaña de mapas. La rejilla tiene que caer entera dentro del dominio del PE-AROME (`selector_punto.dentro_de_arome`): fuera, Meteociel da valores de relleno.
 - `ensemble`: fuente de los gráficos a 48 h: `"arome"` (PE-AROME de Meteociel, por defecto) o, fuera del dominio de AROME, `"ukmo"` (MOGREPS-UK 2 km + MOGREPS-G de la Met Office, para Escocia) o `"icon_eu"` (ICON-EU EPS, para Finlandia, el Báltico y Eslovenia), ambos vía Open-Meteo.
 - `kp_auroras`: Kp a partir del cual suelen verse auroras en el lugar; añade la pestaña de auroras. Es el Kp con el que el borde del óvalo auroral llega a la latitud geomagnética del lugar, redondeado hacia arriba (NOAA: unos 66º con Kp 0 y 2º menos por cada punto): Rovaniemi 2, Portree 3, Edimburgo y el resto de las Highlands 4, Helsinki y Tallin 5 y Riga 6.
 - `tz`: zona horaria (por defecto `Europe/Madrid`).

@@ -1,0 +1,92 @@
+/* Visor de los mapas AROME (ver visor_arome.js), con los tonos arena de la app */
+.visor-arome {
+  --borde: #d6cfc4; --fondo: #f7f4ee; --texto: #2a241f; --suave: #635b53; --acento: #d97706;
+  position: relative; display: flex; flex-direction: column; height: 660px; overflow: hidden;
+  border: 1px solid var(--borde); border-radius: 14px; background: var(--fondo); color: var(--texto);
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; outline: none;
+}
+.visor-arome:focus-visible { box-shadow: 0 0 0 2px var(--acento); }
+.visor-arome.completa { height: 100vh; border: none; border-radius: 0; }
+.va-marco { position: relative; flex: 1; min-height: 0; }
+.va-mapa { position: absolute; inset: 0; }
+.visor-arome .maplibregl-canvas-container.maplibregl-interactive { cursor: crosshair; }
+.visor-arome .maplibregl-canvas-container.maplibregl-interactive:active { cursor: grabbing; }
+.visor-arome .maplibregl-ctrl-group { border-radius: 10px; box-shadow: 0 2px 8px -2px rgba(60, 50, 40, 0.25); }
+
+/* Leyenda, arriba a la izquierda */
+.va-tarjeta {
+  position: absolute; z-index: 2; top: 10px; left: 10px; width: 220px; box-sizing: border-box;
+  padding: 9px 12px 8px; border: 1px solid var(--borde); border-radius: 12px;
+  background: rgba(247, 244, 238, 0.94); box-shadow: 0 4px 14px -2px rgba(60, 50, 40, 0.15); pointer-events: none;
+}
+.va-titulo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 14.5px; }
+.va-titulo span { font-size: 12px; font-weight: 600; color: var(--suave); }
+.va-barra { height: 10px; margin: 7px 0 2px; border-radius: 5px; box-shadow: inset 0 0 0 1px rgba(42, 36, 31, 0.1); }
+.va-marcas { position: relative; height: 14px; margin: 0 4px; font-size: 10.5px; color: var(--suave);
+             font-variant-numeric: tabular-nums; }
+.va-marcas span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.va-fuente { margin-top: 3px; font-size: 11px; color: var(--suave); }
+
+/* Valor bajo el ratón */
+.va-globo {
+  position: absolute; z-index: 3; top: 0; left: 0; display: none; padding: 3px 8px; border-radius: 8px;
+  background: rgba(42, 36, 31, 0.88); color: #fff; font-size: 12.5px; font-weight: 700; white-space: nowrap;
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.va-aviso { position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; padding: 20px;
+            background: var(--fondo); color: var(--suave); font-size: 14px; text-align: center; }
+
+/* Lugar de la página y chincheta del punto elegido, con el valor de la hora vista */
+.va-lugar, .va-chincheta { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.va-chincheta { cursor: grab; }
+.va-lugar i, .va-chincheta i { width: 12px; height: 12px; box-sizing: border-box; border: 2.5px solid #111;
+                               border-radius: 50%; background: #fff; }
+.va-chincheta i { width: 14px; height: 14px; }
+.va-lugar.elegido i, .va-chincheta i { background: var(--acento); }
+.va-lugar span { font-size: 12.5px; font-weight: 700; color: #111;
+                 text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff, 0 0 1px #fff; }
+.va-lugar b, .va-chincheta b {
+  padding: 1px 6px; border-radius: 7px; background: rgba(255, 255, 255, 0.92); color: var(--texto);
+  font-size: 11.5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 4px rgba(42, 36, 31, 0.28);
+}
+.va-lugar.elegido b, .va-chincheta b { box-shadow: 0 0 0 1.5px var(--acento), 0 1px 4px rgba(42, 36, 31, 0.28); }
+
+/* Línea de tiempo con la serie del punto elegido */
+.va-tiempo { display: flex; align-items: center; gap: 12px; padding: 8px 12px 4px; border-top: 1px solid var(--borde); }
+.va-play {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: none;
+  border-radius: 50%; background: var(--acento); color: #fff; cursor: pointer;
+  box-shadow: 0 3px 8px -2px rgba(217, 119, 6, 0.55); transition: background 0.15s;
+}
+.va-play:hover { background: #b45309; }
+.va-pista { flex: 1; min-width: 0; }
+.va-cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 13.5px; }
+.va-cabecera.previa { opacity: 0.6; }
+.va-hora { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.va-hora small { margin-left: 7px; font-size: 12px; font-weight: 500; color: var(--suave); }
+.va-lectura { overflow: hidden; color: var(--suave); white-space: nowrap; text-overflow: ellipsis; }
+.va-lectura b { color: var(--texto); font-variant-numeric: tabular-nums; }
+.va-serie { display: block; width: 100%; height: 78px; margin-top: 2px; cursor: pointer; touch-action: pan-y;
+            user-select: none; -webkit-user-select: none; }
+.va-serie .noche { fill: rgba(70, 80, 110, 0.08); }
+.va-serie .guia { stroke: rgba(60, 50, 40, 0.1); }
+.va-serie .guia-texto { fill: #8a8178; font-size: 9.5px; }
+.va-serie .dia { stroke: rgba(60, 50, 40, 0.28); }
+.va-serie .dia-texto { fill: var(--suave); font-size: 10.5px; font-weight: 600; text-anchor: middle; }
+.va-serie .area { fill: rgba(217, 119, 6, 0.12); }
+.va-serie .curva { fill: none; stroke: var(--acento); stroke-width: 2; stroke-linejoin: round; }
+.va-serie .barra { fill: #1f78c8; opacity: 0.75; }
+.va-serie .ahora { stroke: var(--suave); stroke-dasharray: 2 3; }
+.va-serie .fantasma { stroke: rgba(42, 36, 31, 0.35); }
+.va-serie .cursor line { stroke: var(--texto); stroke-width: 1.5; }
+.va-serie .cursor circle { fill: var(--acento); stroke: #fff; stroke-width: 2; }
+
+@media (max-width: 640px) {
+  .visor-arome { height: 580px; }
+  .va-tarjeta { width: 184px; padding: 7px 10px 6px; }
+  .va-tiempo { gap: 9px; padding: 6px 9px 3px; }
+  .va-play { width: 36px; height: 36px; }
+  .va-cabecera { flex-direction: column; gap: 0; font-size: 12.5px; }
+  .va-hora small { display: none; }
+}

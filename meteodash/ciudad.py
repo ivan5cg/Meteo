@@ -19,6 +19,7 @@ from .fuentes import (ENSEMBLES, ENSEMBLES_48H, POLENES, UMBRAL_LLUVIA, UMBRAL_L
                       extremos_diarios, get_bandas, get_calidad_aire, get_deterministas, get_ensemble,
                       get_ensemble_48h, get_ensemble_arome, get_historico, get_mar, get_open_meteo_detalle,
                       hora_local_run, o_none, prob_diaria, prob_miembros, probabilidad_lluvia)
+from .meteograma import meteograma
 from .observaciones import Estacion, cardinal, cargar_observaciones, descargar_en, temperatura_actual_y_ayer
 from .radar import render_radar
 
@@ -562,19 +563,9 @@ def render_48h(ciudad, titulo=None):
 
     # --- Ensemble a 48 h ---
     tarjetas.ancla("graficos")
-    graficos.mostrar(graficos.temperatura(temp, bandas, dia_historico(ahora)))
+    meteograma(ciudad, arome, obs["dir_racha"] if obs is not None else None, bandas, dia_historico(ahora))
     if origen_bandas:
         st.caption(f"Máxima y mínima habituales: {origen_bandas}.")
-    graficos.mostrar(graficos.lluvia(arome["precipitacion"]))
-    graficos.mostrar(graficos.viento(rachas, obs["dir_racha"] if obs is not None else None))
-    if ciudad.presion_y_cape:
-        # Plegado salvo que el ensemble vea potencial de tormenta
-        cape = arome["mucape"].drop(columns="Observado", errors="ignore").mean(axis=1).max()
-        tormenta = not pd.isna(cape) and cape >= 500
-        etiqueta = "Presión y tormentas" + (" · potencial de tormenta" if tormenta else "")
-        with st.expander(etiqueta, icon=":material/thunderstorm:", expanded=tormenta):
-            graficos.mostrar(graficos.presion(arome["presion"]))
-            graficos.mostrar(graficos.mucape(arome["mucape"]))
     st.divider()
 
     # --- Histórico frente a la previsión ---

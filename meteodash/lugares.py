@@ -54,6 +54,7 @@ AVILA = Ciudad(
     nieve=True,
     zonas_aviso=("ES137",),  # Meseta de Ávila
     camaras=_dgt(("168018", "AP-51 km 104, llegando a Ávila"), ("168017", "AP-51 km 99")),
+    mapas_arome="Ávila",
 )
 
 ALICANTE = Ciudad(
@@ -67,6 +68,7 @@ ALICANTE = Ciudad(
     camaras=(Camara("https://streaming.comunitatvalenciana.com/webcam/AlicanteCentro/manifest.m3u8",
                     "Turisme Comunitat Valenciana", "Centro, hacia la plaza del Ayuntamiento"),
              *_dgt(("176529", "A-31 km 234, entrada a Alicante"), ("1701", "A-70 km 21,6"))),
+    mapas_arome="Alicante",
 )
 
 SANTANDER = Ciudad(
@@ -78,6 +80,7 @@ SANTANDER = Ciudad(
     zonas_aviso=("ES133",),  # Litoral cántabro
     mar=True,
     camaras=_dgt(("505", "S-10 km 4, Maliaño"), ("187681", "S-30 km 6,5"), ("503", "A-67 km 197, Mortera")),
+    mapas_arome="Santander",
 )
 
 TORRELAVEGA = Ciudad(

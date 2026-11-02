@@ -116,44 +116,8 @@ def _extremos_diarios(fig, media, formato, sufijo=""):
             )
 
 
-# ---------------------------------------------------------------- Ensemble AROME (48 h)
-
-def temperatura(data, bandas=None, dia_bandas=None):
-    """Ensemble de temperatura; con histórico, añade los rangos habituales de máxima y mínima."""
-
-    fig = go.Figure()
-    ens = _ensemble(data)
-
-    _miembros(fig, data, "rgba(99, 91, 83, 0.22)")
-    fig.add_trace(go.Scatter(
-        x=data.index, y=ens.mean(axis=1), mode="lines",
-        line=dict(color="#635b53", width=1.5, dash="dot"),
-        name="Media",
-        customdata=np.stack([ens.quantile(0.1, axis=1), ens.quantile(0.9, axis=1)], axis=-1),
-        hovertemplate="Media: <b>%{y:.1f}°C</b><br>Rango 10-90%: <b>%{customdata[0]:.1f}° - %{customdata[1]:.1f}°C</b><extra></extra>",
-    ))
-    _control(fig, data, AMBAR, ".1f", "°C")
-    _observado(fig, data, ".1f", "°C")
-
-    if bandas is not None and dia_bandas in bandas.index:
-        x = data.index.tolist()
-        for variable, nombre, relleno in [
-            ("tmax", "Máx. habitual", "rgba(217, 56, 86, 0.1)"),
-            ("tmin", "Mín. habitual", "rgba(2, 119, 189, 0.1)"),
-        ]:
-            bajo = bandas.loc[dia_bandas, (variable, 0.15)]
-            alto = bandas.loc[dia_bandas, (variable, 0.85)]
-            fig.add_trace(go.Scatter(
-                x=x + x[::-1], y=[alto] * len(x) + [bajo] * len(x),
-                fill="toself", fillcolor=relleno, line=dict(color="rgba(0,0,0,0)"),
-                name=nombre, hoverinfo="skip",
-            ))
-
-    _extremos_diarios(fig, ens.mean(axis=1), ".1f", "º")
-    tema_plotly(fig, "Temperatura · 48 h", "Temperatura (°C)")
-    _eje_fechas_es(fig, data.index)
-    return fig
-
+# ---------------------------------------------------------------- Lluvia y rachas del medio plazo (las 48 h van en
+# el meteograma)
 
 def lluvia(prec_data, titulo="Lluvia · 48 h"):
     """Probabilidad de lluvia de cada hora (miembros con al menos UMBRAL_LLUVIA_HORA), cantidad media cuando llueve y,
@@ -207,48 +171,6 @@ def viento(data, direccion=None, titulo="Rachas de viento · 48 h"):
     _observado(fig, data, ".0f", "km/h", etiqueta="Racha observada", detalle=direccion)
     _extremos_diarios(fig, _ensemble(data).mean(axis=1), ".0f")
     tema_plotly(fig, titulo, "Velocidad (km/h)")
-    _eje_fechas_es(fig, data.index)
-    return fig
-
-
-def presion(data):
-    fig = go.Figure()
-    _miembros(fig, data, "rgba(99, 91, 83, 0.22)")
-    fig.add_trace(go.Scatter(
-        x=data.index, y=_ensemble(data).mean(axis=1), mode="lines",
-        line=dict(color="#635b53", width=1.5, dash="dot"),
-        name="Media", hovertemplate="Media: <b>%{y:.1f} hPa</b><extra></extra>",
-    ))
-    _control(fig, data, AMBAR, ".1f", "hPa")
-    tema_plotly(fig, "Presión · 48 h", "Presión (hPa)")
-    # Al menos 30 hPa de rango, centrado en los valores previstos: una borrasca profunda no se sale del gráfico
-    valores = _ensemble(data).stack()
-    if not valores.empty:
-        centro = (valores.min() + valores.max()) / 2
-        mitad = max((valores.max() - valores.min()) / 2 + 3, 15)
-        fig.update_yaxes(range=[centro - mitad, centro + mitad])
-    _eje_fechas_es(fig, data.index)
-    return fig
-
-
-def mucape(data):
-    fig = go.Figure()
-    ens = _ensemble(data)
-    _miembros(fig, data, "rgba(225, 29, 72, 0.2)")
-    fig.add_trace(go.Scatter(
-        x=data.index, y=ens.mean(axis=1), mode="lines",
-        line=dict(color=AMBAR, width=1.5, dash="dot"),
-        name="Media", customdata=ens.max(axis=1),
-        hovertemplate="Media CAPE: <b>%{y:.0f} J/kg</b><br>Máx Ens: <b>%{customdata:.0f} J/kg</b><extra></extra>",
-    ))
-    _control(fig, data, ROJO, ".0f", "J/kg")
-
-    # Zonas de riesgo (muy sutiles)
-    fig.add_hrect(y0=0, y1=300, fillcolor="#10b981", opacity=0.04, line_width=0, layer="below")
-    fig.add_hrect(y0=300, y1=1000, fillcolor="#fbbf24", opacity=0.04, line_width=0, layer="below")
-    fig.add_hrect(y0=1000, y1=3000, fillcolor="#ef4444", opacity=0.04, line_width=0, layer="below")
-
-    tema_plotly(fig, "Potencial de tormentas (MUCAPE) · 48 h", "J/kg")
     _eje_fechas_es(fig, data.index)
     return fig
 
@@ -795,39 +717,6 @@ def auroras(horario, kp, kp_27, umbral, ahora):
     fig.update_yaxes(title_text="Nubes %", range=[0, 105], row=3, col=1)
     fig.update_layout(height=600, bargap=0, hoversubplots="axis")
     _eje_fechas_es(fig, horario.index, cada_horas=24)
-    return fig
-
-
-def ovalo_auroral(rejilla, lat, lon, nombre):
-    """Probabilidad de aurora de OVATION (`rejilla`: lon, lat, prob cada 1º) sobre el hemisferio norte, con el lugar
-    marcado. Cada punto se dibuja como su celda de 1º para que el óvalo se vea continuo."""
-
-    visibles = rejilla[rejilla["prob"] >= 5].reset_index(drop=True)
-    celdas = {"type": "FeatureCollection", "features": [
-        {"type": "Feature", "id": i, "geometry": {"type": "Polygon", "coordinates": [[
-            [x - 0.5, y - 0.5], [x - 0.5, y + 0.5], [x + 0.5, y + 0.5], [x + 0.5, y - 0.5], [x - 0.5, y - 0.5]]]}}
-        for i, (x, y) in enumerate(zip(visibles["lon"], visibles["lat"]))
-    ]}
-    fig = go.Figure(go.Choropleth(
-        geojson=celdas, locations=visibles.index, z=visibles["prob"], zmin=0, zmax=60, name="OVATION",
-        colorscale=[[0, "rgba(45, 212, 191, 0.2)"], [0.25, AURORA], [0.6, "#facc15"], [1, "#f43f5e"]],
-        marker=dict(line=dict(width=0)),
-        colorbar=dict(title=dict(text="%", font=dict(color=NOCHE_SUAVE, family=FUENTE)), thickness=10, len=0.6,
-                      tickfont=dict(color=NOCHE_SUAVE, family=FUENTE, size=11), outlinewidth=0),
-        hovertemplate="Probabilidad: <b>%{z:.0f} %</b><extra></extra>",
-    ))
-    fig.add_trace(go.Scattergeo(
-        lon=[lon], lat=[lat], mode="markers+text", text=[f"<b>{nombre}</b>"], textposition="bottom center",
-        textfont=dict(color=NOCHE_TEXTO, size=12, family=FUENTE), name=nombre, hoverinfo="skip",
-        marker=dict(size=10, color="white", line=dict(width=3, color=AURORA)),
-    ))
-    fig.update_geos(
-        projection_type="orthographic", projection_rotation=dict(lon=lon, lat=min(lat + 8, 90)), projection_scale=2.4,
-        showland=True, landcolor="#1a2540", showocean=True, oceancolor="#0a1124", showlakes=False,
-        showcountries=True, countrycolor="#334155", coastlinecolor="#475569", showframe=False, bgcolor="rgba(0,0,0,0)",
-    )
-    tema_noche(fig, "Óvalo auroral · próxima hora", leyenda=False, hovermode="closest")
-    fig.update_layout(height=520, margin=dict(l=0, r=0, t=40, b=0))
     return fig
 
 

@@ -1,0 +1,69 @@
+/* Meteograma de las 48 h (ver meteograma.js), con los colores de los gráficos de la app */
+.meteograma {
+  --texto: #2a241f; --suave: #635b53; --tenue: #8a8178; --acento: #d97706;
+  color: var(--texto); font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; outline: none; border-radius: 12px;
+  -webkit-user-select: none; user-select: none;
+}
+.meteograma:focus-visible { box-shadow: 0 0 0 2px var(--acento); }
+
+.mg-cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.mg-hora { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mg-hora small { margin-left: 8px; font-size: 13px; font-weight: 500; color: var(--suave); }
+.mg-ahora, .mg-plegable {
+  border: 1px solid #d6cfc4; border-radius: 8px; background: #f7f4ee; color: var(--texto); font: inherit;
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.mg-ahora { padding: 3px 10px; }
+.mg-ahora:hover, .mg-plegable:hover { border-color: var(--acento); color: #b45309; }
+
+.mg-leyenda { display: flex; flex-wrap: wrap; gap: 3px 14px; margin: 4px 0 2px; font-size: 11.5px; color: var(--suave); }
+.mg-leyenda i { display: inline-block; width: 18px; margin-right: 5px; vertical-align: middle; }
+.mg-l-media { border-top: 2px dotted #635b53; }
+.mg-l-control { border-top: 2px dashed var(--acento); }
+.mg-l-miembros { border-top: 2px solid rgba(99, 91, 83, 0.3); }
+.mg-l-observado { border-top: 3px solid var(--texto); }
+.mg-l-max, .mg-l-min { height: 9px; border-radius: 2px; }
+.mg-l-max { background: rgba(217, 56, 86, 0.18); }
+.mg-l-min { background: rgba(2, 119, 189, 0.18); }
+
+.mg-panel { margin-top: 10px; }
+.mg-lectura { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-height: 20px; font-size: 13px;
+              color: var(--suave); font-variant-numeric: tabular-nums; }
+.mg-lectura > b { font-size: 14px; color: var(--texto); }
+.mg-lectura span b { color: var(--texto); }
+
+.mg-svg, .mg-eje { display: block; width: 100%; overflow: visible; touch-action: pan-y; cursor: crosshair; }
+.mg-eje { height: 22px; }
+.mg-svg text, .mg-eje text { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; }
+.mg-noche { fill: rgba(70, 80, 110, 0.07); }
+.mg-dia { stroke: rgba(60, 50, 40, 0.25); }
+.mg-guia { stroke: rgba(60, 50, 40, 0.1); }
+.mg-separador { stroke: rgba(60, 50, 40, 0.25); }
+.mg-valor-eje { fill: var(--tenue); font-size: 10px; text-anchor: end; font-variant-numeric: tabular-nums; }
+.mg-ahora-linea { stroke: var(--suave); stroke-dasharray: 2 3; }
+.mg-banda-tmax { fill: rgba(217, 56, 86, 0.1); }
+.mg-banda-tmin { fill: rgba(2, 119, 189, 0.1); }
+.mg-extremo { font-size: 11px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #e8e3da;
+              stroke-width: 3px; }
+.mg-prob { fill: var(--acento); opacity: 0.85; }
+.mg-obs-lluvia { fill: rgba(42, 36, 31, 0.6); }
+.mg-lluvia-area { fill: rgba(2, 119, 189, 0.12); }
+.mg-lluvia-linea { fill: none; stroke: #0277bd; stroke-width: 2; }
+.mg-lluvia-punto { fill: #0277bd; }
+.mg-cursor line { stroke: var(--texto); stroke-width: 1.2; opacity: 0.75; }
+.mg-cursor circle { stroke: #fff; stroke-width: 2; }
+.mg-dia-texto { fill: var(--suave); font-size: 11px; font-weight: 600; text-anchor: middle; }
+.mg-eje-cursor rect { fill: var(--texto); }
+.mg-eje-cursor text { fill: #fff; font-size: 11px; font-weight: 700; text-anchor: middle; }
+
+.mg-plegable { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 14px; padding: 7px 12px;
+               text-align: left; }
+.mg-plegable em { margin-left: auto; font-style: normal; font-weight: 600; color: #d93856; }
+.mg-flecha { display: inline-block; transition: transform 0.15s; }
+.mg-plegable[aria-expanded="true"] .mg-flecha { transform: rotate(90deg); }
+
+@media (max-width: 640px) {
+  .mg-hora { font-size: 15px; }
+  .mg-hora small { display: block; margin-left: 0; }
+  .mg-lectura { font-size: 12px; }
+}

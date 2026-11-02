@@ -1,38 +1,36 @@
-"""Mapas AROME interactivos: rejillas de puntos del ensemble PE-AROME de Meteociel dibujadas como isolíneas.
+"""Mapas AROME interactivos: rejillas de puntos del ensemble PE-AROME de Meteociel, en un visor propio con MapLibre.
 
 Cada rejilla son cientos de tablas de Meteociel, así que se descarga en un hilo en segundo plano (sigue aunque el
-visitante cambie de página) y se guarda en memoria, compartida entre visitantes. Las imágenes se generan hora a
-hora, solo la que se está viendo, y quedan en caché.
+visitante cambie de página) y se guarda en memoria, compartida entre visitantes. El visor (visor_arome.js) recibe
+todas las horas de una vez y hace en el navegador el campo de colores, las isolíneas y la línea de tiempo, así que
+cambiar de hora o de punto no recarga la página.
 """
 
-from base64 import b64encode
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from io import BytesIO
+from pathlib import Path
 import threading
 import time
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 from .fuentes import MODOS_AROME, RUNS_AROME, get_last_run, leer_tabla_meteociel, url_arome
-from .graficos import dia_semana
 
 MAX_WORKERS = 3
 REQUEST_PAUSE = 0.15
 TZ = "Europe/Madrid"
 
+# "cache" es también la escala de colores del visor; "step", la equidistancia de las isolíneas (la lluvia tiene las suyas)
 VARIABLES = {
-    "Temperatura": {"cache": "temperatura", "cmap": "RdYlBu_r", "step": 1, "unit": "°C"},
-    "Rachas": {"cache": "rachas", "cmap": "YlOrRd", "step": 5, "unit": "km/h"},
-    "Precipitación": {"cache": "precipitacion", "cmap": "PuBuGn", "step": 0.5, "unit": "mm"},
+    "Temperatura": {"cache": "temperatura", "step": 1, "unit": "°C", "decimals": 1},
+    "Rachas": {"cache": "rachas", "step": 5, "unit": "km/h", "decimals": 0},
+    "Precipitación": {"cache": "precipitacion", "step": 0.5, "unit": "L/m²", "decimals": 1},
 }
 
+# Cada rejilla tiene que caer entera dentro del dominio del PE-AROME (selector_punto.DOMINIO_AROME): fuera, Meteociel
+# devuelve valores de relleno. El marcador es el punto de la previsión de la página, salvo en Madrid
 LOCATIONS = {
     "Madrid": {
         "name": "Madrid",
@@ -40,8 +38,10 @@ LOCATIONS = {
         "center_lon": -3.7004,
         "half_side_km": 50,  # 100x100 km = 10.000 km²
         "grid_step": 0.08,  # ~200 puntos (con 0.05 serían ~475)
-        "marker_label": "Chamartín",
-        "zoom": 8.95,
+        # Punto por defecto del visor: la estación de AEMET del Retiro (3195), la de las observaciones de la página
+        "marker_label": "Retiro",
+        "marker_lat": 40.4111,
+        "marker_lon": -3.6781,
         "key_prefix": "madrid",
     },
     "Torrelavega": {
@@ -51,18 +51,58 @@ LOCATIONS = {
         "half_side_km": 25,  # 50x50 km = 2.500 km²
         "grid_step": 0.05,  # ~140 puntos
         "marker_label": "Torrelavega",
-        "zoom": 9.95,
+        "marker_lat": 43.35,
+        "marker_lon": -4.047,
         "key_prefix": "torrelavega",
+    },
+    "Ávila": {
+        "name": "Ávila",
+        "center_lat": 40.659,
+        "center_lon": -4.680,
+        "half_side_km": 35,  # 70x70 km: Gredos al sur y el oeste de Guadarrama
+        "grid_step": 0.06,  # ~180 puntos
+        "marker_label": "Ávila",
+        "marker_lat": 40.659,
+        "marker_lon": -4.680,
+        "key_prefix": "avila",
+    },
+    "Santander": {
+        "name": "Santander",
+        "center_lat": 43.4661,
+        "center_lon": -3.798,
+        "half_side_km": 25,  # 50x50 km
+        "grid_step": 0.05,  # ~150 puntos
+        "marker_label": "Santander",
+        "marker_lat": 43.4661,
+        "marker_lon": -3.798,
+        "key_prefix": "santander",
+    },
+    "Alicante": {
+        "name": "Alicante",
+        "center_lat": 38.346,
+        "center_lon": -0.48,
+        "half_side_km": 25,  # 50x50 km; con más, el borde sur se acercaría al límite del dominio
+        "grid_step": 0.05,  # ~140 puntos
+        "marker_label": "Alicante",
+        "marker_lat": 38.346,
+        "marker_lon": -0.48,
+        "key_prefix": "alicante",
     },
 }
 
-TOPO_BASE = {
-    "sourcetype": "raster",
-    "source": ["https://a.tile.opentopomap.org/{z}/{x}/{y}.png"],
-    "sourceattribution": "© OpenStreetMap contributors, SRTM | OpenTopoMap (CC-BY-SA)",
-    "opacity": 0.48,
-    "below": "traces",
-}
+VIEWER = st.components.v2.component(
+    "visor_arome", isolate_styles=False,
+    html='<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css">'
+         '<div class="visor-arome" tabindex="0"><div class="va-marco"><div class="va-mapa"></div>'
+         '<div class="va-tarjeta"><div class="va-titulo"><b></b><span></span></div><div class="va-barra"></div>'
+         '<div class="va-marcas"></div><div class="va-fuente"></div></div>'
+         '<div class="va-globo"></div><div class="va-aviso">Cargando el mapa…</div></div>'
+         '<div class="va-tiempo"><button class="va-play" title="Reproducir o pausar (barra espaciadora)"></button>'
+         '<div class="va-pista"><div class="va-cabecera"><span class="va-hora"></span><span class="va-lectura"></span>'
+         '</div><svg class="va-serie"></svg></div></div></div>',
+    css=Path(__file__).with_name("visor_arome.css").read_text(encoding="utf-8"),
+    js=Path(__file__).with_name("visor_arome.js").read_text(encoding="utf-8"),
+)
 
 
 def _compute_bounds(center_lat, center_lon, half_side_km):
@@ -74,12 +114,18 @@ def _compute_bounds(center_lat, center_lon, half_side_km):
     return south, north, west, east
 
 
-def _points(bounds, grid_step):
-    """Genera la lista de coordenadas (lat, lon) que cubren los límites dados."""
+def _axes(bounds, grid_step):
+    """Latitudes y longitudes (crecientes) de la rejilla que cubre los límites dados."""
     south, north, west, east = bounds
     latitudes = np.arange(np.floor(south / grid_step) * grid_step, north + grid_step / 2, grid_step)
     longitudes = np.arange(np.floor(west / grid_step) * grid_step, east + grid_step / 2, grid_step)
-    return [(round(lat, 4), round(lon, 4)) for lat in latitudes for lon in longitudes]
+    return [round(float(lat), 4) for lat in latitudes], [round(float(lon), 4) for lon in longitudes]
+
+
+def _points(bounds, grid_step):
+    """Genera la lista de coordenadas (lat, lon) que cubren los límites dados."""
+    latitudes, longitudes = _axes(bounds, grid_step)
+    return [(lat, lon) for lat in latitudes for lon in longitudes]
 
 
 # ---------------------------------------------------------------- Descarga en segundo plano
@@ -163,68 +209,22 @@ def _download_progress(key, label):
                 text=f"Descargando {label}: {download.done}/{download.total} puntos. Puedes seguir navegando mientras tanto.")
 
 
-# ---------------------------------------------------------------- Imágenes
+# ---------------------------------------------------------------- Visor
 
-@st.cache_data(ttl="1h", max_entries=24, show_spinner=False)
-def _levels(key, _data, interval, minimum=None):
-    """Niveles de las isolíneas, comunes a todas las horas de la rejilla `key`."""
-    values = _data.value.dropna()
-    lower = np.floor(values.quantile(0.02) / interval) * interval if minimum is None else minimum
-    upper = np.ceil(values.quantile(0.98) / interval) * interval
-    if upper <= lower:
-        upper = lower + interval
-    return tuple(np.arange(lower, upper + interval * 1.01, interval))
-
-
-def _regular_grid(data, timestamp):
-    field = data.loc[data.time == timestamp, ["lat", "lon", "value"]]
-    latitudes = np.sort(field.lat.unique())
-    longitudes = np.sort(field.lon.unique())
-    values = field.pivot(index="lat", columns="lon", values="value").reindex(index=latitudes, columns=longitudes).to_numpy()
-    return longitudes, latitudes, values
-
-
-@st.cache_data(ttl="1h", max_entries=150, show_spinner=False)
-def _weather_image(key, _data, timestamp, cmap, levels, bounds):
-    """PNG (data URI) de una hora de la rejilla `key`. `_data` no se hashea: la clave ya identifica la rejilla."""
-    south, north, west, east = bounds
-    longitudes, latitudes, values = _regular_grid(_data, timestamp)
-    figure, axis = plt.subplots(figsize=(8, 6), dpi=125)
-    figure.patch.set_alpha(0)
-    axis.set_facecolor((0, 0, 0, 0))
-    axis.contourf(longitudes, latitudes, values, levels=levels, cmap=cmap, alpha=0.60, extend="both", antialiased=True)
-    lines = axis.contour(longitudes, latitudes, values, levels=levels, colors="#202020", linewidths=0.65, alpha=0.82)
-    axis.clabel(lines, inline=True, fontsize=7, fmt=lambda value: f"{value:g}")
-    axis.set(xlim=(west, east), ylim=(south, north))
-    axis.axis("off")
-    figure.subplots_adjust(left=0, right=1, bottom=0, top=1)
-    buffer = BytesIO()
-    figure.savefig(buffer, format="png", transparent=True, dpi=125, pad_inches=0)
-    plt.close(figure)
-    return "data:image/png;base64," + b64encode(buffer.getvalue()).decode("ascii")
-
-
-def _weather_layer(image, bounds):
-    south, north, west, east = bounds
+@st.cache_data(ttl="1h", max_entries=12, show_spinner=False)
+def _viewer_grid(key, _data, latitudes, longitudes):
+    """Rejilla `key` para el visor: horas (ms desde 1970) y, por hora, los valores de sur a norte y de oeste a este,
+    con None donde falta el punto. `_data` no se hashea: la clave ya identifica la rejilla."""
+    cube = (_data.pivot(index="time", columns=["lat", "lon"], values="value").sort_index()
+            .reindex(columns=pd.MultiIndex.from_product([latitudes, longitudes])))
+    values = cube.to_numpy(dtype=float).round(1)
     return {
-        "sourcetype": "image",
-        "source": image,
-        "coordinates": [[west, north], [east, north], [east, south], [west, south]],
-        "below": "traces",
-        "opacity": 1,
+        # Cambia con cada descarga (también al actualizar la misma pasada): el visor solo recalcula si cambia
+        "clave": f"{key[1]}_{key[2]:%Y%m%d%H}_{time.time_ns()}",
+        "horas": (cube.index.asi8 // 10**6).tolist(),
+        "valores": [[None if np.isnan(value) else float(value) for value in row] for row in values],
+        "faltan": int(cube.isna().all().sum()),
     }
-
-
-def _map_title(title, timestamp):
-    """Devuelve un encabezado compacto con la fecha/hora local de la previsión."""
-    moment = pd.Timestamp(timestamp)
-    weekdays = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
-    months = (
-        "enero", "febrero", "marzo", "abril", "mayo", "junio",
-        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-    )
-    label = f"{weekdays[moment.weekday()]}, {moment.day} de {months[moment.month - 1]} · {moment:%H:%M} h"
-    return f"<b>{title}</b><br><span style='font-size:12px'>{label}</span>"
 
 
 # ---------------------------------------------------------------- Página
@@ -235,11 +235,8 @@ def render_arome_maps(location):
 
     st.header("Mapas AROME")
 
-    name = cfg["name"]
     center_lat = cfg["center_lat"]
     center_lon = cfg["center_lon"]
-    marker_label = cfg["marker_label"]
-    zoom = cfg["zoom"]
     key_prefix = cfg["key_prefix"]
 
     bounds = _compute_bounds(center_lat, center_lon, cfg["half_side_km"])
@@ -271,39 +268,23 @@ def render_arome_maps(location):
     if st.button("Actualizar esta variable", icon=":material/refresh:", key=f"{key_prefix}_refresh_btn"):
         with state["lock"]:
             state["grids"].pop(grid_key, None)
-        _levels.clear()
-        _weather_image.clear()
+        _viewer_grid.clear()
         st.rerun()
 
-    timestamps = sorted(data.time.unique())
-    now = pd.Timestamp.now(tz=TZ).floor("h")
-    moment = st.select_slider(
-        "Hora local",
-        options=timestamps,
-        value=next((t for t in timestamps if t >= now), timestamps[0]),
-        format_func=lambda t: f"{dia_semana(t)} · {t:%H:%M}",
-        key=f"{key_prefix}_{spec['cache']}_{run_start:%Y%m%d%H}_arome_map_time",
-    )
+    latitudes, longitudes = _axes(bounds, cfg["grid_step"])
+    grid = _viewer_grid(grid_key, data, latitudes, longitudes)
+    # Misma clave para las tres variables: al cambiar de una a otra, el mapa conserva el encuadre, la hora y el punto
+    VIEWER(key=f"{key_prefix}_arome_viewer", data={
+        "variable": selected, "paleta": spec["cache"], "unidad": spec["unit"], "paso": spec["step"],
+        "decimales": spec["decimals"], "pasada": f"{run:02d}Z", "tz": TZ, "lats": latitudes, "lons": longitudes,
+        "lugar": {"nombre": cfg["marker_label"], "lat": cfg["marker_lat"], "lon": cfg["marker_lon"]},
+        **grid,
+    })
 
-    levels = _levels(grid_key, data, spec["step"], 0 if selected == "Precipitación" else None)
-    with st.spinner("Preparando isolíneas…"):
-        image = _weather_image(grid_key, data, moment, spec["cmap"], levels, bounds)
-
-    figure = go.Figure(go.Scattermap(
-        lat=[center_lat], lon=[center_lon], mode="markers+text", text=[marker_label],
-        textposition="top right", hoverinfo="skip", marker={"size": 8, "color": "#111111"},
-        textfont={"color": "#111111", "size": 12}, showlegend=False,
-    ))
-    figure.update_layout(
-        title={"text": _map_title(f"AROME · {selected} · entorno de {name}", moment), "x": 0.5, "xanchor": "center", "y": 0.975},
-        height=700,
-        map={
-            "style": "white-bg", "center": {"lat": center_lat, "lon": center_lon}, "zoom": zoom,
-            "layers": [TOPO_BASE, _weather_layer(image, bounds)],
-        },
-        margin={"l": 0, "r": 0, "t": 58, "b": 8},
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        uirevision=key_prefix,  # conserva el zoom y el encuadre al cambiar de hora o de variable
-    )
-    st.plotly_chart(figure, config={"scrollZoom": True, "displaylogo": False}, key=f"{key_prefix}_arome_map")
+    total = len(latitudes) * len(longitudes)
+    missing = (f" Meteociel no ha devuelto {grid['faltan']} de los puntos: se rellenan con la media de sus vecinos."
+               if grid["faltan"] else "")
+    st.caption(f"Media del ensemble PE-AROME de Météo-France (vía Meteociel) en {total} puntos, uno cada "
+               f"{str(cfg['grid_step']).replace('.', ',')}°, interpolada entre ellos.{missing} Pulsa en el mapa o "
+               "arrastra el marcador para ver abajo la evolución de ese punto; las flechas ← → cambian de hora y la "
+               "barra espaciadora reproduce. Las noches van sombreadas.")

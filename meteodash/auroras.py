@@ -19,6 +19,7 @@ from . import graficos, luna, tarjetas
 from .fuentes import descargar, en_paralelo, o_none
 from .estilo import coma
 from .graficos import valoracion_kp
+from .ovalo_auroral import ovalo_auroral
 
 SWPC = "https://services.swpc.noaa.gov"
 
@@ -408,9 +409,11 @@ def render_auroras(ciudad):
         viento, ovation = o_none(get_viento_solar), o_none(get_ovation)
         _tarjetas_ahora(ciudad, ahora, kp, viento, ovation)
         if ovation is not None:
-            graficos.mostrar(graficos.ovalo_auroral(ovation[1], ciudad.lat, ciudad.lon, ciudad.nombre), theme=None)
+            ovalo_auroral(*ovation, ciudad)
             st.caption("Probabilidad de ver auroras en la vertical de cada punto en la próxima hora, según el modelo "
-                       "OVATION de la NOAA. Desde un lugar, también se ven las que quedan algo más al norte.")
+                       "OVATION de la NOAA (el valor de la ciudad es el de su celda de 1º). Desde un lugar, también se "
+                       "ven las que quedan algo más al norte. La zona más clara es donde es de día a esa hora. Arrastra "
+                       "para girar el globo.")
         else:
             st.caption("No se ha podido descargar la previsión OVATION de la NOAA.")
 
