@@ -34,10 +34,12 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `generar_bandas.py` | Script que calcula los rangos habituales de máxima y mínima de `datos/bandas/` (las estaciones de AEMET requieren `AEMET_API_KEY`) |
 | `meteodash/graficos.py` | Gráficos Plotly |
 | `meteodash/meteograma.py`, `meteograma.js`, `meteograma.css` | Meteograma de las 48 h: temperatura, lluvia, rachas y, plegados salvo que haya potencial de tormenta, presión y MUCAPE, con un solo cursor (ratón, dedo o flechas) y los valores de esa hora encima de cada panel |
+| `meteodash/sol.py`, `sol.js`, `sol.css` | El Sol hoy: elevación a lo largo del día sobre las bandas de los crepúsculos, con un cursor que da la altura, el azimut y la fase de luz de cada momento (también los días de noches blancas, sol de medianoche o noche polar) |
 | `meteodash/tarjetas.py` | Tarjetas, avisos y tabla de récords |
 | `meteodash/estilo.py` | CSS de la app y tema de los gráficos |
 | `meteodash/mapas_arome.py` | Mapas AROME interactivos (Madrid, Ávila, Alicante, Santander y Torrelavega); las rejillas se descargan en segundo plano y se guardan en memoria, compartidas entre visitantes |
 | `meteodash/visor_arome.js`, `visor_arome.css` | Visor de esos mapas (MapLibre, en el navegador): campo interpolado sobre el relieve, isolíneas, valor bajo el ratón, reproducción y una línea de tiempo con la serie del punto elegido |
+| `meteodash/horas_auroras.py`, `horas_auroras.js`, `horas_auroras.css` | Auroras hora a hora: probabilidad, Kp y nubosidad con las noches sombreadas y un cursor que da, para cada hora, sus valores, el factor que más resta y los seis factores de la puntuación |
 | `meteodash/ovalo_auroral.py`, `ovalo_auroral.js`, `ovalo_auroral.css` | Globo del óvalo auroral (MapLibre): probabilidad OVATION de la próxima hora, día y noche de ese momento y el valor de cada celda bajo el ratón |
 | `meteodash/selector_punto.py` | Mapa de la página «Cualquier punto»: se elige un punto de Europa y el ensemble a 48 h que le toca (PE-AROME en su dominio, Met Office en Gran Bretaña e Irlanda e ICON-EU en el resto) |
 | `datos/` | Históricos diarios de AEMET, solo lectura (Retiro desde 1950, Ávila desde 1990; se actualizan con `actualizar_historicos.py`) |

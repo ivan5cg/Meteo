@@ -22,6 +22,7 @@ from .fuentes import (ENSEMBLES, ENSEMBLES_48H, POLENES, UMBRAL_LLUVIA, UMBRAL_L
 from .meteograma import meteograma
 from .observaciones import Estacion, cardinal, cargar_observaciones, descargar_en, temperatura_actual_y_ayer
 from .radar import render_radar
+from .sol import sol_hoy
 
 MESES_NIEVE = {11, 12, 1, 2, 3, 4}
 
@@ -580,7 +581,7 @@ def render_48h(ciudad, titulo=None):
         st.divider()
 
     tarjetas.ancla("sol-luna")
-    graficos.mostrar(graficos.elevacion_solar(ciudad.lat, ciudad.lon, ciudad.tz))
+    sol_hoy(ciudad.lat, ciudad.lon, ciudad.tz)
     salida_puesta = luna.salida_y_puesta(ciudad.lat, ciudad.lon, ciudad.tz, ahora.date())
     azimut, altura = luna.posicion(ciudad.lat, ciudad.lon, ahora)
     salida, puesta, _ = salida_puesta

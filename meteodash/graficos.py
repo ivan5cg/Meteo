@@ -1,19 +1,13 @@
 """Gráficos Plotly comunes a todas las páginas."""
 
-from datetime import datetime, timedelta
-
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import pytz
 import streamlit as st
-from astral import LocationInfo
-from astral.sun import elevation, sun
 from plotly.subplots import make_subplots
 
-from .estilo import (AMBAR, AURORA, AZUL, FUENTE, NOCHE_SUAVE, NOCHE_TEXTO, ROJO, TEXTO, coma, tema_noche,
-                     tema_plotly)
+from .estilo import AMBAR, AZUL, FUENTE, NOCHE_TEXTO, ROJO, TEXTO, coma, tema_noche, tema_plotly
 from .fuentes import UMBRAL_LLUVIA, UMBRAL_LLUVIA_HORA, extremos_diarios, prob_diaria, prob_por_hora
 
 DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
@@ -528,85 +522,6 @@ def año_hidrologico(fechas, actual, anterior, normal, rango, nombre_actual, nom
     return fig
 
 
-@st.cache_data(max_entries=50, show_spinner=False)
-def _curva_solar(latitud, longitud, zona, fecha):
-    """Elevación solar minuto a minuto de un día, con amanecer, atardecer y el cambio de duración frente a ayer."""
-
-    location = LocationInfo("Ubicación", "Región", zona, latitud, longitud)
-    timezone = pytz.timezone(zona)
-
-    sol_hoy = sun(location.observer, date=fecha, tzinfo=timezone)
-    sol_ayer = sun(location.observer, date=fecha - timedelta(days=1), tzinfo=timezone)
-    amanecer, atardecer = sol_hoy["sunrise"], sol_hoy["sunset"]
-
-    diferencia = (atardecer - amanecer).total_seconds() - (sol_ayer["sunset"] - sol_ayer["sunrise"]).total_seconds()
-    dif_min, dif_seg = divmod(abs(int(diferencia)), 60)
-    cambio = f"{'+' if diferencia > 0 else '−'}{dif_min} min {dif_seg} s"
-
-    duracion = (atardecer - amanecer).total_seconds()
-    horas_dia, minutos_dia = int(duracion // 3600), int((duracion % 3600) / 60)
-
-    minutos = [timezone.localize(datetime(fecha.year, fecha.month, fecha.day, h, m)) for h in range(24) for m in range(60)]
-    elevaciones = np.array([elevation(location.observer, dt) for dt in minutos])
-    etiquetas = [dt.strftime("%H:%M") for dt in minutos]
-
-    i_amanecer = amanecer.hour * 60 + amanecer.minute
-    i_atardecer = atardecer.hour * 60 + atardecer.minute
-    titulo = f"Sol hoy · {horas_dia} h {minutos_dia} min de luz ({cambio})"
-    return etiquetas, elevaciones, i_amanecer, i_atardecer, titulo
-
-
-def elevacion_solar(latitud, longitud, zona="UTC"):
-    hoy = datetime.now(tz=pytz.timezone(zona))
-    etiquetas, elevaciones, i_amanecer, i_atardecer, titulo = _curva_solar(latitud, longitud, zona, hoy.date())
-    i_cenit = int(np.argmax(elevaciones))
-    i_ahora = hoy.hour * 60 + hoy.minute
-
-    # La curva, cada 5 min (con minuto a minuto el gráfico pesa 5 veces más). El eje es de categorías ("HH:MM"):
-    # se incluyen los minutos de los marcadores para que no aparezcan como categorías nuevas al final del eje
-    indices = sorted(set(range(0, 1440, 5)) | {i_amanecer, i_atardecer, i_cenit, i_ahora})
-    x, curva = [etiquetas[i] for i in indices], elevaciones[indices]
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=x, y=np.where(curva >= 0, curva, 0), mode="lines", fill="tozeroy",
-        fillcolor="rgba(217, 119, 6, 0.18)", line=dict(color=AMBAR, width=2.5), name="Día", hoverinfo="skip",
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=np.where(curva <= 0, curva, 0), mode="lines", fill="tozeroy",
-        fillcolor="rgba(2, 119, 189, 0.12)", line=dict(color=AZUL, width=1.5), name="Noche", hoverinfo="skip",
-    ))
-    fig.add_trace(go.Scatter(
-        x=x, y=curva, mode="lines", line=dict(color="rgba(0,0,0,0)", width=0),
-        name="Elevación solar",
-        hovertemplate="Hora: <b>%{x}</b><br>Elevación solar: <b>%{y:.1f}°</b><extra></extra>",
-    ))
-    fig.add_hline(y=0, line_dash="dash", line_color="#a89f91", line_width=1)
-
-    fig.add_trace(go.Scatter(
-        x=[etiquetas[i_ahora]], y=[elevaciones[i_ahora]], mode="markers+text",
-        marker=dict(size=12, color=AZUL, symbol="circle", line=dict(width=2, color="white")),
-        text=[f"<b>Ahora ({coma(elevaciones[i_ahora], '.1f')}°)</b>"], textposition="top center",
-        textfont=dict(color=AZUL, size=11, family=FUENTE), name="Ahora",
-        hovertemplate="Actual (%{x}): <b>%{y:.1f}°</b><extra></extra>",
-    ))
-    fig.add_trace(go.Scatter(
-        x=[etiquetas[i_amanecer], etiquetas[i_cenit], etiquetas[i_atardecer]],
-        y=[0, elevaciones[i_cenit], 0], mode="markers+text",
-        marker=dict(size=9, color=[AMBAR, ROJO, "#ea580c"]),
-        text=[f"<b>Amanecer {etiquetas[i_amanecer]}</b>",
-              f"<b>Cénit {etiquetas[i_cenit]} ({coma(elevaciones[i_cenit], '.1f')}°)</b>",
-              f"<b>Atardecer {etiquetas[i_atardecer]}</b>"],
-        textposition=["bottom center", "top center", "bottom center"],
-        textfont=dict(color=TEXTO, size=10.5, family=FUENTE), showlegend=False,
-        hovertemplate="<b>%{x}</b> (%{y:.1f}°)<extra></extra>",
-    ))
-
-    tema_plotly(fig, titulo, "Elevación (°)", leyenda=False)
-    fig.update_xaxes(tickvals=[etiquetas[i] for i in range(0, 1440, 120)], tickfont=dict(size=11, color=TEXTO))
-    return fig
-
-
 # ---------------------------------------------------------------- Auroras (tema nocturno)
 
 # (Kp sobre el umbral del lugar, valoración, color) de la actividad geomagnética
@@ -618,106 +533,6 @@ def valoracion_kp(kp, umbral):
     """(valoración, color) de la actividad geomagnética en un lugar que suele ver auroras desde Kp `umbral`."""
 
     return next(((texto, color) for margen, texto, color in NIVELES_AURORA if kp >= umbral + margen), SIN_AURORAS)
-
-
-def _tramos(serie):
-    """(inicio, fin) de cada tramo seguido de horas en que una serie horaria booleana es cierta."""
-
-    tramos, inicio = [], None
-    for hora, cierto in serie.items():
-        if cierto and inicio is None:
-            inicio = hora
-        elif not cierto and inicio is not None:
-            tramos.append((inicio, hora))
-            inicio = None
-    if inicio is not None:
-        tramos.append((inicio, serie.index[-1] + pd.Timedelta(hours=1)))
-    return tramos
-
-
-def auroras(horario, kp, kp_27, umbral, ahora):
-    """Probabilidad de ver auroras hora a hora, Kp y nubosidad, con las noches sombreadas.
-
-    `horario`: ver auroras.horario_noches. El Kp, cada 3 h donde está previsto (rayado) y, después, el máximo del día
-    de la previsión a 27 días (punteado). Las nubes, mediana y rango 10-90 % de los miembros del ensemble.
-    """
-
-    inicio, fin = horario.index[0], horario.index[-1] + pd.Timedelta(hours=1)
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights=[0.42, 0.29, 0.29], vertical_spacing=0.07)
-
-    prob = (100 * horario["prob"]).where(horario["f_oscuridad"] > 0)
-    fig.add_trace(go.Scatter(
-        x=horario.index, y=prob, mode="lines", connectgaps=False, fill="tozeroy", name="Probabilidad",
-        line=dict(color=AURORA, width=2, shape="spline"), fillcolor="rgba(52, 211, 153, 0.25)",
-        fillgradient=dict(type="vertical", colorscale=[[0, "rgba(45, 212, 191, 0.04)"],
-                                                       [0.5, "rgba(52, 211, 153, 0.35)"],
-                                                       [1, "rgba(232, 121, 249, 0.6)"]]),
-        hovertemplate="Probabilidad de verlas: <b>%{y:.0f} %</b><extra></extra>",
-    ), row=1, col=1)
-
-    maximo = umbral + 3
-    if kp is not None:
-        bloques = kp[(kp.index > inicio - pd.Timedelta(hours=3)) & (kp.index < fin)]
-        desde = bloques.index.tz_convert(horario.index.tz)
-        fig.add_trace(go.Bar(
-            x=desde + pd.Timedelta(minutes=90), y=bloques["kp"], width=0.9 * 3 * 3600 * 1000, name="Kp",
-            marker=dict(color=[valoracion_kp(v, umbral)[1] for v in bloques["kp"]], line=dict(width=0),
-                        pattern=dict(shape=["/" if t == "previsto" else "" for t in bloques["tipo"]],
-                                     fillmode="overlay", fgcolor="rgba(7, 11, 24, 0.45)")),
-            customdata=np.stack([desde.strftime("%H"), (desde + pd.Timedelta(hours=3)).strftime("%H"),
-                                 bloques["tipo"]], axis=-1),
-            hovertemplate="Kp <b>%{y:.1f}</b> (%{customdata[2]}) de %{customdata[0]} a %{customdata[1]} h<extra></extra>",
-        ), row=2, col=1)
-        maximo = max(maximo, bloques["kp"].max() + 1)
-    if kp_27 is not None:
-        dias = sorted(set(horario.index[horario["tipo_kp"] == "27 días"].tz_convert("UTC").date))
-        if dias:
-            mediodia = pd.DatetimeIndex(dias).tz_localize("UTC").tz_convert(horario.index.tz) + pd.Timedelta(hours=12)
-            valores = kp_27.reindex(dias)
-            fig.add_trace(go.Bar(
-                x=mediodia, y=valores, width=0.96 * 24 * 3600 * 1000, name="Kp (27 días)", opacity=0.3,
-                marker=dict(color=[valoracion_kp(v, umbral)[1] for v in valores], line=dict(width=0),
-                            pattern=dict(shape=".", fillmode="overlay", fgcolor="rgba(7, 11, 24, 0.4)", size=6)),
-                hovertemplate="Kp máximo del día <b>%{y:.0f}</b> (previsión a 27 días)<extra></extra>",
-            ), row=2, col=1)
-            maximo = max(maximo, valores.max() + 1)
-    fig.add_hline(y=umbral, line_dash="dash", line_color=AURORA, line_width=1.2, row=2, col=1,
-                  annotation_text=f"Kp {umbral}", annotation_position="top left",
-                  annotation_font=dict(color=AURORA, size=11, family=FUENTE))
-
-    if horario["nubes_p50"].notna().any():
-        fig.add_trace(go.Scatter(x=horario.index, y=horario["nubes_p90"], mode="lines", line=dict(width=0),
-                                 showlegend=False, hoverinfo="skip"), row=3, col=1)
-        fig.add_trace(go.Scatter(x=horario.index, y=horario["nubes_p10"], mode="lines", line=dict(width=0),
-                                 fill="tonexty", fillcolor="rgba(148, 163, 184, 0.2)", showlegend=False,
-                                 hoverinfo="skip"), row=3, col=1)
-        fig.add_trace(go.Scatter(
-            x=horario.index, y=horario["nubes_p50"], mode="lines", line=dict(color=NOCHE_TEXTO, width=1.5),
-            name="Nubosidad", customdata=horario[["nubes_p10", "nubes_p90"]].to_numpy(),
-            hovertemplate=("Nubes: <b>%{y:.0f} %</b> (10-90 %: %{customdata[0]:.0f}-%{customdata[1]:.0f} %)"
-                           "<extra></extra>"),
-        ), row=3, col=1)
-    else:
-        fig.add_trace(go.Scatter(
-            x=horario.index, y=horario["nubes"], mode="lines", fill="tozeroy", fillcolor="rgba(148, 163, 184, 0.2)",
-            line=dict(color=NOCHE_TEXTO, width=1.5), name="Nubosidad",
-            hovertemplate="Nubes: <b>%{y:.0f} %</b><extra></extra>",
-        ), row=3, col=1)
-
-    # Después de las trazas: Plotly no sombrea subplots vacíos
-    for x0, x1 in _tramos(horario["f_oscuridad"] > 0):
-        fig.add_vrect(x0=x0, x1=x1, fillcolor="rgba(129, 140, 248, 0.1)", line_width=0, layer="below", row="all", col=1)
-    fig.add_shape(type="line", x0=ahora, x1=ahora, y0=0, y1=1, yref="paper",
-                  line=dict(color=NOCHE_SUAVE, width=1, dash="dot"))
-
-    tema_noche(fig, "Probabilidad de verlas · hora a hora", leyenda=False)
-    fig.update_xaxes(range=[inicio, fin])
-    fig.update_yaxes(title_text="Prob. %", range=[0, 100], row=1, col=1)
-    fig.update_yaxes(title_text="Kp", range=[0, min(9, maximo)], row=2, col=1)
-    fig.update_yaxes(title_text="Nubes %", range=[0, 105], row=3, col=1)
-    fig.update_layout(height=600, bargap=0, hoversubplots="axis")
-    _eje_fechas_es(fig, horario.index, cada_horas=24)
-    return fig
 
 
 def kp_27_dias(serie, umbral, hoy):

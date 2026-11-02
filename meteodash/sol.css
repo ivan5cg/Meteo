@@ -1,0 +1,38 @@
+/* El Sol hoy (ver sol.js), con el mismo aire que el meteograma */
+.sol {
+  --texto: #2a241f; --suave: #635b53; --tenue: #8a8178; --acento: #d97706;
+  color: var(--texto); font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; outline: none; border-radius: 12px;
+  -webkit-user-select: none; user-select: none;
+}
+.sol:focus-visible { box-shadow: 0 0 0 2px var(--acento); }
+
+.sl-cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.sl-titulo { font-size: 17px; font-weight: 700; }
+.sl-ahora {
+  flex: none; padding: 3px 10px; border: 1px solid #d6cfc4; border-radius: 8px; background: #f7f4ee;
+  color: var(--texto); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.sl-ahora:hover { border-color: var(--acento); color: #b45309; }
+.sl-lectura { min-height: 20px; margin: 6px 0 4px; font-size: 13px; color: var(--suave); font-variant-numeric: tabular-nums; }
+.sl-lectura b { color: var(--texto); }
+.sl-lectura span { font-weight: 600; }
+
+.sl-svg, .sl-eje { display: block; width: 100%; overflow: visible; touch-action: pan-y; cursor: crosshair; }
+.sl-eje { height: 22px; }
+.sl-svg text, .sl-eje text { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; }
+.sl-guia { stroke: rgba(60, 50, 40, 0.1); }
+.sl-horizonte { stroke: #a89f91; stroke-dasharray: 4 3; }
+.sl-valor-eje { fill: var(--tenue); font-size: 10px; text-anchor: end; }
+.sl-banda { fill: rgba(2, 119, 189, 0.55); font-size: 9.5px; text-anchor: end; }
+.sl-marca { font-size: 10.5px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #e8e3da;
+            stroke-width: 3px; }
+.sl-hora { fill: var(--suave); font-size: 10.5px; text-anchor: middle; }
+.sl-cursor line { stroke: var(--texto); stroke-width: 1.2; opacity: 0.75; }
+.sl-cursor circle { stroke: #fff; stroke-width: 2; }
+.sl-eje-cursor rect { fill: var(--texto); }
+.sl-eje-cursor text { fill: #fff; font-size: 11px; font-weight: 700; text-anchor: middle; }
+
+@media (max-width: 640px) {
+  .sl-titulo { font-size: 15px; }
+  .sl-lectura { font-size: 12px; }
+}

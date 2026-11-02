@@ -19,6 +19,7 @@ from . import graficos, luna, tarjetas
 from .fuentes import descargar, en_paralelo, o_none
 from .estilo import coma
 from .graficos import valoracion_kp
+from .horas_auroras import horas_auroras
 from .ovalo_auroral import ovalo_auroral
 
 SWPC = "https://services.swpc.noaa.gov"
@@ -402,7 +403,7 @@ def render_auroras(ciudad):
                                   if ciudad.kp_auroras >= KP_LEJOS_DEL_OVALO else "")
                     + ". Las noches a partir de la cuarta usan la previsión a 27 días de la NOAA, mucho menos "
                       "fiable. Mejor lejos de las luces y mirando al norte.")
-            graficos.mostrar(graficos.auroras(horario, kp, kp_27, ciudad.kp_auroras, ahora), theme=None)
+            horas_auroras(ciudad, horario, kp, kp_27, FACTORES)
         st.divider()
 
         st.subheader("Ahora")

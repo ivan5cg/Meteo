@@ -6,16 +6,16 @@ const IZQUIERDA = 36, DERECHA = 8;  // márgenes del dibujo: a la izquierda, los
 const ARRIBA = 16;  // hueco sobre las curvas para las etiquetas de los máximos
 
 const PANELES = {
-  temperatura: {titulo: "Temperatura", unidad: "°C", decimales: 1, alto: 225, paso: 1,
+  temperatura: {titulo: "Temperatura", unidad: "°C", decimales: 1, alto: 260, paso: 1,
                 miembros: "rgba(99, 91, 83, 0.22)", media: "#635b53", control: "#d97706"},
-  rachas: {titulo: "Rachas", unidad: "km/h", decimales: 0, alto: 140, paso: 5,
+  rachas: {titulo: "Rachas", unidad: "km/h", decimales: 0, alto: 160, paso: 5,
            miembros: "rgba(217, 119, 6, 0.22)", media: "#b45309", control: "#d97706"},
-  presion: {titulo: "Presión", unidad: "hPa", decimales: 1, alto: 110, paso: 1,
+  presion: {titulo: "Presión", unidad: "hPa", decimales: 1, alto: 150, paso: 1,
             miembros: "rgba(99, 91, 83, 0.22)", media: "#635b53", control: "#d97706"},
-  mucape: {titulo: "Potencial de tormentas (MUCAPE)", unidad: "J/kg", decimales: 0, alto: 100, paso: 100,
+  mucape: {titulo: "Potencial de tormentas (MUCAPE)", unidad: "J/kg", decimales: 0, alto: 150, paso: 100,
            miembros: "rgba(225, 29, 72, 0.2)", media: "#d97706", control: "#d93856"},
 };
-const ALTO_LLUVIA = 72, ALTO_PROBABILIDAD = 50, HUECO_LLUVIA = 10;
+const ALTO_LLUVIA = 110, ALTO_PROBABILIDAD = 70, HUECO_LLUVIA = 10;  // 190 px entre los dos
 const ROJO = "#d93856", AZUL = "#0277bd", TEXTO = "#2a241f";
 // Zonas de riesgo del MUCAPE, muy sutiles
 const ZONAS_CAPE = [[0, 300, "#10b981"], [300, 1000, "#fbbf24"], [1000, 3000, "#ef4444"]];
