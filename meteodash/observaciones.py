@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
 import pandas as pd
+import requests
 import streamlit as st
 
 from .aemet import get_aemet_horario
@@ -105,6 +106,18 @@ VARIABLES_ARSO = ["t", "rh", "ffmax_val_kmh", "ddmax_val", "rr_val"]
 
 
 @st.cache_data(ttl="10m", show_spinner=False)
+def _xml_arso(url):
+    """XML de ARSO, o None si no responde. Desde Streamlit Cloud (EE. UU.) no suele responder: con el fallo en caché
+    y poco tiempo de espera, la página no espera el timeout entero en cada visita (ni dos veces: la descarga en
+    paralelo y el reintento al leerla)."""
+
+    try:
+        return descargar(url, timeout=(5, 10)).content
+    except requests.RequestException:
+        return None
+
+
+@st.cache_data(ttl="10m", show_spinner=False)
 def get_arso(estacion):
     """Agencia de Medio Ambiente de Eslovenia: archivo de 48 h de una estación automática (cada 10 o 30 min).
 
@@ -113,8 +126,10 @@ def get_arso(estacion):
 
     url = ("https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/recent/"
            f"observationAms_{estacion}_history.xml")
+    if (xml := _xml_arso(url)) is None:
+        raise ConnectionError(f"ARSO no responde ({estacion})")
     filas = [{"hora": m.findtext("valid_UTC"), **{v: m.findtext(v) for v in VARIABLES_ARSO}}
-             for m in ET.fromstring(descargar(url).content).iter("metData")]
+             for m in ET.fromstring(xml).iter("metData")]
     if not filas:
         raise ValueError(f"ARSO no ha devuelto observaciones de la estación {estacion}")
 
@@ -239,7 +254,8 @@ REDES = {
     "met_eireann": ("Met Éireann", get_met_eireann),
     "metar": ("METAR", get_metar),
 }
-DESCARGAS = tuple(descarga for _, descarga in REDES.values())
+# Las funciones con caché que vacía el botón de actualizar (también el fallo guardado de ARSO)
+DESCARGAS = tuple(descarga for _, descarga in REDES.values()) + (_xml_arso,)
 
 
 def descargar_en(estacion):
