@@ -166,115 +166,142 @@ a.camera-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -8px 
     .camara-cuenta { bottom: 20px; }
 }
 
-/* Tarjetas de métricas */
-/* Filas equilibradas: tarjetas.py fija en --n las columnas; la última fila, si queda incompleta, va centrada.
-   En pantallas estrechas se reducen las columnas según el ancho disponible (consultas de contenedor) */
-.rejilla { container-type: inline-size; }
-.weather-grid {
-    --columnas: var(--n, 3);
-    --hueco: 16px;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--hueco);
-    margin-bottom: 25px;
+/* Datos (tarjetas.dato) y panel de ahora, hoy y mañana (tarjetas.panel_ahora): planos, sobre el fondo de la página,
+   con la tipografía y las líneas finas del meteograma. Los colores, en variables: la pestaña de auroras los cambia */
+.rejilla {
+    container-type: inline-size;
+    --texto: #2a241f; --suave: #635b53; --tenue: #8a8178; --linea: rgba(60, 50, 40, 0.14); --fondo: #e8e3da;
     font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
 }
-.weather-grid > .metric-card {
-    box-sizing: border-box;
+/* Filas equilibradas: tarjetas._datos fija las columnas para el móvil (--c1), pantallas medianas (--c2) y anchas
+   (--c3) según el ancho disponible (consultas de contenedor) */
+.datos {
+    --columnas: var(--c3, 4);
+    display: grid;
+    grid-template-columns: repeat(var(--columnas), minmax(0, 1fr));
+    gap: 14px 18px;
+    margin-bottom: 18px;
+}
+@container (max-width: 600px) { .datos { --columnas: var(--c2, 3); } }
+@container (max-width: 420px) { .datos { --columnas: var(--c1, 2); gap: 12px 14px; } }
+/* Cada dato, con una línea fina a la izquierda, como las de los días del meteograma. Etiqueta, valor y nota ocupan
+   tres filas comunes a toda la fila de datos (subgrid): si una etiqueta o una nota no cabe en una línea, los valores
+   siguen alineados */
+.dato {
+    display: grid;
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    row-gap: 0;
+    align-content: start;
     min-width: 0;
-    flex: 0 0 calc((100% - (var(--columnas) - 1) * var(--hueco)) / var(--columnas));
+    padding-left: 10px;
+    border-left: 1px solid var(--linea);
 }
-@container (max-width: 560px) { .weather-grid > .metric-card { --columnas: min(var(--n, 3), 2); } }
-@container (max-width: 250px) { .weather-grid > .metric-card { --columnas: 1; } }
-.metric-card {
-    background: #f7f4ee;
-    border: 1px solid #d6cfc4;
-    padding: 20px;
-    border-radius: 14px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    box-shadow: 0 4px 16px -2px rgba(60, 50, 40, 0.08);
-    --card-hue: 30;
-}
-.metric-card[title] { cursor: help; }
-/* Efecto hover dinámico según la temperatura de la tarjeta */
-.metric-card.temp-card:hover {
-    border-color: hsla(var(--card-hue), 85%, 45%, 0.5);
-    box-shadow: 0 8px 24px -4px hsla(var(--card-hue), 85%, 40%, 0.18);
-    transform: translateY(-3px);
-    background: #ffffff;
-}
-.metric-card.static-card:hover {
-    border-color: rgba(217, 119, 6, 0.4);
-    box-shadow: 0 8px 24px -4px rgba(217, 119, 6, 0.15);
-    transform: translateY(-3px);
-    background: #ffffff;
-}
-.metric-label {
-    font-size: 0.75rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #635b53;
-    margin-bottom: 8px;
+.dato[title], .pa-fiabilidad[title], .percentil[title] { cursor: help; }
+.dato-etiqueta {
+    display: flex;
+    align-self: end;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
     font-weight: 600;
+    line-height: 1.3;
+    color: var(--suave);
 }
-.metric-value {
-    font-size: 2.25rem;
-    font-weight: 700;
-    color: #2a241f;
-    margin: 0;
-    line-height: 1;
-    letter-spacing: -0.025em;
-}
-.metric-value .unidad {
-    font-size: 1.1rem;
-    opacity: 0.4;
-    font-weight: 400;
-}
-.metric-delta {
-    font-size: 0.85rem;
-    margin-top: 10px;
-    font-weight: 600;
+.dato-etiqueta .icono { flex: none; color: var(--tenue); }
+.dato-valor { margin-top: 3px; font-size: 21px; font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; color: var(--texto); }
+.dato-valor .unidad { font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--suave); }
+/* Las notas largas se dividen en sílabas (lang="es") antes que partir una palabra en cualquier letra */
+.dato-nota { margin-top: 2px; font-size: 12px; line-height: 1.35; color: var(--suave); overflow-wrap: break-word;
+             -webkit-hyphens: auto; hyphens: auto; }
+.punto { display: inline-block; width: 9px; height: 9px; margin-left: 7px; border-radius: 50%; background: var(--color);
+         vertical-align: 0.12em; }
+/* Máximas y mínimas: una marca roja o azul, como las etiquetas de los extremos del meteograma */
+.marca { flex: none; width: 3px; height: 11px; border-radius: 2px; }
+.marca.max { background: #d93856; }
+.marca.min { background: #0277bd; }
+/* Percentil frente al histórico: escala de azul (las más bajas) a rojo (las más altas), neutra en el centro */
+.percentil {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 7px;
+    margin-top: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--suave);
+    font-variant-numeric: tabular-nums;
 }
-.metric-delta .nota {
-    font-weight: 400;
-    opacity: 0.6;
-    font-size: 0.9em;
-    margin-left: 2px;
+.percentil i {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 24px;
+    max-width: 120px;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, rgba(2, 119, 189, 0.45), var(--linea) 50%, rgba(217, 56, 86, 0.45));
+}
+.percentil b {
+    position: absolute;
+    top: 50%;
+    width: 9px;
+    height: 9px;
+    margin: -4.5px 0 0 -4.5px;
+    border-radius: 50%;
+    background: var(--color);
+    box-shadow: 0 0 0 2px var(--fondo);
 }
 
-/* Tarjetas compactas (condiciones actuales, calidad del aire...) */
-.weather-grid.compacta { --hueco: 12px; }
-@container (max-width: 600px) { .weather-grid.compacta > .metric-card { --columnas: min(var(--n, 4), 3); } }
-@container (max-width: 460px) { .weather-grid.compacta > .metric-card { --columnas: min(var(--n, 4), 2); } }
-.weather-grid.compacta .metric-card {
-    padding: 14px 16px;
+.panel-ahora { margin-bottom: 14px; color: var(--texto); }
+.panel-ahora .datos { margin-bottom: 0; }
+.pa-seccion + .pa-seccion { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--linea); }
+/* Ahora (en grande), mañana a esta hora y fiabilidad: en una fila o, en el móvil, ahora a la izquierda */
+.pa-cabecera {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "ahora manana fiabilidad";
+    gap: 12px 20px;
+    align-items: center;
 }
-.weather-grid.compacta .metric-value {
-    font-size: 1.6rem;
+.pa-cabecera.sin-ahora { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "manana fiabilidad"; }
+@container (max-width: 520px) {
+    .pa-cabecera { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "ahora manana" "ahora fiabilidad"; }
 }
-.metric-nota {
-    font-size: 0.78rem;
-    margin-top: 8px;
-    color: #635b53;
+.pa-ahora { grid-area: ahora; }
+.pa-manana { grid-area: manana; }
+.pa-fiabilidad { grid-area: fiabilidad; }
+.pa-manana, .pa-fiabilidad { padding-left: 10px; border-left: 1px solid var(--linea); }
+.pa-etiqueta { font-size: 12px; font-weight: 600; color: var(--suave); }
+.pa-etiqueta span { font-weight: 500; color: var(--tenue); }
+.pa-temp { margin: 2px 0 4px; font-size: 54px; font-weight: 700; line-height: 1; letter-spacing: -0.04em; }
+.pa-linea { font-size: 13px; line-height: 1.5; color: var(--suave); }
+.pa-linea b { color: var(--texto); }
+.pa-valor { margin-top: 3px; font-size: 22px; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; }
+.pa-valor small { font-size: 12.5px; font-weight: 500; letter-spacing: 0; color: var(--suave); }
+.delta { font-size: 13px; font-weight: 700; letter-spacing: 0; white-space: nowrap; color: var(--suave); }
+.delta.sube { color: #d93856; }
+.delta.baja { color: #0277bd; }
+.medidor { max-width: 150px; height: 4px; margin-top: 7px; border-radius: 2px; background: var(--linea); overflow: hidden; }
+.medidor b { display: block; height: 100%; border-radius: 2px; }
+/* Calor o frío anómalos (tarjetas.avisos_temperatura) */
+.pa-avisos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.pa-aviso {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px 4px 9px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.3;
 }
-
-/* Móvil: dos tarjetas por fila, más compactas */
-@container (max-width: 460px) {
-    .weather-grid { --hueco: 10px; margin-bottom: 16px; }
-    .weather-grid .metric-card, .weather-grid.compacta .metric-card { padding: 12px 14px; border-radius: 12px; }
-    .metric-label { font-size: 0.66rem; margin-bottom: 6px; letter-spacing: 0.04em; }
-    .metric-value, .weather-grid.compacta .metric-value { font-size: 1.6rem; }
-    .metric-value .unidad { font-size: 0.85rem; }
-    .metric-delta { font-size: 0.75rem; margin-top: 6px; flex-wrap: wrap; }
-    .metric-nota { font-size: 0.72rem; margin-top: 6px; }
-    .progress-bg { margin-top: 12px; }
-    .perc-row { gap: 6px; margin-top: 8px; }
-    .perc-text { width: auto; font-size: 0.75rem; }
+.pa-aviso.calor { background: rgba(217, 119, 6, 0.13); color: #b45309; }
+.pa-aviso.frio { background: rgba(2, 119, 189, 0.11); color: #0369a1; }
+.percentil span { flex: none; }
+.pa-nota { margin-top: 10px; font-size: 11.5px; line-height: 1.4; color: var(--tenue); }
+@container (max-width: 420px) {
+    .pa-temp { font-size: 48px; }
+    .pa-valor { font-size: 20px; }
+    .dato-valor { font-size: 19px; }
 }
 @media (max-width: 640px) {
     hr, [data-testid="stDivider"], .stDivider { margin: 1.2rem 0 !important; }
@@ -304,7 +331,7 @@ a.camera-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -8px 
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
-    margin: -8px 0 6px;
+    margin: 0 0 6px;
     font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
     font-size: 0.8rem;
 }
@@ -442,7 +469,8 @@ a.pl-fila:hover {
 .luna-sombra { fill: #1f2940; }
 .luna-luz { fill: #f3ead2; }
 .luna-borde { fill: none; stroke: rgba(226, 232, 240, 0.28); stroke-width: 1; }
-.rejilla .luna .metric-label { color: #94a3b8; }
+.luna-etiqueta { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #94a3b8;
+                 margin-bottom: 6px; }
 .luna-nombre { font-size: 1.35rem; font-weight: 700; color: #f1f5f9; line-height: 1.2; }
 .luna-dato { font-size: 0.84rem; color: #cbd5e1; margin-top: 3px; }
 .luna-proximas {
@@ -473,58 +501,6 @@ a.pl-fila:hover {
     .luna-proximas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Barra de fiabilidad */
-.progress-bg {
-    background: #ded8cd;
-    height: 6px;
-    border-radius: 3px;
-    width: 100%;
-    margin-top: 18px;
-    overflow: hidden;
-}
-.progress-fill {
-    background: linear-gradient(90deg, #d97706 0%, #d93856 100%);
-    height: 100%;
-    transition: width 1s ease-out;
-}
-
-/* Barra de percentil histórico */
-.perc-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 12px;
-}
-.perc-text {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #403831;
-    white-space: nowrap;
-    width: 45px;
-}
-.perc-text span {
-    font-size: 0.75em;
-    font-weight: 400;
-    opacity: 0.6;
-    margin-left: 2px;
-}
-.perc-track {
-    flex-grow: 1;
-    height: 8px;
-    background: #ded8cd;
-    border-radius: 4px;
-    overflow: hidden;
-}
-.perc-fill {
-    height: 100%;
-    /* Degradado cálido Turquesa - Ámbar - Coral */
-    background-image: linear-gradient(90deg, #0277bd 0%, #d97706 50%, #d93856 100%);
-    background-repeat: no-repeat;
-    background-position: left center;
-    border-radius: 4px;
-    transition: width 0.5s ease-out;
-}
-
 /* Avisos */
 .alerts-container {
     display: flex;
@@ -545,8 +521,6 @@ a.pl-fila:hover {
     max-width: fit-content;
 }
 .alert-item:hover { transform: translateY(-2px); }
-.alert-warm { background: #fdf6e7; border-color: #fce7c6; color: #b45309; }
-.alert-cold { background: #eefbfe; border-color: #c5f3fa; color: #0369a1; }
 /* Avisos oficiales (Meteoalarm): color del nivel en --aviso */
 /* Rejilla de columnas iguales: los avisos quedan alineados y se leen en orden, fila a fila */
 .alerts-container.oficiales {
@@ -594,14 +568,6 @@ a.pl-fila:hover {
     opacity: 0.7;
     margin-top: 2px;
 }
-.alert-icon-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 12px;
-    color: currentColor;
-    flex-shrink: 0;
-}
 .alert-text {
     font-size: 0.9rem;
     font-weight: 500;
@@ -633,18 +599,9 @@ a.pl-fila:hover {
 .st-key-auroras [data-testid="stExpander"] summary, .st-key-auroras [data-testid="stExpander"] summary * {
     color: #e2e8f0 !important;
 }
-.st-key-auroras .metric-card {
-    background: rgba(15, 23, 42, 0.65);
-    border-color: rgba(148, 163, 184, 0.18);
-    box-shadow: none;
+.st-key-auroras .rejilla {
+    --texto: #f1f5f9; --suave: #94a3b8; --tenue: #7c8ba1; --linea: rgba(148, 163, 184, 0.22); --fondo: #0b1530;
 }
-.st-key-auroras .metric-card.static-card:hover {
-    background: rgba(30, 41, 59, 0.85);
-    border-color: rgba(52, 211, 153, 0.45);
-    box-shadow: 0 0 24px -8px rgba(52, 211, 153, 0.5);
-}
-.st-key-auroras .metric-label, .st-key-auroras .metric-nota { color: #94a3b8; }
-.st-key-auroras .metric-value { color: #f1f5f9; }
 
 /* Cabecera: cielo estrellado, cortinas de aurora animadas y un bosque de abetos */
 .aurora-hero {
@@ -862,7 +819,7 @@ a.pl-fila:hover {
 }
 
 /* Pantallas táctiles: lo que se explica al pasar el ratón (atributo title) se muestra al tocar, en una burbuja
-   (ver TOQUES); una "i" discreta indica qué tarjetas la tienen */
+   (ver TOQUES); una "i" discreta indica qué datos y tarjetas la tienen */
 .burbuja-info {
     position: fixed;
     z-index: 1000000;
@@ -877,20 +834,24 @@ a.pl-fila:hover {
 }
 .burbuja-info[hidden] { display: none; }
 @media (hover: none) {
-    .metric-card[title]::after, .noche[title]::after {
+    .noche[title]::after, .dato[title] .dato-etiqueta span::after, .pa-fiabilidad[title] .pa-etiqueta::after {
         content: "i";
-        position: absolute;
-        top: 8px;
-        right: 9px;
-        width: 15px;
-        height: 15px;
+        width: 13px;
+        height: 13px;
+        flex: none;
         border-radius: 50%;
         border: 1px solid currentColor;
-        font: italic 700 10px/13px Georgia, serif;
+        font: italic 700 9px/11px Georgia, serif;
         text-align: center;
-        opacity: 0.35;
+        opacity: 0.45;
     }
+    .noche[title]::after { position: absolute; top: 8px; right: 9px; }
     .noche { position: relative; }
+    .dato[title] .dato-etiqueta span::after, .pa-fiabilidad[title] .pa-etiqueta::after {
+        display: inline-block;
+        margin-left: 5px;
+        vertical-align: 1px;
+    }
 }
 </style>
 """

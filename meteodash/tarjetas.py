@@ -1,4 +1,4 @@
-"""Tarjetas de métricas, avisos y tabla de récords (HTML con las clases de estilo.CSS)."""
+"""Datos de ahora, hoy y mañana, avisos y tabla de récords (HTML con las clases de estilo.CSS)."""
 
 from html import escape
 
@@ -12,10 +12,10 @@ from .estilo import AMBAR, AZUL, ROJO, coma
 from .graficos import dia_semana
 from .luna import rumbo
 
-TEXTO_PERCENTIL = "Percentil: posición frente a los registros históricos de este día (100 = el más alto)."
+TEXTO_PERCENTIL = "Percentil frente a los registros de este día: 0, la más baja; 100, la más alta."
 
 # (desde, nivel, color) de la fiabilidad del ensemble
-NIVELES_FIABILIDAD = [(7, "alto", "#059669"), (4, "medio", AMBAR), (0, "bajo", ROJO)]
+NIVELES_FIABILIDAD = [(7, "alta", "#059669"), (4, "media", AMBAR), (0, "baja", ROJO)]
 
 # Códigos WMO del tiempo de Open-Meteo: (hasta, emoji, texto)
 TIEMPO_WMO = [
@@ -29,6 +29,16 @@ SVG = {
     "frio": '<line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/><path d="M20 12h-8M4 12h8M12 4v8M12 20v-8M16.39 8.39l-6.39 6.39M7.61 15.61l6.39-6.39M16.39 15.61L10 10M7.61 8.39L14 14"/>',
     "sube": '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
     "baja": '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>',
+    # Iconos de las etiquetas de los datos (ver dato), del mismo trazo
+    "termometro": '<path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>',
+    "gota": '<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>',
+    "nube": '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>',
+    "capas": '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/>'
+             '<polyline points="2 12 12 17 22 12"/>',
+    "olas": "".join(f'<path d="M2 {y}c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>'
+                    for y in (6, 12, 18)),
+    "hoja": '<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>'
+            '<path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>',
 }
 
 
@@ -45,113 +55,158 @@ def _html(contenido, destino=st):
     destino.markdown("\n".join(linea.strip() for linea in contenido.splitlines()), unsafe_allow_html=True)
 
 
-def _rejilla(tarjetas, n, por_fila, clase=""):
-    """Tarjetas en filas equilibradas y centradas (5 -> 3 + 2, 7 -> 4 + 3) en lugar de dejar una sola en la última."""
+def _icono(nombre, tamaño=14):
+    return (f'<svg class="icono" viewBox="0 0 24 24" width="{tamaño}" height="{tamaño}" fill="none" stroke="currentColor" '
+            f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{SVG[nombre]}</svg>')
 
-    filas = -(-n // por_fila)
-    _html(f'<div class="rejilla"><div class="weather-grid {clase}" style="--n: {-(-n // filas)}">{tarjetas}</div></div>')
+
+def _columnas(n, maximo):
+    """Columnas para repartir `n` datos en filas equilibradas de como mucho `maximo`: 5 de 3 en 3 -> 3 + 2; 4 -> 2 + 2."""
+
+    return -(-n // -(-n // maximo))
+
+
+def _datos(celdas):
+    """Rejilla de datos en filas equilibradas: como mucho 3 por fila en el móvil, 4 en pantallas medianas y 6 en las
+    anchas (consultas de contenedor de estilo.CSS)."""
+
+    columnas = "; ".join(f"--c{i}: {_columnas(len(celdas), maximo)}" for i, maximo in enumerate((3, 4, 6), 1))
+    return f'<div class="datos" style="{columnas}">{"".join(celdas)}</div>'
 
 
 def _grados(t):
     return "–" if t is None or pd.isna(t) else f"{coma(t)}º"
 
 
-def _delta(valor, nota):
-    if pd.isna(valor):
-        return ""
+def _delta(valor):
+    """Diferencia de temperatura con flecha: roja si sube, azul si baja."""
+
+    valor = round(float(valor), 1)
     if valor == 0:
-        return f'<div class="metric-delta" style="color: #635b53">= 0º <span class="nota">{nota}</span></div>'
-    color = ROJO if valor > 0 else AZUL
-    flecha = "▲" if valor > 0 else "▼"
-    return f'<div class="metric-delta" style="color: {color}">{flecha} {coma(abs(valor))}º <span class="nota">{nota}</span></div>'
+        return '<span class="delta">= 0º</span>'
+    clase, flecha = ("sube", "▲") if valor > 0 else ("baja", "▼")
+    return f'<span class="delta {clase}">{flecha} {coma(abs(valor))}º</span>'
 
 
-def principales(temp_mañana, fiabilidad, temp_actual=None, temp_ayer=None):
-    """Temperatura actual (si hay observación), la de mañana a esta hora y la fiabilidad del ensemble."""
+def dato(t):
+    """Un dato: dict(label, valor, unidad="", nota="", title="", color=None, icono=None).
 
-    tarjetas = ""
-    if temp_actual is not None:
-        tarjetas += f"""
-        <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(temp_actual)};">
-        <div class="metric-label">Actual</div>
-        <div class="metric-value">{_grados(temp_actual)}</div>
-        {_delta(round(float(temp_actual - temp_ayer), 1), "vs ayer")}
-        </div>"""
-
-    nivel, color = next((n, c) for limite, n, c in NIVELES_FIABILIDAD if fiabilidad >= limite)
-    delta_mañana = _delta(round(float(temp_mañana - temp_actual), 1), "previsto") if temp_actual is not None else ""
-    tarjetas += f"""
-    <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(temp_mañana)};">
-    <div class="metric-label">Mañana a esta hora</div>
-    <div class="metric-value">{_grados(temp_mañana)}</div>
-    {delta_mañana}
-    </div>
-    <div class="metric-card static-card">
-    <div class="metric-label">Fiabilidad</div>
-    <div class="metric-value">{coma(fiabilidad)}<span class="unidad"> / 10</span></div>
-    <div class="progress-bg"><div class="progress-fill" style="width: {fiabilidad * 10}%; background: {color};"></div></div>
-    <div class="metric-nota">Acuerdo {nivel} del ensemble</div>
-    </div>"""
-
-    _rejilla(tarjetas, 3 if temp_actual is not None else 2, 3)
-
-
-def extremos(tarjetas):
-    """Máximas y mínimas previstas. Cada tarjeta: dict(label, temp, perc=None, horas=None).
-
-    `horas` indica que el día no está completo en los datos ("17-23 h"): se muestra junto a la etiqueta.
+    `color` pone un punto de ese color junto al valor (la categoría de la calidad del aire, el signo de una
+    desviación...); `icono`, una clave de SVG ante la etiqueta.
     """
 
-    html = ""
-    for tarjeta in tarjetas:
-        percentil = tarjeta.get("perc")
-        barra, titulo = "", ""
-        etiqueta = tarjeta["label"]
-        if tarjeta.get("horas"):
-            etiqueta += f' <span style="text-transform: none; opacity: 0.7">({tarjeta["horas"]})</span>'
-            titulo = ' title="El pase del modelo no cubre el día entero: el valor solo tiene en cuenta estas horas"'
-        if percentil is not None and not pd.isna(percentil):
-            valor = int(round(percentil))
-            # El degradado se escala a la inversa para que no se comprima con barras cortas
-            tamaño_fondo = 100 / max(1, valor) * 100
-            barra = f"""
-            <div class="perc-row">
-            <div class="perc-text">{valor}<span>perc</span></div>
-            <div class="perc-track"><div class="perc-fill" style="width: {valor}%; background-size: {tamaño_fondo:.0f}% 100%;"></div></div>
-            </div>"""
-
-        html += f"""
-        <div class="metric-card temp-card" style="--card-hue: {tono_temperatura(tarjeta['temp'])};"{titulo}>
-        <div class="metric-label">{etiqueta}</div>
-        <div class="metric-value">{_grados(tarjeta['temp'])}</div>
-        {barra}
-        </div>"""
-
-    _rejilla(html, len(tarjetas), 3)
-    if any(t.get("perc") is not None for t in tarjetas):
-        st.caption(TEXTO_PERCENTIL)
+    titulo = f' title="{escape(t["title"])}"' if t.get("title") else ""
+    icono = _icono(t["icono"]) if t.get("icono") else ""
+    unidad = f'<span class="unidad"> {t["unidad"]}</span>' if t.get("unidad") else ""
+    punto = f'<i class="punto" style="--color: {t["color"]}"></i>' if t.get("color") else ""
+    nota = f'<div class="dato-nota">{t["nota"]}</div>' if t.get("nota") else ""
+    return (f'<div class="dato"{titulo}><div class="dato-etiqueta">{icono}<span>{t["label"]}</span></div>'
+            f'<div class="dato-valor">{t["valor"]}{unidad}{punto}</div>{nota}</div>')
 
 
 def condiciones(tarjetas):
-    """Tarjetas compactas. Cada una: dict(label, valor, unidad="", nota="", title="", color=None).
+    """Datos en una rejilla compacta (ver dato)."""
 
-    `color` pinta un borde superior (p. ej. el de la categoría de calidad del aire).
+    _html(f'<div class="rejilla" lang="es">{_datos([dato(t) for t in tarjetas])}</div>')
+
+
+def _percentil(valor, minima):
+    """Escala del percentil frente al histórico: de azul (de las más bajas) a rojo (de las más altas), con un punto."""
+
+    valor = int(round(valor))
+    explicacion = (f"más alta que el {valor} %" if valor >= 50 else f"más baja que el {100 - valor} %")
+    titulo = f"Percentil {valor}: {explicacion} de las {'mínimas' if minima else 'máximas'} registradas este día"
+    color = ROJO if valor > 60 else AZUL if valor < 40 else "#8a8178"
+    return (f'<div class="percentil" title="{titulo}"><i><b style="left: {valor}%; --color: {color}"></b></i>'
+            f'<span>{valor}</span></div>')
+
+
+def _extremo(e):
+    """Máxima o mínima prevista: dict(label, temp, perc=None, horas=None); `horas`, si el día no está completo."""
+
+    minima = e["label"].startswith("Mín")
+    titulo, debajo = "", ""
+    if e.get("horas"):
+        titulo = ' title="El pase del modelo no cubre el día entero: el valor solo tiene en cuenta estas horas"'
+        debajo = f'<div class="dato-nota">solo {e["horas"]}</div>'
+    elif e.get("perc") is not None and not pd.isna(e["perc"]):
+        debajo = _percentil(e["perc"], minima)
+    return (f'<div class="dato"{titulo}><div class="dato-etiqueta"><i class="marca {"min" if minima else "max"}"></i>'
+            f'<span>{e["label"]}</span></div><div class="dato-valor">{_grados(e["temp"])}</div>{debajo}</div>')
+
+
+def avisos_temperatura(perc_max_hoy, perc_max_mañana):
+    """Calor o frío anómalos según los percentiles históricos de las máximas (None: sin dato): [(tipo, icono, texto)].
+
+    Una subida o bajada brusca sustituye al aviso de mañana, y el mismo aviso hoy y mañana se dice una vez.
     """
 
-    html = ""
-    for t in tarjetas:
-        estilo = f' style="border-top: 4px solid {t["color"]};"' if t.get("color") else ""
-        titulo = f' title="{t["title"]}"' if t.get("title") else ""
-        unidad = f'<span class="unidad"> {t["unidad"]}</span>' if t.get("unidad") else ""
-        nota = f'<div class="metric-nota">{t["nota"]}</div>' if t.get("nota") else ""
-        html += f"""
-        <div class="metric-card static-card"{estilo}{titulo}>
-        <div class="metric-label">{t["label"]}</div>
-        <div class="metric-value">{t["valor"]}{unidad}</div>
-        {nota}
-        </div>"""
+    cambio = None
+    if perc_max_hoy is not None and perc_max_mañana is not None:
+        if perc_max_mañana - perc_max_hoy > 50:
+            cambio = ("calor", "sube", "Mañana, subida brusca")
+        elif perc_max_hoy - perc_max_mañana > 50:
+            cambio = ("frio", "baja", "Mañana, bajada brusca")
 
-    _rejilla(html, len(tarjetas), 4, "compacta")
+    dias = {}
+    for percentil, dia in [(perc_max_hoy, "Hoy"), (perc_max_mañana, "Mañana")]:
+        if percentil is None or (dia == "Mañana" and cambio):
+            continue
+        if percentil > 80:
+            dias.setdefault("calor", []).append(dia)
+        elif percentil < 20:
+            dias.setdefault("frio", []).append(dia)
+
+    lista = [(tipo, tipo, f"{' y '.join(d).capitalize()}, muy {'cálido' if tipo == 'calor' else 'fresco'} para la fecha")
+             for tipo, d in dias.items()]
+    return lista + ([cambio] if cambio else [])
+
+
+def panel_ahora(ahora, mañana, extremos, avisos, datos):
+    """Ahora, hoy y mañana en un solo bloque, plano como el meteograma, en tres franjas: la temperatura de ahora (en
+    grande) con la de mañana a esta hora y la fiabilidad; las máximas y mínimas con su percentil y los avisos de calor
+    o frío (ver avisos_temperatura); y los demás datos de ahora (ver dato).
+
+    `ahora`: dict(temp, observada, ayer=None, sensacion=None), o None; `mañana`: dict(temp, fiabilidad); `extremos`:
+    ver _extremo.
+    """
+
+    cabecera = ""
+    if ahora is not None:
+        lineas = []
+        if ahora.get("ayer") is not None and not pd.isna(ahora["ayer"]):
+            lineas.append(f'{_delta(ahora["temp"] - ahora["ayer"])} vs ayer')
+        if ahora.get("sensacion") is not None and not pd.isna(ahora["sensacion"]):
+            lineas.append(f'Sensación <b>{ahora["sensacion"]:.0f}º</b>')
+        origen = "observada" if ahora["observada"] else "prevista"
+        cabecera += (f'<div class="pa-ahora"><div class="pa-etiqueta">Ahora <span>· {origen}</span></div>'
+                     f'<div class="pa-temp">{_grados(ahora["temp"])}</div>'
+                     + "".join(f'<div class="pa-linea">{linea}</div>' for linea in lineas) + '</div>')
+
+    delta = f" {_delta(mañana['temp'] - ahora['temp'])}" if ahora is not None else ""
+    fiabilidad = mañana["fiabilidad"]
+    nivel, color = next((n, c) for limite, n, c in NIVELES_FIABILIDAD if fiabilidad >= limite)
+    cabecera += (f'<div class="pa-manana"><div class="pa-etiqueta">Mañana a esta hora</div>'
+                 f'<div class="pa-valor">{_grados(mañana["temp"])}{delta}</div></div>'
+                 f'<div class="pa-fiabilidad" title="Acuerdo de los miembros del ensemble en la temperatura de mañana a '
+                 f'esta hora: cuanto menos se separan, más fiable"><div class="pa-etiqueta">Fiabilidad</div>'
+                 f'<div class="pa-valor">{coma(fiabilidad)}<small> / 10 · {nivel}</small></div>'
+                 f'<div class="medidor"><b style="width: {fiabilidad * 10:.0f}%; background: {color}"></b></div></div>')
+    secciones = [f'<div class="pa-cabecera{"" if ahora is not None else " sin-ahora"}">{cabecera}</div>']
+
+    if extremos or avisos:
+        seccion = _datos([_extremo(e) for e in extremos]) if extremos else ""
+        if avisos:
+            seccion += '<div class="pa-avisos">' + "".join(
+                f'<span class="pa-aviso {tipo}">{_icono(icono)}{texto}</span>' for tipo, icono, texto in avisos) + "</div>"
+        if any(e.get("perc") is not None for e in extremos):
+            seccion += f'<div class="pa-nota">{TEXTO_PERCENTIL}</div>'
+        secciones.append(seccion)
+    if datos:
+        secciones.append(_datos([dato(t) for t in datos]))
+
+    _html('<div class="rejilla" lang="es"><section class="panel-ahora">'
+          + "".join(f'<div class="pa-seccion">{s}</div>' for s in secciones) + "</section></div>")
 
 
 def comentario_predictores(textos, lugar, ahora):
@@ -281,43 +336,6 @@ def avisos_oficiales(lista, ahora):
                  f'<span class="alert-periodo">{periodo}</span>{detalle}</span></div>')
 
     _html(f'<div class="alerts-container oficiales">{html}</div>')
-    return True
-
-
-def avisos(perc_max_hoy, perc_max_mañana):
-    """Avisos de calor o frío anómalos según los percentiles históricos de las máximas (None: sin dato)."""
-
-    # Una subida o bajada brusca sustituye al aviso de calor o frío de mañana: basta con uno
-    cambio = None
-    if perc_max_hoy is not None and perc_max_mañana is not None:
-        if perc_max_mañana - perc_max_hoy > 50:
-            cambio = ("calor", "sube", "Mañana, subida brusca")
-        elif perc_max_hoy - perc_max_mañana > 50:
-            cambio = ("frio", "baja", "Mañana, bajada brusca")
-
-    lista = []
-    for percentil, dia in [(perc_max_hoy, "Hoy"), (perc_max_mañana, "Mañana")]:
-        if percentil is None or (dia == "Mañana" and cambio):
-            continue
-        if percentil > 80:
-            lista.append(("calor", "calor", f"{dia}, muy cálido para la fecha"))
-        elif percentil < 20:
-            lista.append(("frio", "frio", f"{dia}, muy fresco para la fecha"))
-
-    if cambio:
-        lista.append(cambio)
-
-    if not lista:
-        return False
-
-    html = ""
-    for tipo, icono, texto in lista:
-        clase = "alert-warm" if tipo == "calor" else "alert-cold"
-        svg = (f'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" '
-               f'stroke-linecap="round" stroke-linejoin="round">{SVG[icono]}</svg>')
-        html += f'<div class="alert-item {clase}"><span class="alert-icon-container">{svg}</span><span class="alert-text">{texto}</span></div>'
-
-    _html(f'<div class="alerts-container">{html}</div>')
     return True
 
 
@@ -567,7 +585,7 @@ def luna(fase, proximas, salida_puesta, cielo, ahora):
     fases = "".join(f'<div class="luna-fase"><span class="luna-emoji">{emoji}</span><b>{nombre}</b>'
                     f'<span>{cuando(momento)}</span></div>' for nombre, emoji, momento in proximas)
     _html(f'<div class="rejilla"><div class="luna"><div class="luna-hoy">{svg_luna(fase["iluminada"], fase["crece"])}'
-          f'<div><div class="metric-label">Luna hoy</div><div class="luna-nombre">{fase["nombre"]}</div>'
+          f'<div><div class="luna-etiqueta">Luna hoy</div><div class="luna-nombre">{fase["nombre"]}</div>'
           f'<div class="luna-dato">{100 * fase["iluminada"]:.0f} % iluminada{edad}</div>'
           f'<div class="luna-dato">{horario}</div><div class="luna-dato luna-donde">{donde}</div></div></div>'
           f'<div class="luna-cielo">{svg_cielo(cielo["recorrido"], cielo["azimut"], cielo["altura"])}'

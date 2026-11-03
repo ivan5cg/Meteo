@@ -20,7 +20,7 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `meteodash/lugares.py` | Configuración (`Ciudad`) de todos los lugares, compartida por sus páginas y la portada, y las secciones de la portada |
 | `meteodash/actualizar.py` | Actualización forzada de los datos (botón del sidebar y, para el móvil, el de la línea de datos del corto plazo y de la portada) y antigüedad de lo descargado |
 | `meteodash/portada.py` | Portada: temperatura observada, hoy y mañana (ensemble ICON-EU) y avisos de todos los lugares, con enlace a su página |
-| `meteodash/ciudad.py` | `Ciudad` (configuración) y las pestañas de cada página: `render_48h` (corto plazo: resumen, tarjetas y ensemble a 48 h), `render_medio` (medio plazo: ICON-EU) y `render_largo` (largo plazo, 15 días: ECMWF y GEFS) |
+| `meteodash/ciudad.py` | `Ciudad` (configuración) y las pestañas de cada página: `render_48h` (corto plazo: resumen, panel de ahora, hoy y mañana y ensemble a 48 h), `render_medio` (medio plazo: ICON-EU) y `render_largo` (largo plazo, 15 días: ECMWF y GEFS) |
 | `meteodash/fuentes.py` | Descarga y caché de Meteociel (PE-AROME), Open-Meteo (ensembles ICON-EU, ECMWF, GEFS y Met Office, determinista ICON-EU, variables complementarias, mar, calidad del aire), probabilidad de lluvia por miembros e históricos |
 | `meteodash/hidrologico.py` | Año hidrológico (desde el 1 de octubre): lluvia acumulada frente a la normal 1991-2020, al año anterior y al rango habitual del histórico |
 | `meteodash/luna.py` | Fase de la Luna (algoritmo de Meeus: las fases principales, con unos 2 min de diferencia con las del USNO), salida y puesta |
@@ -35,7 +35,7 @@ En Streamlit Cloud el fichero principal es `main_page.py`.
 | `meteodash/graficos.py` | Gráficos Plotly |
 | `meteodash/meteograma.py`, `meteograma.js`, `meteograma.css` | Meteograma de las 48 h: temperatura, lluvia, rachas y, plegados salvo que haya potencial de tormenta, presión y MUCAPE, con un solo cursor (ratón, dedo o flechas) y los valores de esa hora encima de cada panel |
 | `meteodash/sol.py`, `sol.js`, `sol.css` | El Sol hoy: elevación a lo largo del día sobre las bandas de los crepúsculos, con un cursor que da la altura, el azimut y la fase de luz de cada momento (también los días de noches blancas, sol de medianoche o noche polar) |
-| `meteodash/tarjetas.py` | Tarjetas, avisos y tabla de récords |
+| `meteodash/tarjetas.py` | Panel de ahora, hoy y mañana (temperatura actual, máximas y mínimas con su percentil y condiciones, planos como el meteograma), rejillas de datos, avisos y tabla de récords |
 | `meteodash/estilo.py` | CSS de la app y tema de los gráficos |
 | `meteodash/mapas_arome.py` | Mapas AROME interactivos (Madrid, Ávila, Alicante, Santander y Torrelavega); las rejillas se descargan en segundo plano y se guardan en memoria, compartidas entre visitantes |
 | `meteodash/visor_arome.js`, `visor_arome.css` | Visor de esos mapas (MapLibre, en el navegador): campo interpolado sobre el relieve, isolíneas, valor bajo el ratón, reproducción y una línea de tiempo con la serie del punto elegido |
