@@ -27,6 +27,11 @@ def _fintraffic(*camaras):  # cámaras de las estaciones meteorológicas de carr
                  for codigo, nombre in camaras)
 
 
+def _tfl(*camaras):  # JamCams de Transport for London, cada pocos minutos
+    return tuple(Camara(f"https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/00001.{codigo}.jpg", "TfL", nombre)
+                 for codigo, nombre in camaras)
+
+
 # ---------------------------------------------------------------- España
 
 MADRID = Ciudad(
@@ -180,6 +185,19 @@ ESCOCIA = [
     ]
 ]
 
+# Dentro del dominio del PE-AROME. Zona de aviso: la región de la Met Office «London & South East England».
+# Observación: METAR del aeropuerto de London City, a 13 km, en los Docklands. Sin rangos habituales: los datos
+# diarios de St James's Park, la estación del centro, solo se descargan con cuenta de CEDA, y en GHCN-Daily solo están
+# Heathrow, a 23 km, en el borde oeste de la ciudad y con noches más frías que el centro, y Hampstead, en un alto a
+# 137 m y solo hasta 2016. Auroras, no: con una latitud geomagnética de 53,4º harían falta Kp 7 y un cielo sin la luz
+# del centro
+LONDRES = Ciudad(nombre="Londres", lat=51.508, lon=-0.128,  # Trafalgar Square
+                 tz="Europe/London", pais="united-kingdom", zonas_aviso=("london",),
+                 estaciones=(Estacion("metar", "EGLC", "aeropuerto de London City"),),
+                 camaras=_tfl(("04502", "Puente de Westminster"), ("06502", "Trafalgar Square"),
+                              ("06501", "Parliament Square"), ("04223", "Puente de Waterloo"),
+                              ("08850", "Marble Arch")))
+
 # ---------------------------------------------------------------- Báltico y Laponia
 
 # Fuera del dominio del PE-AROME: el ensemble a 48 h es el ICON-EU EPS. Auroras: latitud geomagnética de 57,8º
@@ -231,7 +249,7 @@ SECCIONES = {
                ("paginas/santander.py", [SANTANDER]), ("paginas/torrelavega.py", [TORRELAVEGA]),
                ("paginas/pirineos.py", PIRINEOS)],
     "Europa": [("paginas/dublin.py", [DUBLIN]), ("paginas/milan.py", [MILAN]), ("paginas/eslovenia.py", ESLOVENIA),
-               ("paginas/belgica.py", BELGICA), ("paginas/escocia.py", ESCOCIA)],
+               ("paginas/belgica.py", BELGICA), ("paginas/escocia.py", ESCOCIA), ("paginas/londres.py", [LONDRES])],
     "Báltico y Laponia": [("paginas/helsinki.py", [HELSINKI]), ("paginas/rovaniemi.py", [ROVANIEMI]),
                           ("paginas/tallin.py", [TALLIN]), ("paginas/riga.py", [RIGA])],
     "América": [("paginas/nueva_york.py", [NUEVA_YORK])],
