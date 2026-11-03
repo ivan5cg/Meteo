@@ -404,7 +404,7 @@ def _historico_sidebar(ciudad, ahora):
 
 
 def render_48h(ciudad, titulo=None):
-    """Bloque de hoy y mañana: resumen, tarjetas, avisos, comentario de AEMET y el ensemble a 48 h."""
+    """Bloque de hoy y mañana: resumen, panel de ahora, hoy y mañana, el ensemble a 48 h y, debajo, los textos de AEMET."""
 
     ahora = pd.Timestamp.now(tz=ciudad.tz)
     mañana = ahora + pd.Timedelta(days=1)
@@ -544,7 +544,14 @@ def render_48h(ciudad, titulo=None):
                     + [("sol-luna", "Sol y Luna")] + ([("camaras", "Cámaras")] if ciudad.camaras else []))
     st.divider()
 
-    # --- Comentario de los predictores de AEMET ---
+    # --- Ensemble a 48 h ---
+    tarjetas.ancla("graficos")
+    meteograma(ciudad, arome, obs["dir_racha"] if obs is not None else None, bandas, dia_historico(ahora))
+    if origen_bandas:
+        st.caption(f"Máxima y mínima habituales: {origen_bandas}.")
+    st.divider()
+
+    # --- Comentario de los predictores de AEMET, debajo de los gráficos ---
     if ciudad.ccaa_aemet and usa_opendata:
         codigo, lugar = ciudad.ccaa_aemet
         textos = [t for t in (o_none(get_comentario_aemet, codigo, dia) for dia in DIAS_PREDICCION) if t is not None]
@@ -567,13 +574,6 @@ def render_48h(ciudad, titulo=None):
         if ciudad.aludes_aemet:
             tarjetas.boletin_aludes(o_none(get_boletin_aludes, ciudad.aludes_aemet), ahora)
         st.divider()
-
-    # --- Ensemble a 48 h ---
-    tarjetas.ancla("graficos")
-    meteograma(ciudad, arome, obs["dir_racha"] if obs is not None else None, bandas, dia_historico(ahora))
-    if origen_bandas:
-        st.caption(f"Máxima y mínima habituales: {origen_bandas}.")
-    st.divider()
 
     # --- Histórico frente a la previsión ---
     if datos_hist is not None:

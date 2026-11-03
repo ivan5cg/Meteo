@@ -338,7 +338,7 @@ a.camera-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -8px 
 .indice span { color: #635b53; margin-right: 2px; }
 .indice a {
     padding: 3px 10px;
-    border-radius: 999px;
+    border-radius: 8px;
     border: 1px solid #d6cfc4;
     background: #f7f4ee;
     color: #2a241f !important;
