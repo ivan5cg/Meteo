@@ -139,56 +139,56 @@ def texto_mar(ciudad, mar):
             f"{ciudad.nombre}: es mar abierto, en la playa las olas suelen ser algo menores")
 
 
-def tarjetas_condiciones(ciudad, ahora, detalle, obs, aire, mar=None):
-    """Sensación térmica, humedad, nubes, UV, nieve (en temporada), mar (temperatura del agua y olas) y calidad del
-    aire."""
+def datos_ahora(ciudad, ahora, detalle, obs, aire, mar=None):
+    """Humedad, nubes, UV, nieve (en temporada), mar (temperatura del agua y olas) y calidad del aire, para el panel de
+    ahora (ver tarjetas.dato; la sensación térmica va junto a la temperatura)."""
 
     lista = []
     if detalle is not None:
         fila, diario = _hora_actual(detalle["horario"], ahora), detalle["diario"]
         hoy = ahora.tz_localize(None).normalize()
 
-        lista.append({"label": "Sensación", "valor": f"{fila['sensacion']:.0f}º", "nota": "térmica ahora"})
         humedad = obs["humedad"].dropna() if obs is not None and "humedad" in obs else pd.Series(dtype=float)
         if not humedad.empty:
-            lista.append({"label": "Humedad", "valor": f"{humedad.iloc[-1]:.0f}", "unidad": "%", "nota": "observada"})
+            lista.append({"label": "Humedad", "valor": f"{humedad.iloc[-1]:.0f}", "unidad": "%", "nota": "observada",
+                          "icono": "gota"})
         else:
-            lista.append({"label": "Humedad", "valor": f"{fila['humedad']:.0f}", "unidad": "%", "nota": "prevista"})
-        lista.append({"label": "Nubosidad", "valor": f"{fila['nubes']:.0f}", "unidad": "%",
-                      "nota": _texto_nubes(fila["nubes"])})
+            lista.append({"label": "Humedad", "valor": f"{fila['humedad']:.0f}", "unidad": "%", "nota": "prevista",
+                          "icono": "gota"})
+        lista.append({"label": "Nubes", "valor": f"{fila['nubes']:.0f}", "unidad": "%",
+                      "nota": _texto_nubes(fila["nubes"]).lower(), "icono": "nube"})
         if hoy in diario.index and not pd.isna(diario.loc[hoy, "uv_max"]):
             uv = diario.loc[hoy, "uv_max"]
-            lista.append({"label": "UV máx. hoy", "valor": f"{uv:.0f}", "nota": _texto_uv(uv)})
+            lista.append({"label": "UV máx. hoy", "valor": f"{uv:.0f}", "nota": _texto_uv(uv).lower(), "icono": "calor"})
 
         if mostrar_nieve(ciudad, ahora, detalle):
             proximas = detalle["horario"].loc[hoy:hoy + pd.Timedelta(hours=48), "nieve"].sum()
-            lista.append({"label": "Nieve 48 h", "valor": f"{proximas:.0f}", "unidad": "cm", "nota": "prevista"})
+            lista.append({"label": "Nieve 48 h", "valor": f"{proximas:.0f}", "unidad": "cm", "nota": "prevista",
+                          "icono": "frio"})
             espesor = fila["espesor_nieve"]
             if not pd.isna(espesor):
-                lista.append({"label": "Espesor nieve", "valor": f"{100 * espesor:.0f}", "unidad": "cm",
-                              "nota": "según el modelo"})
+                lista.append({"label": "Espesor", "valor": f"{100 * espesor:.0f}", "unidad": "cm",
+                              "nota": "de nieve, según el modelo", "icono": "capas"})
 
     if mar is not None and mar["horario"]["olas"].notna().any():
         fila = _hora_actual(mar["horario"].dropna(subset=["olas"]), ahora)
         titulo = texto_mar(ciudad, mar)
         if not pd.isna(fila["agua"]):
             lista.append({"label": "Agua", "valor": f"{fila['agua']:.0f}º", "nota": "temperatura del mar",
-                          "title": titulo})
+                          "title": titulo, "icono": "termometro"})
         detalle_olas = [f"periodo {fila['periodo']:.0f} s"] if not pd.isna(fila["periodo"]) else []
         if (rumbo := cardinal(fila["direccion"])) is not None:
             detalle_olas.append(f"del {rumbo}")
         lista.append({"label": "Olas", "valor": coma(fila["olas"], ".1f"), "unidad": "m", "nota": ", ".join(detalle_olas),
-                      "title": titulo})
+                      "title": titulo, "icono": "olas"})
 
     if aire is not None and aire["european_aqi"].notna().any():
         ica = _hora_actual(aire.dropna(subset=["european_aqi"]), ahora)["european_aqi"]
         categoria, color = graficos.categoria_ica(ica)
-        lista.append({"label": "Calidad del aire", "valor": f"{ica:.0f}", "nota": categoria, "color": color,
+        lista.append({"label": "Aire", "valor": f"{ica:.0f}", "nota": categoria.lower(), "color": color,
+                      "icono": "hoja",
                       "title": "Índice europeo de calidad del aire (0-20 buena ... >100 extremadamente desfavorable)"})
-
-    if lista:
-        tarjetas.condiciones(lista)
-        st.divider()
+    return lista
 
 
 MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
@@ -511,32 +511,38 @@ def render_48h(ciudad, titulo=None):
             "min_mañana": percentil(mañana, "tmin", min_mañana, horas_mañana),
         }
 
-    # --- Resumen, tarjetas y avisos ---
+    # --- Resumen y panel de ahora, hoy y mañana ---
     tarjetas.resumen(frases_resumen(ahora, max_hoy, horas_hoy, max_mañana, min_mañana, arome["precipitacion"], rachas))
-    tarjetas.principales(temp_mañana, fiabilidad, temp_actual, temp_ayer)
+
+    detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    aire = o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
+    mar = o_none(get_mar, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.mar else None
+
+    # Sin observación, la temperatura de ahora es la prevista (media del ensemble a la hora más cercana)
+    if temp_actual is not None:
+        datos_de_ahora = {"temp": temp_actual, "observada": True, "ayer": temp_ayer}
+    else:
+        prevista = media.iloc[media.index.get_indexer([ahora.floor("h")], method="nearest")[0]]
+        datos_de_ahora = None if pd.isna(prevista) else {"temp": round(prevista, 1), "observada": False}
+    if datos_de_ahora is not None and detalle is not None:
+        datos_de_ahora["sensacion"] = _hora_actual(detalle["horario"], ahora)["sensacion"]
+
+    extremos = [
+        {"label": "Máx. hoy", "temp": max_hoy, "perc": percentiles.get("max_hoy"), "horas": horas_hoy},
+        {"label": "Mín. mañana", "temp": min_mañana, "perc": percentiles.get("min_mañana"), "horas": horas_mañana},
+        {"label": "Máx. mañana", "temp": max_mañana, "perc": percentiles.get("max_mañana"), "horas": horas_mañana},
+    ]
+    if ahora.hour < 9:
+        extremos.insert(0, {"label": "Mín. hoy", "temp": min_hoy, "perc": percentiles.get("min_hoy"), "horas": horas_hoy})
+    tarjetas.panel_ahora(datos_de_ahora, {"temp": temp_mañana, "fiabilidad": fiabilidad},
+                         [e for e in extremos if not pd.isna(e["temp"])],
+                         tarjetas.avisos_temperatura(percentiles.get("max_hoy"), percentiles.get("max_mañana")),
+                         datos_ahora(ciudad, ahora, detalle, obs, aire, mar))
     tarjetas.indice([("graficos", "Gráficos 48 h")]
                     + ([("montaña", "Montaña")] if ciudad.montaña_aemet and usa_opendata else [])
                     + ([("historico", "Histórico")] if datos_hist is not None else [])
                     + [("sol-luna", "Sol y Luna")] + ([("camaras", "Cámaras")] if ciudad.camaras else []))
     st.divider()
-
-    extremos = [
-        {"label": "Máxima hoy", "temp": max_hoy, "perc": percentiles.get("max_hoy"), "horas": horas_hoy},
-        {"label": "Mínima mañana", "temp": min_mañana, "perc": percentiles.get("min_mañana"), "horas": horas_mañana},
-        {"label": "Máxima mañana", "temp": max_mañana, "perc": percentiles.get("max_mañana"), "horas": horas_mañana},
-    ]
-    if ahora.hour < 9:
-        extremos.insert(0, {"label": "Mínima hoy", "temp": min_hoy, "perc": percentiles.get("min_hoy"), "horas": horas_hoy})
-    tarjetas.extremos([e for e in extremos if not pd.isna(e["temp"])])
-    st.divider()
-
-    if tarjetas.avisos(percentiles.get("max_hoy"), percentiles.get("max_mañana")):
-        st.divider()
-
-    detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
-    aire = o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
-    mar = o_none(get_mar, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.mar else None
-    tarjetas_condiciones(ciudad, ahora, detalle, obs, aire, mar)
 
     # --- Comentario de los predictores de AEMET ---
     if ciudad.ccaa_aemet and usa_opendata:
