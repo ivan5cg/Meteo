@@ -472,6 +472,34 @@ def resumen(frases):
         _html(f'<p class="resumen">{" ".join(escape(f) for f in frases)}</p>')
 
 
+MADRID = "Europe/Madrid"
+
+# Pone en hora cada minuto los relojes de hora_local mientras la página siga abierta (Streamlit no la vuelve a generar)
+RELOJES = """
+<script>
+(() => {
+  if (window.meteoRelojes) return;
+  window.meteoRelojes = true;
+  setInterval(() => document.querySelectorAll(".hora-local [data-tz]").forEach((el) => {
+    el.textContent = new Date().toLocaleTimeString("es-ES", {timeZone: el.dataset.tz, hour: "2-digit", minute: "2-digit"});
+  }), 15000);
+})();
+</script>
+"""
+
+
+def hora_local(tz, ahora):
+    """Debajo del título de un lugar fuera de Europa: su hora y la de Madrid, con la diferencia. Los gráficos van en
+    hora local."""
+
+    en_madrid = ahora.tz_convert(MADRID)
+    horas = (en_madrid.utcoffset() - ahora.utcoffset()) / pd.Timedelta(hours=1)
+    diferencia = f"{coma(abs(horas), 'g')} h {'más' if horas > 0 else 'menos'}" if horas else "la misma hora"
+    st.html(f'<p class="hora-local">Hora local <b data-tz="{tz}">{ahora:%H:%M}</b> · '
+            f'en Madrid <b data-tz="{MADRID}">{en_madrid:%H:%M}</b> ({diferencia})</p>{RELOJES}',
+            unsafe_allow_javascript=True)
+
+
 def tiempo_wmo(codigo):
     """(emoji, texto) del código WMO del tiempo."""
 

@@ -217,9 +217,10 @@ RIGA = Ciudad(nombre="Riga", lat=56.949, lon=24.105, tz="Europe/Riga", ensemble=
 # Fuera de Europa: el ensemble a 48 h es el GEFS de la NOAA y el del medio plazo, el ECMWF, con el GFS determinista
 # (ver fuentes.MEDIO_PLAZO). Avisos del Servicio Meteorológico Nacional (NWS) para el punto, en lugar de Meteoalarm.
 # Observación: METAR de Central Park, a 2,7 km (en EE. UU. el parte da la temperatura en décimas); rangos habituales de
-# la misma estación. Auroras, no: con una latitud geomagnética de unos 50º, solo con Kp 9
+# la misma estación. Auroras, no: con una latitud geomagnética de unos 50º, solo con Kp 9. Altitud del suelo del USGS
+# (3DEP, 1 m): el modelo del terreno de Open-Meteo da 105 m, la de los tejados de Midtown
 NUEVA_YORK = Ciudad(nombre="Nueva York", lat=40.758, lon=-73.985,  # Times Square, en Midtown (Manhattan)
-                    tz="America/New_York", ensemble="gefs", medio="ecmwf", nieve=True, pais=NWS,
+                    tz="America/New_York", elevacion=15, ensemble="gefs", medio="ecmwf", nieve=True, pais=NWS,
                     estaciones=(Estacion("metar", "KNYC", "Central Park"),), bandas="datos/bandas/nueva_york.csv")
 
 # ---------------------------------------------------------------- Portada

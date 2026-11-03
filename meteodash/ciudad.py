@@ -46,6 +46,8 @@ class Ciudad:
     lat: float
     lon: float
     tz: str = "Europe/Madrid"
+    # Altitud del suelo (m) para Open-Meteo, si la de su modelo del terreno no vale (ver fuentes._altitud)
+    elevacion: float | None = None
     estacion_aemet: str | None = None  # observaciones de las últimas 24 h
     # Observaciones de otras redes (ver observaciones.REDES), o de AEMET citando la estación: con varias, cada variable
     # sale de la primera que la mida. Sustituyen a las de estacion_aemet
@@ -386,10 +388,13 @@ def frases_resumen(ahora, max_hoy, horas_hoy, max_mañana, min_mañana, prec, ra
 
 
 def _cabecera(ciudad, titulo):
-    """Título y hueco para los avisos oficiales (se rellenan al final: el feed de Meteoalarm es grande)."""
+    """Título (fuera de Europa, con la hora local y la de Madrid) y hueco para los avisos oficiales (se rellenan al
+    final: el feed de Meteoalarm es grande)."""
 
     if titulo:
         st.header(titulo)
+        if not ciudad.tz.startswith("Europe/"):  # Nueva York: su hora y la de Madrid
+            tarjetas.hora_local(ciudad.tz, pd.Timestamp.now(tz=ciudad.tz))
     if ciudad.con_avisos:
         en_paralelo(*descarga_avisos(ciudad.pais, ciudad.punto_avisos))
     return st.empty()
@@ -420,7 +425,7 @@ def render_48h(ciudad, titulo=None):
     hueco_avisos = _cabecera(ciudad, titulo)
     for estacion in ciudad.observaciones:
         en_paralelo(*descargar_en(estacion))
-    en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz, ciudad.elevacion)
     usa_opendata = hay_clave()
     if ciudad.ccaa_aemet and usa_opendata:
         for dia in DIAS_PREDICCION:
@@ -441,7 +446,8 @@ def render_48h(ciudad, titulo=None):
         nombre = ENSEMBLES_48H[ciudad.ensemble]["nombre"]
         try:
             with st.spinner(f"Descargando el ensemble {nombre}…", show_time=True):
-                run, arome = get_ensemble_48h(ciudad.lat, ciudad.lon, ciudad.tz, tuple(variables), ciudad.ensemble)
+                run, arome = get_ensemble_48h(ciudad.lat, ciudad.lon, ciudad.tz, tuple(variables), ciudad.ensemble,
+                                              ciudad.elevacion)
         except Exception:
             st.error(f"No se ha podido descargar el ensemble {nombre} (Open-Meteo). Prueba a recargar en unos minutos.")
             _avisos(ciudad, ahora, hueco_avisos)
@@ -521,7 +527,7 @@ def render_48h(ciudad, titulo=None):
     # --- Resumen y panel de ahora, hoy y mañana ---
     tarjetas.resumen(frases_resumen(ahora, max_hoy, horas_hoy, max_mañana, min_mañana, arome["precipitacion"], rachas))
 
-    detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz, ciudad.elevacion)
     aire = o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
     mar = o_none(get_mar, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.mar else None
 
@@ -631,8 +637,8 @@ def render_medio(ciudad, titulo=None):
     nombre = ENSEMBLES[modelo][0]
 
     hueco_avisos = _cabecera(ciudad, titulo)
-    en_paralelo(get_determinista, ciudad.lat, ciudad.lon, ciudad.tz, determinista)
-    en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    en_paralelo(get_determinista, ciudad.lat, ciudad.lon, ciudad.tz, determinista, ciudad.elevacion)
+    en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz, ciudad.elevacion)
     if ciudad.calidad_aire:
         en_paralelo(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz)
     if ciudad.mar:
@@ -641,14 +647,14 @@ def render_medio(ciudad, titulo=None):
 
     try:
         with st.spinner(f"Descargando el ensemble {nombre}…", show_time=True):
-            completo = get_ensemble(ciudad.lat, ciudad.lon, ciudad.tz, modelo)
+            completo = get_ensemble(ciudad.lat, ciudad.lon, ciudad.tz, modelo, ciudad.elevacion)
     except Exception:
         completo = None
         st.warning(f"No se ha podido descargar el ensemble {nombre} de Open-Meteo.")
     if completo:
         completo = {var: df[df.index < fin_medio] for var, df in completo.items()}
     ens = {var: df[df.index >= desde] for var, df in completo.items()} if completo else None
-    detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+    detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz, ciudad.elevacion)
     hasta = ens["temperatura"].index[-1] if ens is not None and not ens["temperatura"].empty else None
 
     if hasta is not None:
@@ -664,7 +670,7 @@ def render_medio(ciudad, titulo=None):
                                  f"los {ens['temperatura'].shape[1]} miembros del ensemble {nombre}.")
         st.divider()
 
-        deterministas = o_none(get_determinista, ciudad.lat, ciudad.lon, ciudad.tz, determinista)
+        deterministas = o_none(get_determinista, ciudad.lat, ciudad.lon, ciudad.tz, determinista, ciudad.elevacion)
         det_temp = deterministas["temperatura"] if deterministas is not None else pd.DataFrame()
         graficos.mostrar(graficos.medio_temperatura(ens["temperatura"], det_temp))
         graficos.mostrar(graficos.lluvia(ens["precipitacion"], titulo="Lluvia · medio plazo"))
@@ -715,7 +721,7 @@ def render_largo(ciudad, titulo=None):
 
     hueco_avisos = _cabecera(ciudad, titulo)
     for modelo in MODELOS_LARGO:
-        en_paralelo(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, modelo)
+        en_paralelo(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, modelo, ciudad.elevacion)
     usa_opendata = hay_clave()
     if ciudad.resumen_mensual and ciudad.estacion_aemet and usa_opendata:
         en_paralelo(get_resumen_mensual, ciudad.estacion_aemet, ahora.year)
@@ -725,7 +731,8 @@ def render_largo(ciudad, titulo=None):
 
     ensembles = {}
     with st.spinner("Descargando los ensembles ECMWF y GEFS…", show_time=True):
-        descargas = {modelo: o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, modelo) for modelo in MODELOS_LARGO}
+        descargas = {modelo: o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, modelo, ciudad.elevacion)
+                     for modelo in MODELOS_LARGO}
     for modelo, datos in descargas.items():
         nombre = ENSEMBLES[modelo][0]
         if datos is not None:

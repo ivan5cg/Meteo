@@ -23,8 +23,8 @@ def _descargar_todo(lugares):
     """Lanza en paralelo todas las descargas de la portada; luego se leen de la caché."""
 
     for ciudad in lugares:
-        en_paralelo(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, MEDIO_PLAZO[ciudad.medio][0])
-        en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+        en_paralelo(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, MEDIO_PLAZO[ciudad.medio][0], ciudad.elevacion)
+        en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz, ciudad.elevacion)
         for estacion in ciudad.observaciones:
             en_paralelo(*descargar_en(estacion))
     for descarga in {descarga_avisos(c.pais, c.punto_avisos) for c in lugares if c.con_avisos}:
@@ -37,9 +37,9 @@ def resumen_lugar(ciudad, ahora):
 
     hoy, mañana = ahora.date(), (ahora + pd.Timedelta(days=1)).date()
     dias = {}
-    ensemble = o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, MEDIO_PLAZO[ciudad.medio][0])
+    ensemble = o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, MEDIO_PLAZO[ciudad.medio][0], ciudad.elevacion)
     if ensemble is not None:
-        detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
+        detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz, ciudad.elevacion)
         codigos = detalle["diario"]["codigo"] if detalle is not None else pd.Series(dtype=float)
         maximas, minimas = extremos_diarios(ensemble["temperatura"], [hoy, mañana], minimo_horas=20)
         prob = prob_diaria(ensemble["precipitacion"], ahora.floor("h"))  # de hoy, solo lo que queda

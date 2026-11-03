@@ -319,6 +319,13 @@ a.camera-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -8px 
     color: #635b53;
     margin: 0;
 }
+/* Hora local y la de Madrid, debajo del título de los lugares fuera de Europa (tarjetas.hora_local) */
+.hora-local {
+    font-size: 0.9rem;
+    color: #635b53;
+    margin: -6px 0 10px;
+}
+.hora-local b { color: #2a241f; font-variant-numeric: tabular-nums; }
 /* La línea de los datos y su botón de actualizar (actualizar.linea_datos) */
 [class*="st-key-datos_"] { margin: -10px 0 6px; row-gap: 0; }
 /* Streamlit resta 1rem bajo cada texto: en la fila, el botón se montaría sobre la última línea */

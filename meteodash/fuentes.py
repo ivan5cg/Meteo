@@ -67,8 +67,11 @@ def o_none(funcion, *args):
         return None
 
 
-def descargar(url, timeout=30, params=None):
-    response = requests.get(url, params=params, timeout=timeout, headers=USER_AGENT)
+def descargar(url, timeout=30, params=None, sin_cache=False):
+    """GET con el USER_AGENT; con `sin_cache`, pide al CDN del origen que no sirva una copia guardada."""
+
+    headers = {**USER_AGENT, "Cache-Control": "no-cache"} if sin_cache else USER_AGENT
+    response = requests.get(url, params=params, timeout=timeout, headers=headers)
     response.raise_for_status()
     return response
 
@@ -149,13 +152,21 @@ def hora_local_run(run_utc, tz):
 
 # ---------------------------------------------------------------- Open-Meteo
 
+def _altitud(elevacion):
+    """Parámetro `elevation` de Open-Meteo (Ciudad.elevacion), con el que corrige la temperatura del modelo a la altitud
+    del punto. Sin él usa la de su modelo del terreno de 90 m, que entre rascacielos es la de los tejados: 105 m en
+    Times Square, que está a 15 m, y la previsión sale unos 0,6º más fría."""
+
+    return {} if elevacion is None else {"elevation": elevacion}
+
+
 @st.cache_data(ttl="1h", show_spinner=False)
-def get_determinista(lat, lon, tz, modelo="icon_eu"):
+def get_determinista(lat, lon, tz, modelo="icon_eu", elevacion=None):
     """Previsión horaria de un modelo de MODELOS_DETERMINISTAS, DIAS_MEDIO días: {variable: DataFrame} con una columna,
     el nombre corto del modelo (o ninguna, si no da esa variable)."""
 
     params = {"latitude": lat, "longitude": lon, "timezone": tz, "timeformat": "unixtime", "forecast_days": DIAS_MEDIO,
-              "hourly": ",".join(VARIABLES_ENSEMBLE.values()), "models": modelo}
+              "hourly": ",".join(VARIABLES_ENSEMBLE.values()), "models": modelo, **_altitud(elevacion)}
     horario = descargar("https://api.open-meteo.com/v1/forecast", params=params).json()["hourly"]
     indice = pd.to_datetime(horario["time"], unit="s", utc=True).tz_convert(tz)
 
@@ -167,7 +178,7 @@ def get_determinista(lat, lon, tz, modelo="icon_eu"):
 
 
 @st.cache_data(ttl="1h", show_spinner=False)
-def get_open_meteo_detalle(lat, lon, tz):
+def get_open_meteo_detalle(lat, lon, tz, elevacion=None):
     """Variables complementarias del mejor modelo de Open-Meteo para el punto.
 
     Devuelve {"horario", "diario", "elevacion"}.
@@ -187,6 +198,7 @@ def get_open_meteo_detalle(lat, lon, tz):
         "hourly": ",".join(horarias.values()),
         "daily": ",".join(diarias.values()),
         "forecast_days": 8,
+        **_altitud(elevacion),
     }
     datos = descargar("https://api.open-meteo.com/v1/forecast", params=params).json()
 
@@ -277,7 +289,7 @@ VARIABLES_48H = {"temperatura": "temperature_2m", "precipitacion": "precipitatio
 
 
 @st.cache_data(ttl="30m", show_spinner=False)
-def get_ensemble_48h(lat, lon, tz, variables, origen):
+def get_ensemble_48h(lat, lon, tz, variables, origen, elevacion=None):
     """Ensemble de Open-Meteo a 48 h (ENSEMBLES_48H[origen]) con el formato de las tablas de Meteociel:
     (inicio del pase UTC o None, {variable: DataFrame}).
 
@@ -290,7 +302,8 @@ def get_ensemble_48h(lat, lon, tz, variables, origen):
     modelos = config["modelos"]
     params = {"latitude": lat, "longitude": lon, "timezone": tz, "timeformat": "unixtime",
               "forecast_days": 6 if "horizonte" in config else 3,  # con horizonte hace falta el final de la previsión
-              "hourly": ",".join(VARIABLES_48H[v] for v in variables), "models": ",".join(modelos)}
+              "hourly": ",".join(VARIABLES_48H[v] for v in variables), "models": ",".join(modelos),
+              **_altitud(elevacion)}
     horario = descargar("https://ensemble-api.open-meteo.com/v1/ensemble", params=params, timeout=60).json()["hourly"]
     indice = pd.to_datetime(horario["time"], unit="s", utc=True).tz_convert(tz)
     fin = pd.Timestamp.now(tz=tz).floor("h") + pd.Timedelta(hours=48)
@@ -324,7 +337,7 @@ def get_ensemble_48h(lat, lon, tz, variables, origen):
 
 
 @st.cache_data(ttl="1h", show_spinner=False)
-def get_ensemble(lat, lon, tz, modelo):
+def get_ensemble(lat, lon, tz, modelo, elevacion=None):
     """Ensemble de Open-Meteo (ver ENSEMBLES): {"temperatura", "precipitacion", "rachas"}, un miembro por columna.
 
     El índice es la hora local con zona y empieza a las 00 h locales de hoy (con los días de UTC, en América faltaría
@@ -335,7 +348,7 @@ def get_ensemble(lat, lon, tz, modelo):
 
     _, dias, con_control = ENSEMBLES[modelo]
     params = {"latitude": lat, "longitude": lon, "timezone": tz, "timeformat": "unixtime", "forecast_days": dias,
-              "hourly": ",".join(VARIABLES_ENSEMBLE.values()), "models": modelo}
+              "hourly": ",".join(VARIABLES_ENSEMBLE.values()), "models": modelo, **_altitud(elevacion)}
     horario = descargar("https://ensemble-api.open-meteo.com/v1/ensemble", params=params, timeout=60).json()["hourly"]
     indice = pd.to_datetime(horario["time"], unit="s", utc=True).tz_convert(tz)
 
