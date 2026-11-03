@@ -229,8 +229,10 @@ def get_metar(icao):
     el parte la repite al final, en el grupo T), sin lluvia ni humedad (la que sale de temperatura y punto de rocío
     enteros es poco precisa) y racha solo cuando es destacable."""
 
+    # Sin sin_cache, el CDN de aviationweather.gov a veces devuelve una respuesta de hace horas (en Central Park, con
+    # 3 h y hasta 10 h de retraso)
     params = {"ids": icao, "format": "json", "hours": HORAS}
-    datos = pd.DataFrame(descargar("https://aviationweather.gov/api/data/metar", params=params).json())
+    datos = pd.DataFrame(descargar("https://aviationweather.gov/api/data/metar", params=params, sin_cache=True).json())
     if datos.empty:
         raise ValueError(f"No hay partes METAR recientes de {icao}")
 
