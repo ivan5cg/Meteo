@@ -310,7 +310,7 @@ def _momento(t, ahora):
 
 
 def avisos_oficiales(lista, ahora):
-    """Avisos de Meteoalarm (ver avisos.avisos_vigentes), con el intervalo en hora local."""
+    """Avisos de Meteoalarm o del NWS (ver avisos.avisos_vigentes), con el intervalo en hora local."""
 
     if not lista:
         return False

@@ -32,6 +32,9 @@ paginas = st.navigation({
         st.Page("paginas/tallin.py", title="Tallin", icon=":material/castle:"),
         st.Page("paginas/riga.py", title="Riga", icon=":material/account_balance:"),
     ],
+    "América": [
+        st.Page("paginas/nueva_york.py", title="Nueva York", icon=":material/apartment:"),
+    ],
     "Explorar": [
         st.Page("paginas/punto.py", title="Cualquier punto", icon=":material/add_location_alt:"),
     ],

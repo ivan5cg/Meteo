@@ -169,10 +169,11 @@ def viento(data, direccion=None, titulo="Rachas de viento · 48 h"):
     return fig
 
 
-# ---------------------------------------------------------------- Medio plazo: ensemble ICON-EU
+# ---------------------------------------------------------------- Medio plazo: ensemble ICON-EU (ECMWF fuera de Europa)
 
 def medio_temperatura(ens, deterministas):
-    """Miembros y mediana del ensemble ICON-EU, con el ICON-EU determinista superpuesto."""
+    """Miembros y mediana del ensemble del medio plazo, con los deterministas superpuestos (una columna por modelo,
+    con su nombre corto)."""
 
     fig = go.Figure()
     _miembros(fig, ens, "rgba(99, 91, 83, 0.18)")
@@ -183,13 +184,12 @@ def medio_temperatura(ens, deterministas):
         hovertemplate=("Mediana: <b>%{y:.1f}°C</b><br>Rango 10-90%: <b>%{customdata[0]:.1f}° - "
                        "%{customdata[1]:.1f}°C</b><extra></extra>"),
     ))
-    for modelo, color, trazo in [("ICON-EU", AZUL, "dash")]:
-        if modelo in deterministas.columns:
-            serie = deterministas[modelo].reindex(ens.index)
-            fig.add_trace(go.Scatter(
-                x=serie.index, y=serie, mode="lines", line=dict(color=color, width=2, dash=trazo), name=modelo,
-                hovertemplate=f"{modelo}: <b>%{{y:.1f}}°C</b><extra></extra>",
-            ))
+    for modelo in deterministas.columns:
+        serie = deterministas[modelo].reindex(ens.index)
+        fig.add_trace(go.Scatter(
+            x=serie.index, y=serie, mode="lines", line=dict(color=AZUL, width=2, dash="dash"), name=modelo,
+            hovertemplate=f"{modelo}: <b>%{{y:.1f}}°C</b><extra></extra>",
+        ))
     _extremos_diarios(fig, mediana, ".1f", "º")
     tema_plotly(fig, "Temperatura · medio plazo", "Temperatura (°C)")
     _eje_fechas_es(fig, ens.index)

@@ -5,6 +5,7 @@ hacia arriba. Según la NOAA, el borde está hacia los 66º geomagnéticos con K
 latitud geomagnética con el dipolo del IGRF de 2025 (polo norte en 80,8º N 72,7º O).
 """
 
+from .avisos import NWS
 from .ciudad import Camara, Ciudad
 from .observaciones import Estacion
 
@@ -12,8 +13,9 @@ from .observaciones import Estacion
 # Cámaras: mejor de sitios céntricos o emblemáticos con imagen fija (JPG con URL estable) o vídeo HLS que se pueda
 # reproducir fuera de su web; si no hay, las de carreteras a unos pocos km. Sin ninguna así: Torla-Ordesa, Milán,
 # Bélgica (la de la Grand-Place no deja reproducirse fuera de la web del ayuntamiento), Escocia y Tallin (las de sus
-# carreteras no tienen URL fija: la imagen va dentro de su web o cambia de nombre con cada foto) y Riga (las de
-# carretera están a 10-20 km y la imagen va dentro de las teselas de su mapa)
+# carreteras no tienen URL fija: la imagen va dentro de su web o cambia de nombre con cada foto), Riga (las de
+# carretera están a 10-20 km y la imagen va dentro de las teselas de su mapa) y Nueva York (falta comprobar las del
+# Departamento de Transporte de la ciudad)
 
 def _dgt(*camaras):
     return tuple(Camara(f"https://etraffic.dgt.es/camarasEtraffic/{codigo}.jpg", "DGT", nombre)
@@ -210,6 +212,16 @@ TALLIN = Ciudad(nombre="Tallin", lat=59.437, lon=24.754, tz="Europe/Tallinn", en
 RIGA = Ciudad(nombre="Riga", lat=56.949, lon=24.105, tz="Europe/Riga", ensemble="icon_eu", nieve=True, pais="latvia",
               avisos_por_poligono=True, estaciones=(Estacion("lvgmc", "RIGASLU", "Universidad"),), kp_auroras=6)
 
+# ---------------------------------------------------------------- América
+
+# Fuera de Europa: el ensemble a 48 h es el GEFS de la NOAA y el del medio plazo, el ECMWF, con el GFS determinista
+# (ver fuentes.MEDIO_PLAZO). Avisos del Servicio Meteorológico Nacional (NWS) para el punto, en lugar de Meteoalarm.
+# Observación: METAR de Central Park, a 2,7 km (en EE. UU. el parte da la temperatura en décimas); rangos habituales de
+# la misma estación. Auroras, no: con una latitud geomagnética de unos 50º, solo con Kp 9
+NUEVA_YORK = Ciudad(nombre="Nueva York", lat=40.758, lon=-73.985,  # Times Square, en Midtown (Manhattan)
+                    tz="America/New_York", ensemble="gefs", medio="ecmwf", nieve=True, pais=NWS,
+                    estaciones=(Estacion("metar", "KNYC", "Central Park"),), bandas="datos/bandas/nueva_york.csv")
+
 # ---------------------------------------------------------------- Portada
 
 # Secciones de la navegación: (página, lugares que muestra)
@@ -221,4 +233,5 @@ SECCIONES = {
                ("paginas/belgica.py", BELGICA), ("paginas/escocia.py", ESCOCIA)],
     "Báltico y Laponia": [("paginas/helsinki.py", [HELSINKI]), ("paginas/rovaniemi.py", [ROVANIEMI]),
                           ("paginas/tallin.py", [TALLIN]), ("paginas/riga.py", [RIGA])],
+    "América": [("paginas/nueva_york.py", [NUEVA_YORK])],
 }

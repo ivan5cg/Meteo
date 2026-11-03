@@ -16,14 +16,24 @@ MODOS_AROME = {"temperatura": 8, "rachas": 13, "presion": 1, "mucape": 0, "preci
 RUNS_AROME = [3, 9, 15, 21]  # UTC
 
 # Deterministas de Open-Meteo para el medio plazo -> nombre corto en los gráficos
-MODELOS_DETERMINISTAS = {"icon_eu": "ICON-EU"}
+MODELOS_DETERMINISTAS = {"icon_eu": "ICON-EU", "gfs_seamless": "GFS"}
 
 # Ensembles de Open-Meteo: modelo -> (nombre corto, días que se piden, si el primer miembro es un control)
 ENSEMBLES = {
     "icon_eu": ("ICON-EU", 6, False),  # 40 miembros, unas 120 h: medio plazo
-    "ecmwf_ifs025": ("ECMWF", 15, True),  # control y 50 miembros: largo plazo (15 días)
+    "ecmwf_ifs025": ("ECMWF", 15, True),  # control y 50 miembros: largo plazo (15 días) y medio fuera de Europa
     "gfs_seamless": ("GEFS", 16, True),  # control y 30 miembros: largo plazo (15 días)
 }
+
+# Medio plazo (Ciudad.medio): (ensemble de ENSEMBLES, determinista de MODELOS_DETERMINISTAS que se superpone), de hoy a
+# DIAS_MEDIO días o hasta donde llegue el ensemble
+MEDIO_PLAZO = {
+    "icon_eu": ("icon_eu", "icon_eu"),  # Europa (el dominio del ICON-EU)
+    # Fuera de Europa (Nueva York): el ensemble ECMWF, el mismo pase que el largo plazo, y el GFS determinista, con el
+    # HRRR de 3 km en las primeras horas. El ICON global EPS no da rachas fuera de Europa
+    "ecmwf": ("ecmwf_ifs025", "gfs_seamless"),
+}
+DIAS_MEDIO = 6
 VARIABLES_ENSEMBLE = {"temperatura": "temperature_2m", "precipitacion": "precipitation", "rachas": "wind_gusts_10m"}
 
 # Polen de CAMS (Open-Meteo) -> nombre en español
@@ -140,20 +150,20 @@ def hora_local_run(run_utc, tz):
 # ---------------------------------------------------------------- Open-Meteo
 
 @st.cache_data(ttl="1h", show_spinner=False)
-def get_deterministas(lat, lon, tz):
-    """Previsión horaria de MODELOS_DETERMINISTAS: {variable: DataFrame}, una columna por modelo."""
+def get_determinista(lat, lon, tz, modelo="icon_eu"):
+    """Previsión horaria de un modelo de MODELOS_DETERMINISTAS, DIAS_MEDIO días: {variable: DataFrame} con una columna,
+    el nombre corto del modelo (o ninguna, si no da esa variable)."""
 
-    params = {"latitude": lat, "longitude": lon, "timeformat": "unixtime", "forecast_days": 6,
-              "hourly": ",".join(VARIABLES_ENSEMBLE.values()), "models": ",".join(MODELOS_DETERMINISTAS)}
+    params = {"latitude": lat, "longitude": lon, "timezone": tz, "timeformat": "unixtime", "forecast_days": DIAS_MEDIO,
+              "hourly": ",".join(VARIABLES_ENSEMBLE.values()), "models": modelo}
     horario = descargar("https://api.open-meteo.com/v1/forecast", params=params).json()["hourly"]
     indice = pd.to_datetime(horario["time"], unit="s", utc=True).tz_convert(tz)
 
-    datos = {}
-    for nombre, variable in VARIABLES_ENSEMBLE.items():
-        columnas = {corto: horario.get(f"{variable}_{modelo}") for modelo, corto in MODELOS_DETERMINISTAS.items()}
-        df = pd.DataFrame({c: v for c, v in columnas.items() if v is not None}, index=indice)
-        datos[nombre] = df.apply(pd.to_numeric, errors="coerce").dropna(axis=1, how="all")
-    return datos
+    # Con un solo modelo, Open-Meteo no añade su nombre a las variables: "temperature_2m", no "temperature_2m_icon_eu"
+    corto = MODELOS_DETERMINISTAS[modelo]
+    return {nombre: pd.DataFrame({corto: horario.get(variable)}, index=indice)
+            .apply(pd.to_numeric, errors="coerce").dropna(axis=1, how="all")
+            for nombre, variable in VARIABLES_ENSEMBLE.items()}
 
 
 @st.cache_data(ttl="1h", show_spinner=False)
@@ -258,6 +268,9 @@ ENSEMBLES_48H = {
              "meta": "ukmo_uk_ensemble_2km"},
     # Finlandia, el Báltico y Eslovenia: ICON-EU EPS, 40 miembros (sus metadatos en Open-Meteo están parados)
     "icon_eu": {"nombre": "ICON-EU", "modelos": {"icon_eu": ("", False)}, "horizonte": 120},
+    # Nueva York: GEFS 0,25º de la NOAA, control y 30 miembros. Sale cada 3 h: Open-Meteo interpola la temperatura, el
+    # viento y la presión hora a hora y reparte la lluvia de cada 3 h a partes iguales entre ellas
+    "gefs": {"nombre": "GEFS", "modelos": {"gfs025": ("", True)}, "meta": "ncep_gefs025"},
 }
 VARIABLES_48H = {"temperatura": "temperature_2m", "precipitacion": "precipitation", "rachas": "wind_gusts_10m",
                  "presion": "pressure_msl", "mucape": "cape"}
@@ -314,12 +327,14 @@ def get_ensemble_48h(lat, lon, tz, variables, origen):
 def get_ensemble(lat, lon, tz, modelo):
     """Ensemble de Open-Meteo (ver ENSEMBLES): {"temperatura", "precipitacion", "rachas"}, un miembro por columna.
 
-    El índice es la hora local con zona. El control, si el modelo lo tiene, es la columna "Ctrl"; el resto, "1", "2"...
+    El índice es la hora local con zona y empieza a las 00 h locales de hoy (con los días de UTC, en América faltaría
+    casi todo el día de hoy desde las 19-20 h). El control, si el modelo lo tiene, es la columna "Ctrl"; el resto, "1",
+    "2"...
     En attrs["descargado"] de cada tabla, el momento de la descarga.
     """
 
     _, dias, con_control = ENSEMBLES[modelo]
-    params = {"latitude": lat, "longitude": lon, "timeformat": "unixtime", "forecast_days": dias,
+    params = {"latitude": lat, "longitude": lon, "timezone": tz, "timeformat": "unixtime", "forecast_days": dias,
               "hourly": ",".join(VARIABLES_ENSEMBLE.values()), "models": modelo}
     horario = descargar("https://ensemble-api.open-meteo.com/v1/ensemble", params=params, timeout=60).json()["hourly"]
     indice = pd.to_datetime(horario["time"], unit="s", utc=True).tz_convert(tz)
