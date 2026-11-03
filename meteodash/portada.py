@@ -10,9 +10,9 @@ from urllib.parse import quote
 import pandas as pd
 import streamlit as st
 
-from .avisos import NIVELES, TIPOS, avisos_vigentes, get_avisos
-from .fuentes import (UMBRAL_LLUVIA, en_paralelo, extremos_diarios, get_ensemble, get_open_meteo_detalle, o_none,
-                      prob_diaria)
+from .avisos import NIVELES, TIPOS, avisos_vigentes, descarga_avisos
+from .fuentes import (MEDIO_PLAZO, UMBRAL_LLUVIA, en_paralelo, extremos_diarios, get_ensemble, get_open_meteo_detalle,
+                      o_none, prob_diaria)
 from .actualizar import antiguedad, linea_datos
 from .lugares import SECCIONES
 from .observaciones import descargar_en, temperatura_reciente
@@ -23,21 +23,21 @@ def _descargar_todo(lugares):
     """Lanza en paralelo todas las descargas de la portada; luego se leen de la caché."""
 
     for ciudad in lugares:
-        en_paralelo(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, "icon_eu")
+        en_paralelo(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, MEDIO_PLAZO[ciudad.medio][0])
         en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
         for estacion in ciudad.observaciones:
             en_paralelo(*descargar_en(estacion))
-    for pais in {c.pais for c in lugares if c.con_avisos}:
-        en_paralelo(get_avisos, pais)
+    for descarga in {descarga_avisos(c.pais, c.punto_avisos) for c in lugares if c.con_avisos}:
+        en_paralelo(*descarga)
 
 
 def resumen_lugar(ciudad, ahora):
-    """Temperatura observada (valor, momento) o None; hoy y mañana según el ensemble ICON-EU, como en el medio plazo de
-    cada página (dict(tmax, tmin, prob, codigo), o falta el día); y los avisos oficiales que tocan hoy o mañana."""
+    """Temperatura observada (valor, momento) o None; hoy y mañana según el ensemble del medio plazo de su página (el
+    ICON-EU en Europa; dict(tmax, tmin, prob, codigo), o falta el día); y los avisos oficiales que tocan hoy o mañana."""
 
     hoy, mañana = ahora.date(), (ahora + pd.Timedelta(days=1)).date()
     dias = {}
-    ensemble = o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, "icon_eu")
+    ensemble = o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, MEDIO_PLAZO[ciudad.medio][0])
     if ensemble is not None:
         detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
         codigos = detalle["diario"]["codigo"] if detalle is not None else pd.Series(dtype=float)
@@ -50,9 +50,8 @@ def resumen_lugar(ciudad, ahora):
 
     avisos = []
     if ciudad.con_avisos:
-        punto = (ciudad.lat, ciudad.lon) if ciudad.avisos_por_poligono else None
         fin_de_mañana = ahora.normalize() + pd.Timedelta(days=2)
-        avisos = [a for a in o_none(avisos_vigentes, ciudad.pais, ciudad.zonas_aviso, ahora, punto) or []
+        avisos = [a for a in o_none(avisos_vigentes, ciudad.pais, ciudad.zonas_aviso, ahora, ciudad.punto_avisos) or []
                   if a["inicio"] < fin_de_mañana]
     descargado = ensemble["temperatura"].attrs.get("descargado") if ensemble is not None else None
     return {"actual": o_none(temperatura_reciente, ciudad.observaciones, ciudad.tz), "dias": dias, "avisos": avisos,
@@ -172,11 +171,11 @@ def render_portada():
 
     hace = antiguedad(min((d for d in descargas if d is not None), default=None))
     with hueco_datos.container():
-        linea_datos(f"Previsión descargada {hace}" if hace else "Previsión del ensemble ICON-EU", "portada")
+        linea_datos(f"Previsión descargada {hace}" if hace else "Previsión de los ensembles del medio plazo", "portada")
 
     st.caption("**Ahora**: última observación oficial de la estación de cada página (– si no hay una cercana y "
                "representativa). **Hoy y mañana**: mediana de las máximas y mínimas y probabilidad de al menos "
-               f"{UMBRAL_LLUVIA} L/m² (de hoy, lo que queda) según los 40 miembros del ensemble ICON-EU, como en el "
-               "medio plazo de cada página; el icono, el tiempo previsto por Open-Meteo. **Avisos**: los oficiales "
-               "de hoy y mañana (Meteoalarm).")
+               f"{UMBRAL_LLUVIA} L/m² (de hoy, lo que queda) según los miembros del ensemble del medio plazo de cada "
+               "página (los 40 del ICON-EU en Europa y los 51 del ECMWF en Nueva York); el icono, el tiempo previsto "
+               "por Open-Meteo. **Avisos**: los oficiales de hoy y mañana (Meteoalarm y, en Nueva York, el NWS).")
     st.page_link("paginas/punto.py", label="Ver otro punto de Europa", icon=":material/add_location_alt:")

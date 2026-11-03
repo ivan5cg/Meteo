@@ -12,13 +12,13 @@ from .estilo import AZUL, ROJO, coma
 from .aemet_opendata import (DIAS_MONTAÑA, DIAS_PREDICCION, get_boletin_aludes, get_comentario_aemet,
                              get_prediccion_montaña, get_resumen_mensual, hay_clave, normales_mensuales, racha_maxima,
                              valor_y_dia)
-from .avisos import avisos_vigentes, get_avisos
+from .avisos import NWS, avisos_vigentes, descarga_avisos
 from .auroras import render_auroras
 from .hidrologico import lluvia_diaria, render_año_hidrologico
-from .fuentes import (ENSEMBLES, ENSEMBLES_48H, POLENES, UMBRAL_LLUVIA, UMBRAL_LLUVIA_HORA, dia_historico, en_paralelo,
-                      extremos_diarios, get_bandas, get_calidad_aire, get_deterministas, get_ensemble,
-                      get_ensemble_48h, get_ensemble_arome, get_historico, get_mar, get_open_meteo_detalle,
-                      hora_local_run, o_none, prob_diaria, prob_miembros, probabilidad_lluvia)
+from .fuentes import (DIAS_MEDIO, ENSEMBLES, ENSEMBLES_48H, MEDIO_PLAZO, POLENES, UMBRAL_LLUVIA, UMBRAL_LLUVIA_HORA,
+                      dia_historico, en_paralelo, extremos_diarios, get_bandas, get_calidad_aire, get_determinista,
+                      get_ensemble, get_ensemble_48h, get_ensemble_arome, get_historico, get_mar,
+                      get_open_meteo_detalle, hora_local_run, o_none, prob_diaria, prob_miembros, probabilidad_lluvia)
 from .meteograma import meteograma
 from .observaciones import Estacion, cardinal, cargar_observaciones, descargar_en, temperatura_actual_y_ayer
 from .radar import render_radar
@@ -61,18 +61,25 @@ class Ciudad:
     nieve_fuera_de_temporada: bool = False  # también fuera de MESES_NIEVE si se prevé nieve en la semana
     calidad_aire: bool = True  # índice europeo de calidad del aire y polen
     mar: bool = False  # oleaje y temperatura del agua en el punto de mar más cercano (modelo de Open-Meteo)
-    pais: str = "spain"  # feed de avisos de Meteoalarm
+    pais: str = "spain"  # feed de avisos de Meteoalarm o, en EE. UU., avisos.NWS (los del NWS para el punto)
     zonas_aviso: tuple[str, ...] = ()  # códigos o nombres de las zonas de aviso de Meteoalarm
     avisos_por_poligono: bool = False  # también los avisos cuyo polígono contiene el punto (sin código de zona)
     camaras: tuple[Camara, ...] = ()  # mejor de sitios céntricos o emblemáticos; si no, de carreteras cercanas
     mapas_arome: str | None = None  # clave de mapas_arome.LOCATIONS
     # 48 h: "arome" (PE-AROME de Meteociel) o, fuera de su dominio, una clave de fuentes.ENSEMBLES_48H
     ensemble: str = "arome"
+    medio: str = "icon_eu"  # clave de fuentes.MEDIO_PLAZO: ensemble y determinista del medio plazo y de la portada
     kp_auroras: float | None = None  # Kp desde el que suelen verse auroras: añade la pestaña de auroras
 
     @property
     def con_avisos(self):
-        return bool(self.zonas_aviso) or self.avisos_por_poligono
+        return bool(self.zonas_aviso) or self.avisos_por_poligono or self.pais == NWS
+
+    @property
+    def punto_avisos(self):
+        """(lat, lon) si los avisos se buscan por la posición (polígonos de Meteoalarm o NWS), o None."""
+
+        return (self.lat, self.lon) if self.avisos_por_poligono or self.pais == NWS else None
 
     @property
     def observaciones(self):
@@ -384,7 +391,7 @@ def _cabecera(ciudad, titulo):
     if titulo:
         st.header(titulo)
     if ciudad.con_avisos:
-        en_paralelo(get_avisos, ciudad.pais)
+        en_paralelo(*descarga_avisos(ciudad.pais, ciudad.punto_avisos))
     return st.empty()
 
 
@@ -613,15 +620,18 @@ MODELOS_LARGO = ["ecmwf_ifs025", "gfs_seamless"]
 
 
 def render_medio(ciudad, titulo=None):
-    """Medio plazo, de ahora hasta donde llegue el ensemble ICON-EU (40 miembros, unas 120 h), con el ICON-EU
-    determinista; nubes, nieve, mar (7 días) y calidad del aire."""
+    """Medio plazo, de ahora a DIAS_MEDIO días o hasta donde llegue el ensemble (el ICON-EU, 40 miembros, unas 120 h;
+    ver fuentes.MEDIO_PLAZO), con un determinista superpuesto; nubes, nieve, mar (7 días) y calidad del aire."""
 
     ahora = pd.Timestamp.now(tz=ciudad.tz)
     desde = ahora.floor("h")
-    fechas = list(pd.date_range(ahora.tz_localize(None).normalize(), periods=6).date)
+    fechas = list(pd.date_range(ahora.tz_localize(None).normalize(), periods=DIAS_MEDIO).date)
+    fin_medio = ahora.normalize() + pd.Timedelta(days=DIAS_MEDIO)  # el ECMWF (también del largo plazo) llega más allá
+    modelo, determinista = MEDIO_PLAZO[ciudad.medio]
+    nombre = ENSEMBLES[modelo][0]
 
     hueco_avisos = _cabecera(ciudad, titulo)
-    en_paralelo(get_deterministas, ciudad.lat, ciudad.lon, ciudad.tz)
+    en_paralelo(get_determinista, ciudad.lat, ciudad.lon, ciudad.tz, determinista)
     en_paralelo(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
     if ciudad.calidad_aire:
         en_paralelo(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz)
@@ -630,36 +640,38 @@ def render_medio(ciudad, titulo=None):
     _historico_sidebar(ciudad, ahora)
 
     try:
-        with st.spinner("Descargando el ensemble ICON-EU…", show_time=True):
-            icon_completo = get_ensemble(ciudad.lat, ciudad.lon, ciudad.tz, "icon_eu")
+        with st.spinner(f"Descargando el ensemble {nombre}…", show_time=True):
+            completo = get_ensemble(ciudad.lat, ciudad.lon, ciudad.tz, modelo)
     except Exception:
-        icon_completo = None
-        st.warning("No se ha podido descargar el ensemble ICON-EU de Open-Meteo.")
-    icon = {var: df[df.index >= desde] for var, df in icon_completo.items()} if icon_completo else None
+        completo = None
+        st.warning(f"No se ha podido descargar el ensemble {nombre} de Open-Meteo.")
+    if completo:
+        completo = {var: df[df.index < fin_medio] for var, df in completo.items()}
+    ens = {var: df[df.index >= desde] for var, df in completo.items()} if completo else None
     detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz)
-    hasta = icon["temperatura"].index[-1] if icon is not None and not icon["temperatura"].empty else None
+    hasta = ens["temperatura"].index[-1] if ens is not None and not ens["temperatura"].empty else None
 
     if hasta is not None:
         # --- Tira de días: mediana de los miembros, probabilidad por miembros y tiempo de Open-Meteo ---
-        # Hoy cuenta aunque el pase empiece a medianoche UTC (20 h bastan); el último día, solo si llega completo
-        maximas, minimas = extremos_diarios(icon_completo["temperatura"], fechas, minimo_horas=20)
-        prob = prob_diaria(icon_completo["precipitacion"], desde)  # de hoy, solo lo que queda
+        # Los días con al menos 20 h (los de 23 h del cambio de hora; el último, solo si llega casi completo)
+        maximas, minimas = extremos_diarios(completo["temperatura"], fechas, minimo_horas=20)
+        prob = prob_diaria(completo["precipitacion"], desde)  # de hoy, solo lo que queda
         codigos = detalle["diario"]["codigo"] if detalle is not None else pd.Series(dtype=float)
         dias = [{"fecha": f, "tmax": maximas.loc[f].median(), "tmin": minimas.loc[f].median(), "prob": prob.get(f),
                  "codigo": codigos.get(pd.Timestamp(f)), "nombre": "Hoy" if f == ahora.date() else None}
                 for f in maximas.index]
         tarjetas.tira_dias(dias, f"Mediana de máxima y mínima y probabilidad de al menos {UMBRAL_LLUVIA} L/m² según "
-                                 f"los {icon['temperatura'].shape[1]} miembros del ensemble ICON-EU.")
+                                 f"los {ens['temperatura'].shape[1]} miembros del ensemble {nombre}.")
         st.divider()
 
-        deterministas = o_none(get_deterministas, ciudad.lat, ciudad.lon, ciudad.tz)
+        deterministas = o_none(get_determinista, ciudad.lat, ciudad.lon, ciudad.tz, determinista)
         det_temp = deterministas["temperatura"] if deterministas is not None else pd.DataFrame()
-        graficos.mostrar(graficos.medio_temperatura(icon["temperatura"], det_temp))
-        graficos.mostrar(graficos.lluvia(icon["precipitacion"], titulo="Lluvia · medio plazo"))
-        graficos.mostrar(graficos.viento(icon["rachas"], titulo="Rachas de viento · medio plazo"))
+        graficos.mostrar(graficos.medio_temperatura(ens["temperatura"], det_temp))
+        graficos.mostrar(graficos.lluvia(ens["precipitacion"], titulo="Lluvia · medio plazo"))
+        graficos.mostrar(graficos.viento(ens["rachas"], titulo="Rachas de viento · medio plazo"))
         st.divider()
 
-    # --- Nubes, UV y nieve hasta donde llega el ICON-EU (o 5 días si no hay ensemble) ---
+    # --- Nubes, UV y nieve hasta donde llega el ensemble (o 5 días si no hay) ---
     if detalle is not None:
         hoy = ahora.tz_localize(None).normalize()
         fin = hasta.tz_localize(None) if hasta is not None else hoy + pd.Timedelta(days=5)
@@ -738,16 +750,16 @@ def render_largo(ciudad, titulo=None):
 
 
 def _avisos(ciudad, ahora, hueco):
-    """Avisos oficiales de Meteoalarm en el hueco reservado al principio de la página."""
+    """Avisos oficiales (Meteoalarm o, en EE. UU., NWS) en el hueco reservado al principio de la página."""
 
     if not ciudad.con_avisos:
         return
     with hueco.container():
         try:
-            punto = (ciudad.lat, ciudad.lon) if ciudad.avisos_por_poligono else None
-            vigentes = avisos_vigentes(ciudad.pais, ciudad.zonas_aviso, ahora, punto)
+            vigentes = avisos_vigentes(ciudad.pais, ciudad.zonas_aviso, ahora, ciudad.punto_avisos)
         except Exception:
-            st.caption("No se han podido consultar los avisos oficiales (Meteoalarm).")
+            fuente = "NWS" if ciudad.pais == NWS else "Meteoalarm"
+            st.caption(f"No se han podido consultar los avisos oficiales ({fuente}).")
         else:
             tarjetas.avisos_oficiales(vigentes, ahora)
 

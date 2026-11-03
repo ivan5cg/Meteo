@@ -7,8 +7,8 @@ import streamlit as st
 from .aemet_opendata import get_boletin_aludes, get_comentario_aemet, get_lluvia_reciente, get_prediccion_montaña
 from .auroras import (get_cielo, get_kp, get_kp_27_dias, get_nubes_ensemble, get_ovation, get_prob_tormenta,
                       get_viento_solar)
-from .avisos import get_avisos
-from .fuentes import (get_calidad_aire, get_deterministas, get_ensemble, get_ensemble_48h, get_mar,
+from .avisos import get_avisos, get_avisos_nws
+from .fuentes import (get_calidad_aire, get_determinista, get_ensemble, get_ensemble_48h, get_mar,
                       get_meteociel_table, get_open_meteo_detalle)
 from .observaciones import DESCARGAS as OBSERVACIONES
 
@@ -34,10 +34,10 @@ def actualizar_datos():
         st.toast(f"Los datos se acaban de actualizar. Podrás volver a hacerlo en {espera} min.", icon=":material/schedule:")
         return
     ultima["momento"] = ahora
-    for funcion in (get_meteociel_table, get_ensemble_48h, get_deterministas, get_open_meteo_detalle, get_ensemble,
-                    get_calidad_aire, get_mar, *OBSERVACIONES, get_avisos, get_comentario_aemet, get_prediccion_montaña,
-                    get_boletin_aludes, get_lluvia_reciente, get_kp, get_prob_tormenta, get_viento_solar, get_ovation,
-                    get_kp_27_dias, get_cielo, get_nubes_ensemble):
+    for funcion in (get_meteociel_table, get_ensemble_48h, get_determinista, get_open_meteo_detalle, get_ensemble,
+                    get_calidad_aire, get_mar, *OBSERVACIONES, get_avisos, get_avisos_nws, get_comentario_aemet,
+                    get_prediccion_montaña, get_boletin_aludes, get_lluvia_reciente, get_kp, get_prob_tormenta,
+                    get_viento_solar, get_ovation, get_kp_27_dias, get_cielo, get_nubes_ensemble):
         funcion.clear()
 
 

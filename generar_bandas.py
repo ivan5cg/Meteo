@@ -46,6 +46,7 @@ ESTACIONES = {
     "helsinki": ("ghcn", "FI000000304", "Helsinki Kaisaniemi"),
     "rovaniemi": ("ghcn", "FIE00146241", "Rovaniemi (estación de tren)"),
     "tallin": ("ghcn", "ENE00175051", "Tallinn-Harku"),
+    "nueva_york": ("ghcn", "USW00094728", "Central Park"),
 }
 NOMBRES_FUENTE = {"aemet": "AEMET", "ghcn": "GHCN-Daily, NOAA", "kmi": "KMI"}
 

@@ -225,8 +225,9 @@ def get_met_eireann(estacion):
 
 @st.cache_data(ttl="10m", show_spinner=False)
 def get_metar(icao):
-    """Partes METAR de un aeropuerto (API de aviationweather.gov): temperatura en grados enteros, sin lluvia ni humedad
-    (la que sale de temperatura y punto de rocío enteros es poco precisa) y racha solo cuando es destacable."""
+    """Partes METAR de un aeropuerto (API de aviationweather.gov): temperatura en grados enteros (en EE. UU., en décimas:
+    el parte la repite al final, en el grupo T), sin lluvia ni humedad (la que sale de temperatura y punto de rocío
+    enteros es poco precisa) y racha solo cuando es destacable."""
 
     params = {"ids": icao, "format": "json", "hours": HORAS}
     datos = pd.DataFrame(descargar("https://aviationweather.gov/api/data/metar", params=params).json())
