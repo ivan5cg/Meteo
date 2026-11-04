@@ -8,7 +8,7 @@ import calendar
 import pandas as pd
 import streamlit as st
 
-from . import graficos, tarjetas
+from . import tarjetas, visor
 from .aemet_opendata import NORMAL_DESDE, NORMAL_HASTA, get_lluvia_reciente, hay_clave
 from .estilo import AZUL, ROJO
 from .fuentes import get_lluvia_diaria
@@ -153,8 +153,8 @@ def render_año_hidrologico(ciudad, ahora):
 
     st.subheader(f"Año hidrológico {nombre_año(inicio)}")
     tarjetas.condiciones(lista)
-    graficos.mostrar(graficos.año_hidrologico(_dias_del_año(inicio), actual, previo, normal, rango,
-                                             nombre_año(inicio), nombre_año(anterior)))
+    visor.año_hidrologico(ciudad, _dias_del_año(inicio), actual, previo, normal, rango, nombre_año(inicio),
+                          nombre_año(anterior))
     desde = min(años) if años else inicio.year
     st.caption(f"Lluvia acumulada desde el 1 de octubre en la estación de AEMET de {ciudad.nombre}, con datos hasta el "
                f"{ultimo.day}/{ultimo.month}/{ultimo.year}"

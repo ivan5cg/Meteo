@@ -181,12 +181,13 @@ def get_determinista(lat, lon, tz, modelo="icon_eu", elevacion=None):
 def get_open_meteo_detalle(lat, lon, tz, elevacion=None):
     """Variables complementarias del mejor modelo de Open-Meteo para el punto.
 
-    Devuelve {"horario", "diario", "elevacion"}.
+    Devuelve {"horario", "diario", "elevacion", "desfase"}: las tablas van en hora local sin zona, con el mismo desfase
+    con UTC (s) para toda la previsión (ver visor._con_zona).
     """
 
     horarias = {
         "sensacion": "apparent_temperature", "humedad": "relative_humidity_2m", "nubes": "cloud_cover",
-        "nieve": "snowfall", "espesor_nieve": "snow_depth", "isocero": "freezing_level_height",
+        "nieve": "snowfall", "espesor_nieve": "snow_depth", "isocero": "freezing_level_height", "uv": "uv_index",
     }
     diarias = {"nieve": "snowfall_sum", "uv_max": "uv_index_max", "nubes": "cloud_cover_mean",
                "tmax": "temperature_2m_max", "tmin": "temperature_2m_min", "lluvia": "precipitation_sum",
@@ -207,7 +208,8 @@ def get_open_meteo_detalle(lat, lon, tz, elevacion=None):
                           index=pd.to_datetime(datos[bloque]["time"]))
         return df.apply(pd.to_numeric, errors="coerce")
 
-    return {"horario": tabla("hourly", horarias), "diario": tabla("daily", diarias), "elevacion": datos.get("elevation")}
+    return {"horario": tabla("hourly", horarias), "diario": tabla("daily", diarias), "elevacion": datos.get("elevation"),
+            "desfase": datos.get("utc_offset_seconds")}
 
 
 @st.cache_data(ttl="7d", show_spinner=False)
@@ -244,7 +246,8 @@ def get_nombre_lugar(lat, lon):
 @st.cache_data(ttl="1h", show_spinner=False)
 def get_mar(lat, lon, tz):
     """Oleaje (MFWAM de Météo-France) y temperatura del agua (SMOC de Météo-France) en el punto de la rejilla de mar más
-    cercano, según la API marina de Open-Meteo, 7 días: {"horario", "lat", "lon"} con la posición de ese punto.
+    cercano, según la API marina de Open-Meteo, 7 días: {"horario", "lat", "lon", "desfase"} con la posición de ese punto
+    y el desfase con UTC de la hora local (ver get_open_meteo_detalle).
 
     Columnas: olas y mar de fondo (altura significativa, m), periodo (s), direccion (de donde vienen, grados) y agua (ºC).
     """
@@ -256,18 +259,23 @@ def get_mar(lat, lon, tz):
     datos = descargar("https://marine-api.open-meteo.com/v1/marine", params=params).json()
     horario = datos["hourly"]
     df = pd.DataFrame({nombre: horario.get(v) for nombre, v in variables.items()}, index=pd.to_datetime(horario["time"]))
-    return {"horario": df.apply(pd.to_numeric, errors="coerce"), "lat": datos["latitude"], "lon": datos["longitude"]}
+    return {"horario": df.apply(pd.to_numeric, errors="coerce"), "lat": datos["latitude"], "lon": datos["longitude"],
+            "desfase": datos.get("utc_offset_seconds")}
 
 
 @st.cache_data(ttl="1h", show_spinner=False)
 def get_calidad_aire(lat, lon, tz):
-    """Índice europeo de calidad del aire, contaminantes y polen (CAMS vía Open-Meteo), 4 días."""
+    """Índice europeo de calidad del aire, contaminantes y polen (CAMS vía Open-Meteo), 4 días, en hora local sin zona
+    (attrs["desfase"]: su desfase con UTC, ver get_open_meteo_detalle)."""
 
     variables = ["european_aqi", "pm2_5", "pm10", "nitrogen_dioxide", "ozone"] + [f"{p}_pollen" for p in POLENES]
     params = {"latitude": lat, "longitude": lon, "timezone": tz, "forecast_days": 4, "hourly": ",".join(variables)}
-    horario = descargar("https://air-quality-api.open-meteo.com/v1/air-quality", params=params).json()["hourly"]
+    datos = descargar("https://air-quality-api.open-meteo.com/v1/air-quality", params=params).json()
+    horario = datos["hourly"]
     df = pd.DataFrame({v: horario.get(v) for v in variables}, index=pd.to_datetime(horario["time"]))
-    return df.apply(pd.to_numeric, errors="coerce")
+    df = df.apply(pd.to_numeric, errors="coerce")
+    df.attrs["desfase"] = datos.get("utc_offset_seconds")
+    return df
 
 
 # Ensembles de Open-Meteo que sustituyen al PE-AROME fuera de su dominio (Ciudad.ensemble). Cada modelo: prefijo de

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from . import graficos, luna, tarjetas
+from . import graficos, luna, tarjetas, visor
 from .actualizar import antiguedad, linea_datos
 from .estilo import AZUL, ROJO, coma
 from .aemet_opendata import (DIAS_MONTAÑA, DIAS_PREDICCION, get_boletin_aludes, get_comentario_aemet,
@@ -627,7 +627,8 @@ MODELOS_LARGO = ["ecmwf_ifs025", "gfs_seamless"]
 
 def render_medio(ciudad, titulo=None):
     """Medio plazo, de ahora a DIAS_MEDIO días o hasta donde llegue el ensemble (el ICON-EU, 40 miembros, unas 120 h;
-    ver fuentes.MEDIO_PLAZO), con un determinista superpuesto; nubes, nieve, mar (7 días) y calidad del aire."""
+    ver fuentes.MEDIO_PLAZO), con un determinista superpuesto, nubes, UV y nieve en un visor como el meteograma; mar (7
+    días) y calidad del aire, en otros dos."""
 
     ahora = pd.Timestamp.now(tz=ciudad.tz)
     desde = ahora.floor("h")
@@ -654,10 +655,12 @@ def render_medio(ciudad, titulo=None):
     if completo:
         completo = {var: df[df.index < fin_medio] for var, df in completo.items()}
     ens = {var: df[df.index >= desde] for var, df in completo.items()} if completo else None
+    if ens is not None and ens["temperatura"].empty:
+        ens = None
     detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz, ciudad.elevacion)
-    hasta = ens["temperatura"].index[-1] if ens is not None and not ens["temperatura"].empty else None
 
-    if hasta is not None:
+    deterministas = None
+    if ens is not None:
         # --- Tira de días: mediana de los miembros, probabilidad por miembros y tiempo de Open-Meteo ---
         # Los días con al menos 20 h (los de 23 h del cambio de hora; el último, solo si llega casi completo)
         maximas, minimas = extremos_diarios(completo["temperatura"], fechas, minimo_horas=20)
@@ -669,33 +672,16 @@ def render_medio(ciudad, titulo=None):
         tarjetas.tira_dias(dias, f"Mediana de máxima y mínima y probabilidad de al menos {UMBRAL_LLUVIA} L/m² según "
                                  f"los {ens['temperatura'].shape[1]} miembros del ensemble {nombre}.")
         st.divider()
-
         deterministas = o_none(get_determinista, ciudad.lat, ciudad.lon, ciudad.tz, determinista, ciudad.elevacion)
-        det_temp = deterministas["temperatura"] if deterministas is not None else pd.DataFrame()
-        graficos.mostrar(graficos.medio_temperatura(ens["temperatura"], det_temp))
-        graficos.mostrar(graficos.lluvia(ens["precipitacion"], titulo="Lluvia · medio plazo"))
-        graficos.mostrar(graficos.viento(ens["rachas"], titulo="Rachas de viento · medio plazo"))
-        st.divider()
 
-    # --- Nubes, UV y nieve hasta donde llega el ensemble (o 5 días si no hay) ---
-    if detalle is not None:
-        hoy = ahora.tz_localize(None).normalize()
-        fin = hasta.tz_localize(None) if hasta is not None else hoy + pd.Timedelta(days=5)
-        dias_detalle = detalle["diario"][(detalle["diario"].index >= hoy) & (detalle["diario"].index <= fin)]
-        graficos.mostrar(graficos.nubes_uv(dias_detalle, "Nubosidad y UV · medio plazo"))
-        if mostrar_nieve(ciudad, ahora, detalle):
-            horas = detalle["horario"]
-            horas = horas[(horas.index >= desde.tz_localize(None)) & (horas.index <= fin)]
-            graficos.mostrar(graficos.nieve(horas, dias_detalle, "Nieve y cota de nieve · medio plazo",
-                                           detalle["elevacion"]))
+    # --- Ensemble, nubes, UV y nieve, hasta donde llega el ensemble (o 5 días si no hay), con un solo cursor ---
+    if visor.medio(ciudad, ens, deterministas, detalle, desde, mostrar_nieve(ciudad, ahora, detalle)):
         st.divider()
 
     # --- Mar: olas y temperatura del agua (7 días) ---
     if ciudad.mar:
         mar = o_none(get_mar, ciudad.lat, ciudad.lon, ciudad.tz)
-        if mar is not None and mar["horario"]["olas"].notna().any():
-            horario = mar["horario"][mar["horario"].index >= desde.tz_localize(None)]
-            graficos.mostrar(graficos.mar(horario, horario["direccion"].map(cardinal)))
+        if mar is not None and visor.mar(ciudad, mar, desde):
             st.caption(texto_mar(ciudad, mar) + ". Olas: altura significativa (la media del tercio más alto).")
             st.divider()
         else:
@@ -704,10 +690,8 @@ def render_medio(ciudad, titulo=None):
     # --- Calidad del aire y polen (los 4 días que da CAMS) ---
     aire = o_none(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz) if ciudad.calidad_aire else None
     if aire is not None and aire["european_aqi"].notna().any():
-        graficos.mostrar(graficos.calidad_aire(aire))
         con_polen = {f"{clave}_pollen": nombre for clave, nombre in POLENES.items() if aire[f"{clave}_pollen"].max() >= 1}
-        if con_polen:
-            graficos.mostrar(graficos.polen(aire, con_polen))
+        visor.calidad_aire(ciudad, aire, con_polen)
 
     _avisos(ciudad, ahora, hueco_avisos)
 
@@ -740,10 +724,10 @@ def render_largo(ciudad, titulo=None):
             ensembles[nombre] = {**datos, "precipitacion": datos["precipitacion"][datos["precipitacion"].index >= ahora.floor("h")]}
         else:
             st.warning(f"No se ha podido descargar el ensemble {nombre} de Open-Meteo.")
-    if ensembles:
-        graficos.mostrar(graficos.largo(ensembles, fechas, hoy=ahora.date()))
+    if ensembles and visor.largo(ciudad, ensembles, fechas, ahora.date()):
         st.caption("Bandas: rango 10-90 % de todos los miembros; líneas finas: mediana de cada modelo. Barras, por "
-                   f"modelo: probabilidad de al menos {UMBRAL_LLUVIA} L/m² en el día y lluvia media de sus miembros.")
+                   f"modelo: probabilidad de al menos {UMBRAL_LLUVIA} L/m² en el día y lluvia media de sus miembros "
+                   "(entre paréntesis, la que alcanza el 10 % más lluvioso).")
 
     if ciudad.resumen_mensual and ciudad.estacion_aemet and usa_opendata:
         st.divider()

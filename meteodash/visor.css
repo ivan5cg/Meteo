@@ -1,0 +1,61 @@
+/* Visor de series del medio y el largo plazo (ver visor.js), con el aspecto del meteograma de las 48 h */
+.visor {
+  --texto: #2a241f; --suave: #635b53; --tenue: #8a8178; --acento: #d97706;
+  color: var(--texto); font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; outline: none; border-radius: 12px;
+  -webkit-user-select: none; user-select: none;
+}
+.visor:focus-visible { box-shadow: 0 0 0 2px var(--acento); }
+
+.vs-titulo { margin-bottom: 4px; font-size: 16px; font-weight: 700; }
+.vs-cabecera { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.vs-hora { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.vs-hora small { margin-left: 8px; font-size: 13px; font-weight: 500; color: var(--suave); }
+.vs-ahora, .vs-plegable {
+  border: 1px solid #d6cfc4; border-radius: 8px; background: #f7f4ee; color: var(--texto); font: inherit;
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.vs-ahora { flex: none; padding: 3px 10px; }
+.vs-ahora:hover, .vs-plegable:hover { border-color: var(--acento); color: #b45309; }
+
+.vs-leyenda { display: flex; flex-wrap: wrap; gap: 3px 14px; margin: 4px 0 2px; font-size: 11.5px; color: var(--suave); }
+.vs-leyenda i { display: inline-block; width: 18px; margin-right: 5px; vertical-align: middle; }
+
+.vs-panel { margin-top: 10px; }
+.vs-lectura { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; min-height: 20px; font-size: 13px;
+              color: var(--suave); font-variant-numeric: tabular-nums; }
+.vs-lectura > b { font-size: 14px; color: var(--texto); }
+.vs-lectura span b { color: var(--texto); }
+.vs-dato { white-space: nowrap; }
+/* Color de cada serie en la lectura (modelos, tipos de polen), que hace de leyenda */
+.vs-chip { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 2px; }
+
+.vs-svg, .vs-eje { display: block; width: 100%; overflow: visible; touch-action: pan-y; cursor: crosshair; }
+.vs-eje { height: 22px; }
+.vs-svg text, .vs-eje text { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; }
+.vs-noche { fill: rgba(70, 80, 110, 0.07); }
+.vs-dia { stroke: rgba(60, 50, 40, 0.25); }
+.vs-guia { stroke: rgba(60, 50, 40, 0.1); }
+.vs-separador { stroke: rgba(60, 50, 40, 0.25); }
+.vs-valor-eje { fill: var(--tenue); font-size: 10px; text-anchor: end; font-variant-numeric: tabular-nums; }
+.vs-ahora-linea { stroke: var(--suave); stroke-dasharray: 2 3; }
+.vs-referencia { stroke-width: 1.5; stroke-dasharray: 2 3; }
+.vs-referencia-texto { font-size: 10.5px; font-weight: 600; paint-order: stroke; stroke: #e8e3da; stroke-width: 3px; }
+.vs-etiqueta { font-size: 11px; font-weight: 700; text-anchor: middle; paint-order: stroke; stroke: #e8e3da;
+               stroke-width: 3px; }
+.vs-cursor line { stroke: var(--texto); stroke-width: 1.2; opacity: 0.75; }
+.vs-cursor circle { stroke: #fff; stroke-width: 2; }
+.vs-dia-texto { fill: var(--suave); font-size: 11px; font-weight: 600; text-anchor: middle; }
+.vs-eje-cursor rect { fill: var(--texto); }
+.vs-eje-cursor text { fill: #fff; font-size: 11px; font-weight: 700; text-anchor: middle; }
+
+.vs-plegable { display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 14px; padding: 7px 12px;
+               text-align: left; }
+.vs-plegable em { margin-left: auto; font-style: normal; font-weight: 600; color: #0284c7; }
+.vs-flecha { display: inline-block; transition: transform 0.15s; }
+.vs-plegable[aria-expanded="true"] .vs-flecha { transform: rotate(90deg); }
+
+@media (max-width: 640px) {
+  .vs-hora { font-size: 15px; }
+  .vs-hora small { display: block; margin-left: 0; }
+  .vs-lectura { font-size: 12px; }
+}
