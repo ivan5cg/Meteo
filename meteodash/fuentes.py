@@ -29,8 +29,8 @@ ENSEMBLES = {
 # DIAS_MEDIO días o hasta donde llegue el ensemble
 MEDIO_PLAZO = {
     "icon_eu": ("icon_eu", "icon_eu"),  # Europa (el dominio del ICON-EU)
-    # Fuera de Europa (Nueva York): el ensemble ECMWF, el mismo pase que el largo plazo, y el GFS determinista, con el
-    # HRRR de 3 km en las primeras horas. El ICON global EPS no da rachas fuera de Europa
+    # Fuera de Europa (Nueva York y Asia): el ensemble ECMWF, el mismo pase que el largo plazo, y el GFS determinista,
+    # en EE. UU. con el HRRR de 3 km en las primeras horas. El ICON global EPS no da rachas fuera de Europa
     "ecmwf": ("ecmwf_ifs025", "gfs_seamless"),
 }
 DIAS_MEDIO = 6
@@ -288,8 +288,8 @@ ENSEMBLES_48H = {
              "meta": "ukmo_uk_ensemble_2km"},
     # Finlandia, el Báltico y Eslovenia: ICON-EU EPS, 40 miembros (sus metadatos en Open-Meteo están parados)
     "icon_eu": {"nombre": "ICON-EU", "modelos": {"icon_eu": ("", False)}, "horizonte": 120},
-    # Nueva York: GEFS 0,25º de la NOAA, control y 30 miembros. Sale cada 3 h: Open-Meteo interpola la temperatura, el
-    # viento y la presión hora a hora y reparte la lluvia de cada 3 h a partes iguales entre ellas
+    # Nueva York y Asia: GEFS 0,25º de la NOAA, control y 30 miembros. Sale cada 3 h: Open-Meteo interpola la
+    # temperatura, el viento y la presión hora a hora y reparte la lluvia de cada 3 h a partes iguales entre ellas
     "gefs": {"nombre": "GEFS", "modelos": {"gfs025": ("", True)}, "meta": "ncep_gefs025"},
 }
 VARIABLES_48H = {"temperatura": "temperature_2m", "precipitacion": "precipitation", "rachas": "wind_gusts_10m",

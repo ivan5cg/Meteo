@@ -63,7 +63,8 @@ class Ciudad:
     nieve_fuera_de_temporada: bool = False  # también fuera de MESES_NIEVE si se prevé nieve en la semana
     calidad_aire: bool = True  # índice europeo de calidad del aire y polen
     mar: bool = False  # oleaje y temperatura del agua en el punto de mar más cercano (modelo de Open-Meteo)
-    pais: str = "spain"  # feed de avisos de Meteoalarm o, en EE. UU., avisos.NWS (los del NWS para el punto)
+    # Feed de avisos de Meteoalarm o, en EE. UU., avisos.NWS (los del NWS para el punto); en Asia, sin avisos
+    pais: str = "spain"
     zonas_aviso: tuple[str, ...] = ()  # códigos o nombres de las zonas de aviso de Meteoalarm
     avisos_por_poligono: bool = False  # también los avisos cuyo polígono contiene el punto (sin código de zona)
     camaras: tuple[Camara, ...] = ()  # mejor de sitios céntricos o emblemáticos; si no, de carreteras cercanas
@@ -393,7 +394,7 @@ def _cabecera(ciudad, titulo):
 
     if titulo:
         st.header(titulo)
-        if not ciudad.tz.startswith("Europe/"):  # Nueva York: su hora y la de Madrid
+        if not ciudad.tz.startswith("Europe/"):  # Nueva York y Asia: su hora y la de Madrid
             tarjetas.hora_local(ciudad.tz, pd.Timestamp.now(tz=ciudad.tz))
     if ciudad.con_avisos:
         en_paralelo(*descarga_avisos(ciudad.pais, ciudad.punto_avisos))

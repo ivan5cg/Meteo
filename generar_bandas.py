@@ -31,8 +31,8 @@ DIAS_AÑO_COMPLETO = 330
 UA = {"User-Agent": "Mozilla/5.0 (Meteo Dash; Streamlit)"}
 
 # Página -> (fuente, código de la estación, cómo se cita). Solo estaciones cercanas y representativas del punto con un
-# registro largo; sin ninguna así (Brujas, Riga, Londres, el Pirineo y las Highlands salvo Edimburgo), la página va
-# sin bandas
+# registro largo; sin ninguna así (Brujas, Riga, Londres, el Pirineo, las Highlands salvo Edimburgo y Asia salvo Beijing
+# y Chongqing: ver lugares.py), la página va sin bandas
 ESTACIONES = {
     "alicante": ("aemet", "8025", "Alicante"),
     "santander": ("ghcn", "SPE00119981", "Santander"),
@@ -48,6 +48,8 @@ ESTACIONES = {
     "rovaniemi": ("ghcn", "FIE00146241", "Rovaniemi (estación de tren)"),
     "tallin": ("ghcn", "ENE00175051", "Tallinn-Harku"),
     "nueva_york": ("ghcn", "USW00094728", "Central Park"),
+    "beijing": ("ghcn", "CHM00054511", "Beijing (OMM 54511)"),
+    "chongqing": ("ghcn", "CHM00057516", "Chongqing Shapingba"),
 }
 NOMBRES_FUENTE = {"aemet": "AEMET", "ghcn": "GHCN-Daily, NOAA", "kmi": "KMI"}
 

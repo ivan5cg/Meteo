@@ -14,8 +14,8 @@ from .observaciones import Estacion
 # reproducir fuera de su web; si no hay, las de carreteras a unos pocos km. Sin ninguna así: Torla-Ordesa, Milán,
 # Bélgica (la de la Grand-Place no deja reproducirse fuera de la web del ayuntamiento), Escocia y Tallin (las de sus
 # carreteras no tienen URL fija: la imagen va dentro de su web o cambia de nombre con cada foto), Riga (las de
-# carretera están a 10-20 km y la imagen va dentro de las teselas de su mapa) y Nueva York (falta comprobar las del
-# Departamento de Transporte de la ciudad)
+# carretera están a 10-20 km y la imagen va dentro de las teselas de su mapa), Nueva York (falta comprobar las del
+# Departamento de Transporte de la ciudad) y Asia (sin buscar todavía)
 
 def _dgt(*camaras):
     return tuple(Camara(f"https://etraffic.dgt.es/camarasEtraffic/{codigo}.jpg", "DGT", nombre)
@@ -241,6 +241,35 @@ NUEVA_YORK = Ciudad(nombre="Nueva York", lat=40.758, lon=-73.985,  # Times Squar
                     tz="America/New_York", elevacion=15, ensemble="gefs", medio="ecmwf", nieve=True, pais=NWS,
                     estaciones=(Estacion("metar", "KNYC", "Central Park"),), bandas="datos/bandas/nueva_york.csv")
 
+# ---------------------------------------------------------------- Asia
+
+# Como en Nueva York: el ensemble a 48 h es el GEFS de la NOAA y el del medio plazo, el ECMWF, con el GFS determinista.
+# Sin avisos oficiales: Meteoalarm y el NWS no llegan a Asia. Altitud del suelo: la del modelo del terreno de Open-Meteo
+# vale en todos los puntos (no da la de los tejados, como en Times Square).
+# Observación: METAR del aeropuerto solo si está a 20 km o menos, en llano y dentro de la ciudad (Haneda, Hongqiao,
+# Subang y Don Mueang). No lo son Beijing Capital (26 km, en el campo, con noches más frías que el centro), Noi Bai
+# (22 km, al otro lado del río Rojo y en el campo), Chek Lap Kok (26 km, junto a la isla de Lantau) ni Chongqing
+# Jiangbei (19 km y 150 m más arriba).
+# Rangos habituales, solo en Beijing y Chongqing: en el resto, GHCN-Daily solo tiene los resúmenes diarios GSOD, con
+# huecos (de 1991 a 2020 falta la mínima del 22 % de los días en Bangkok, del 39 % en Subang y del 45 % en Tokio; Noi
+# Bai, casi siempre), o el registro del centro se corta (el Observatorio de Hong Kong, en 1992; Xujiahui, en Shanghái,
+# tiene 10 años completos, y Baoshan está a 19 km, junto al estuario del Yangtsé)
+def _asia(nombre, lat, lon, tz, metar=None, aeropuerto=None, **opciones):
+    estaciones = (Estacion("metar", metar, f"aeropuerto de {aeropuerto}"),) if metar else ()
+    return Ciudad(nombre, lat, lon, tz=tz, ensemble="gefs", medio="ecmwf", estaciones=estaciones, **opciones)
+
+
+TOKIO = _asia("Tokio", 35.681, 139.767, "Asia/Tokyo", "RJTT", "Haneda", nieve=True)  # estación de Tokio, a 14 km
+BEIJING = _asia("Beijing", 39.904, 116.397, "Asia/Shanghai", nieve=True,  # plaza de Tiananmén
+                bandas="datos/bandas/beijing.csv")
+SHANGHAI = _asia("Shanghái", 31.230, 121.474, "Asia/Shanghai", "ZSSS", "Hongqiao")  # plaza del Pueblo, a 13 km
+CHONGQING = _asia("Chongqing", 29.557, 106.577, "Asia/Shanghai",  # Jiefangbei, en la península de Yuzhong
+                  bandas="datos/bandas/chongqing.csv")
+HONG_KONG = _asia("Hong Kong", 22.302, 114.174, "Asia/Hong_Kong")  # Tsim Sha Tsui, junto al Observatorio
+HANOI = _asia("Hanói", 21.028, 105.852, "Asia/Ho_Chi_Minh")  # lago Hoan Kiem
+BANGKOK = _asia("Bangkok", 13.746, 100.535, "Asia/Bangkok", "VTBD", "Don Mueang")  # Siam, a 20 km
+KUALA_LUMPUR = _asia("Kuala Lumpur", 3.148, 101.694, "Asia/Kuala_Lumpur", "WMSA", "Subang")  # plaza Merdeka, a 16 km
+
 # ---------------------------------------------------------------- Portada
 
 # Secciones de la navegación: (página, lugares que muestra)
@@ -253,4 +282,8 @@ SECCIONES = {
     "Báltico y Laponia": [("paginas/helsinki.py", [HELSINKI]), ("paginas/rovaniemi.py", [ROVANIEMI]),
                           ("paginas/tallin.py", [TALLIN]), ("paginas/riga.py", [RIGA])],
     "América": [("paginas/nueva_york.py", [NUEVA_YORK])],
+    "Asia": [("paginas/tokio.py", [TOKIO]), ("paginas/beijing.py", [BEIJING]), ("paginas/shanghai.py", [SHANGHAI]),
+             ("paginas/chongqing.py", [CHONGQING]), ("paginas/hong_kong.py", [HONG_KONG]),
+             ("paginas/hanoi.py", [HANOI]), ("paginas/bangkok.py", [BANGKOK]),
+             ("paginas/kuala_lumpur.py", [KUALA_LUMPUR])],
 }
