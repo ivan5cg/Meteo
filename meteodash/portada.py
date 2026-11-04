@@ -33,7 +33,8 @@ def _descargar_todo(lugares):
 
 def resumen_lugar(ciudad, ahora):
     """Temperatura observada (valor, momento) o None; hoy y mañana según el ensemble del medio plazo de su página (el
-    ICON-EU en Europa; dict(tmax, tmin, prob, codigo), o falta el día); y los avisos oficiales que tocan hoy o mañana."""
+    ICON-EU en Europa y el ECMWF fuera; dict(tmax, tmin, prob, codigo), o falta el día); y los avisos oficiales que
+    tocan hoy o mañana."""
 
     hoy, mañana = ahora.date(), (ahora + pd.Timedelta(days=1)).date()
     dias = {}
@@ -176,6 +177,7 @@ def render_portada():
     st.caption("**Ahora**: última observación oficial de la estación de cada página (– si no hay una cercana y "
                "representativa). **Hoy y mañana**: mediana de las máximas y mínimas y probabilidad de al menos "
                f"{UMBRAL_LLUVIA} L/m² (de hoy, lo que queda) según los miembros del ensemble del medio plazo de cada "
-               "página (los 40 del ICON-EU en Europa y los 51 del ECMWF en Nueva York); el icono, el tiempo previsto "
-               "por Open-Meteo. **Avisos**: los oficiales de hoy y mañana (Meteoalarm y, en Nueva York, el NWS).")
+               "página (los 40 del ICON-EU en Europa y los 51 del ECMWF en Nueva York y Asia); el icono, el tiempo "
+               "previsto por Open-Meteo. **Avisos**: los oficiales de hoy y mañana (Meteoalarm y, en Nueva York, el "
+               "NWS; en Asia, de momento, ninguno).")
     st.page_link("paginas/punto.py", label="Ver otro punto de Europa", icon=":material/add_location_alt:")

@@ -20,12 +20,12 @@ paginas = st.navigation({
         st.Page("paginas/pirineos.py", title="Pirineos", icon=":material/terrain:"),
     ],
     "Europa": [
-        st.Page("paginas/dublin.py", title="Dublín", icon=":material/public:"),
-        st.Page("paginas/milan.py", title="Milán", icon=":material/public:"),
-        st.Page("paginas/eslovenia.py", title="Liubliana y Bled", icon=":material/public:"),
-        st.Page("paginas/belgica.py", title="Bélgica", icon=":material/public:"),
-        st.Page("paginas/escocia.py", title="Edimburgo y Highlands", icon=":material/public:"),
-        st.Page("paginas/londres.py", title="Londres", icon=":material/public:"),
+        st.Page("paginas/dublin.py", title="Dublín", icon=":material/sports_bar:"),
+        st.Page("paginas/milan.py", title="Milán", icon=":material/church:"),
+        st.Page("paginas/eslovenia.py", title="Liubliana y Bled", icon=":material/forest:"),
+        st.Page("paginas/belgica.py", title="Bélgica", icon=":material/cookie:"),
+        st.Page("paginas/escocia.py", title="Edimburgo y Highlands", icon=":material/golf_course:"),
+        st.Page("paginas/londres.py", title="Londres", icon=":material/directions_bus:"),
     ],
     "Báltico y Laponia": [
         st.Page("paginas/helsinki.py", title="Helsinki", icon=":material/directions_boat:"),
@@ -35,6 +35,16 @@ paginas = st.navigation({
     ],
     "América": [
         st.Page("paginas/nueva_york.py", title="Nueva York", icon=":material/apartment:"),
+    ],
+    "Asia": [
+        st.Page("paginas/tokio.py", title="Tokio", icon=":material/local_florist:"),
+        st.Page("paginas/beijing.py", title="Beijing", icon=":material/stadium:"),
+        st.Page("paginas/shanghai.py", title="Shanghái", icon=":material/domain:"),
+        st.Page("paginas/chongqing.py", title="Chongqing", icon=":material/soup_kitchen:"),
+        st.Page("paginas/hong_kong.py", title="Hong Kong", icon=":material/tram:"),
+        st.Page("paginas/hanoi.py", title="Hanói", icon=":material/two_wheeler:"),
+        st.Page("paginas/bangkok.py", title="Bangkok", icon=":material/temple_buddhist:"),
+        st.Page("paginas/kuala_lumpur.py", title="Kuala Lumpur", icon=":material/mosque:"),
     ],
     "Explorar": [
         st.Page("paginas/punto.py", title="Cualquier punto", icon=":material/add_location_alt:"),
