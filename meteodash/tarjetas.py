@@ -1,6 +1,7 @@
 """Datos de ahora, hoy y mañana, avisos y tabla de récords (HTML con las clases de estilo.CSS)."""
 
-from html import escape
+import re
+from html import escape, unescape
 
 import numpy as np
 import pandas as pd
@@ -309,6 +310,18 @@ def _momento(t, ahora):
     return f"{nombre} {t:%H:%M}"
 
 
+def _lineas_texto(texto):
+    """Líneas de texto plano de una descripción que puede venir en HTML (Meteoalarm de Met Éireann
+    manda `<p>…</p><ul><li>…</li></ul>` con `&nbsp;`): las viñetas pasan a «• » y las entidades a caracteres."""
+
+    texto = unescape(unescape(texto or ""))  # algunas fuentes escapan dos veces
+    texto = re.sub(r"(?i)<\s*li[^>]*>", "\n• ", texto)
+    texto = re.sub(r"(?i)<\s*(br|/p|p|/li|/?ul|/?ol|/?div)[^>]*>", "\n", texto)
+    texto = re.sub(r"<[^>]+>", "", texto).replace("\xa0", " ")
+    lineas = (re.sub(r"[ \t]+", " ", linea).strip() for linea in texto.splitlines())
+    return [linea for linea in lineas if linea and linea != "•"]
+
+
 def avisos_oficiales(lista, ahora):
     """Avisos de Meteoalarm o del NWS (ver avisos.avisos_vigentes), con el intervalo en hora local."""
 
@@ -327,7 +340,7 @@ def avisos_oficiales(lista, ahora):
             periodo = f"{_momento(inicio, ahora)} – {_momento(fin, ahora)}"
         fenomeno, emoji = TIPOS.get(aviso["tipo"], ("fenómenos adversos", "⚠️"))
         # Todo en una línea: _html recorta cada línea y Markdown rompería el bloque con los saltos del texto
-        detalle = "<br>".join(escape(linea.strip()) for linea in aviso["descripcion"].splitlines() if linea.strip())
+        detalle = "<br>".join(escape(linea) for linea in _lineas_texto(aviso["descripcion"]))
         detalle = (f'<details class="alert-detalle"><summary>Detalles</summary>{detalle}</details>'
                    if detalle else "")
         html += (f'<div class="alert-item alert-oficial" style="--aviso: {color};">'
