@@ -270,6 +270,14 @@ HANOI = _asia("Hanói", 21.028, 105.852, "Asia/Ho_Chi_Minh")  # lago Hoan Kiem
 BANGKOK = _asia("Bangkok", 13.746, 100.535, "Asia/Bangkok", "VTBD", "Don Mueang")  # Siam, a 20 km
 KUALA_LUMPUR = _asia("Kuala Lumpur", 3.148, 101.694, "Asia/Kuala_Lumpur", "WMSA", "Subang")  # plaza Merdeka, a 16 km
 
+# Yakutsk, la gran ciudad más fría del mundo: medias de -40º en enero y de +20º en julio, sobre el permafrost. Nieve de
+# octubre a mayo (también fuera de MESES_NIEVE). Observación: METAR del aeropuerto, a 7 km, en llano y en el borde de
+# la ciudad. Rangos habituales: GHCN-Daily tiene la estación de Yakutsk (OMM 24959) completa; falta generar su CSV
+# (python generar_bandas.py yakutsk). Auroras, no: con una latitud geomagnética de 53,4º (la del dipolo; los 62º de
+# latitud no cuentan) harían falta Kp 7, como en Londres
+YAKUTSK = _asia("Yakutsk", 62.028, 129.732, "Asia/Yakutsk", "UEEE", "Yakutsk",  # plaza de Lenin
+                nieve=True, nieve_fuera_de_temporada=True)
+
 # ---------------------------------------------------------------- Portada
 
 # Secciones de la navegación: (página, lugares que muestra)
@@ -285,5 +293,5 @@ SECCIONES = {
     "Asia": [("paginas/tokio.py", [TOKIO]), ("paginas/beijing.py", [BEIJING]), ("paginas/shanghai.py", [SHANGHAI]),
              ("paginas/chongqing.py", [CHONGQING]), ("paginas/hong_kong.py", [HONG_KONG]),
              ("paginas/hanoi.py", [HANOI]), ("paginas/bangkok.py", [BANGKOK]),
-             ("paginas/kuala_lumpur.py", [KUALA_LUMPUR])],
+             ("paginas/kuala_lumpur.py", [KUALA_LUMPUR]), ("paginas/yakutsk.py", [YAKUTSK])],
 }
