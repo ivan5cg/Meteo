@@ -552,6 +552,15 @@ a.pl-fila:hover {
     border-left: 5px solid var(--aviso);
     color: #2a241f;
 }
+/* Avisos propios de cada lugar (tarjetas.alertas_propias): mismas tarjetas que los oficiales, en violeta */
+.alertas-propias-titulo {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #6d28d9;
+    margin: 4px 0 6px;
+}
 .alert-emoji {
     font-size: 1.5rem;
     line-height: 1;
