@@ -8,6 +8,7 @@ import streamlit as st
 
 from . import graficos, luna, tarjetas, visor
 from .actualizar import antiguedad, linea_datos
+from .alertas import Alerta, alertas_del_lugar
 from .estilo import AZUL, ROJO, coma
 from .aemet_opendata import (DIAS_MONTAÑA, DIAS_PREDICCION, get_boletin_aludes, get_comentario_aemet,
                              get_prediccion_montaña, get_resumen_mensual, hay_clave, normales_mensuales, racha_maxima,
@@ -73,6 +74,8 @@ class Ciudad:
     ensemble: str = "arome"
     medio: str = "icon_eu"  # clave de fuentes.MEDIO_PLAZO: ensemble y determinista del medio plazo y de la portada
     kp_auroras: float | None = None  # Kp desde el que suelen verse auroras: añade la pestaña de auroras
+    # Avisos propios del lugar (ver alertas.py): umbrales y textos de lo que allí importa, encima de los gráficos
+    alertas: tuple[Alerta, ...] = ()
 
     @property
     def con_avisos(self):
@@ -440,6 +443,8 @@ def render_48h(ciudad, titulo=None):
         en_paralelo(get_calidad_aire, ciudad.lat, ciudad.lon, ciudad.tz)
     if ciudad.mar:
         en_paralelo(get_mar, ciudad.lat, ciudad.lon, ciudad.tz)
+    if ciudad.alertas:  # los avisos propios miran hasta donde llega el ensemble del medio plazo
+        en_paralelo(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, MEDIO_PLAZO[ciudad.medio][0], ciudad.elevacion)
     hueco_datos = st.empty()
 
     variables = ["temperatura", "precipitacion", "rachas"] + (["presion", "mucape"] if ciudad.presion_y_cape else [])
@@ -540,6 +545,9 @@ def render_48h(ciudad, titulo=None):
         datos_de_ahora = None if pd.isna(prevista) else {"temp": round(prevista, 1), "observada": False}
     if datos_de_ahora is not None and detalle is not None:
         datos_de_ahora["sensacion"] = _hora_actual(detalle["horario"], ahora)["sensacion"]
+    if ciudad.alertas:
+        medio = o_none(get_ensemble, ciudad.lat, ciudad.lon, ciudad.tz, MEDIO_PLAZO[ciudad.medio][0], ciudad.elevacion)
+        tarjetas.alertas_propias(alertas_del_lugar(ciudad, medio, detalle, ahora), ciudad.nombre, ahora)
 
     extremos = [
         {"label": "Máx. hoy", "temp": max_hoy, "perc": percentiles.get("max_hoy"), "horas": horas_hoy},
@@ -659,6 +667,8 @@ def render_medio(ciudad, titulo=None):
     if ens is not None and ens["temperatura"].empty:
         ens = None
     detalle = o_none(get_open_meteo_detalle, ciudad.lat, ciudad.lon, ciudad.tz, ciudad.elevacion)
+    if tarjetas.alertas_propias(alertas_del_lugar(ciudad, completo or None, detalle, ahora), ciudad.nombre, ahora):
+        st.divider()
 
     deterministas = None
     if ens is not None:

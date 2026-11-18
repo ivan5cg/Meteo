@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from .aemet_opendata import MESES, NIVELES_ALUDES
+from .alertas import TIPOS as ALERTAS_TIPOS
 from .avisos import NIVELES, TIPOS
 from .estilo import AMBAR, AZUL, ROJO, coma
 from .graficos import dia_semana
@@ -349,6 +350,32 @@ def avisos_oficiales(lista, ahora):
                  f'<span class="alert-periodo">{periodo}</span>{detalle}</span></div>')
 
     _html(f'<div class="alerts-container oficiales">{html}</div>')
+    return True
+
+
+COLOR_PROPIO = "#7c3aed"  # avisos propios de cada lugar (ver alertas.py): violeta, para no confundirlos con los oficiales
+
+
+def alertas_propias(lista, lugar, ahora):
+    """Avisos propios del lugar que se disparan (ver alertas.alertas_del_lugar): día, qué supone allí y el dato."""
+
+    if not lista:
+        return False
+
+    hoy = ahora.date()
+    html = ""
+    for item in lista:
+        alerta, fecha = item["alerta"], item["fecha"]
+        dia = {0: "Hoy", 1: "Mañana"}.get((fecha - hoy).days, dia_semana(fecha))
+        emoji = ALERTAS_TIPOS[alerta.tipo][0]
+        desde, hasta = alerta.horas
+        html += (f'<div class="alert-item alert-oficial" style="--aviso: {COLOR_PROPIO};">'
+                 f'<span class="alert-emoji">{emoji}</span>'
+                 f'<span class="alert-text"><b>{escape(dia)}, de {desde} a {hasta} h.</b> {escape(alerta.texto)}'
+                 f'<span class="alert-periodo">{escape(item["dato"])}</span></span></div>')
+
+    _html(f'<p class="alertas-propias-titulo">Para tener en cuenta en {escape(lugar)}</p>'
+          f'<div class="alerts-container oficiales">{html}</div>')
     return True
 
 

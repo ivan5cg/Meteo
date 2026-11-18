@@ -5,6 +5,7 @@ hacia arriba. Según la NOAA, el borde está hacia los 66º geomagnéticos con K
 latitud geomagnética con el dipolo del IGRF de 2025 (polo norte en 80,8º N 72,7º O).
 """
 
+from .alertas import Alerta
 from .avisos import NWS
 from .ciudad import Camara, Ciudad
 from .observaciones import Estacion
@@ -175,10 +176,51 @@ BELGICA = [
 # «Central, Tayside & Fife», que incluye Stirling y Perth and Kinross). Observación: METAR de los aeropuertos de
 # Edimburgo e Inverness (la Met Office solo da las de sus estaciones con clave); rangos habituales, solo los de
 # Edimburgo. Auroras: latitud geomagnética de 58,1º en Edimburgo y de 58,6-59,8º en el resto (Kp 4 en todos)
+# Avisos propios (ver alertas.py): lo que importa en cada parada, en las horas en que la excursión suele pasar por allí
+# (salida de Edimburgo a las 7:00 y vuelta hacia las 20:30). Los umbrales son orientativos: se pueden ajustar aquí
+ALERTAS_ESCOCIA = {
+    "Edimburgo": (
+        Alerta("rachas", 60, "Viento fuerte: cuidado en Calton Hill, la explanada del castillo y los puentes; el "
+                             "paraguas no sirve de mucho", horas=(8, 23)),
+        Alerta("helada", 0, "Posible hielo en los adoquines de la Royal Mile, Cockburn St y Victoria St: calzado con "
+                            "buena suela", horas=(6, 23)),
+        Alerta("lluvia", 5, "Tarde y noche de lluvia: cuenta con ella para el paseo hasta la cena y la vuelta",
+               horas=(17, 23)),
+    ),
+    "Kilmahog": (
+        Alerta("helada", 0, "Hielo en la carretera de subida (A84) y en el camino al cercado de las vacas peludas",
+               horas=(7, 11)),
+        Alerta("lluvia", 2, "Lluvia en la parada de las vacas peludas: barro en el cercado, impermeable a mano",
+               horas=(8, 11)),
+    ),
+    "Glen Coe": (
+        Alerta("rachas", 60, "Viento fuerte en los miradores de las Tres Hermanas: cuidado al borde y con el móvil, y "
+                             "mucho más frío del que marca el termómetro", horas=(10, 14)),
+        Alerta("nieve", 1, "Nieve en Glen Coe y Rannoch Moor (A82): puede retrasar la ruta o cambiar las paradas",
+               horas=(8, 15)),
+        Alerta("lluvia", 4, "Lluvia y nubes bajas: las Tres Hermanas pueden quedar tapadas", horas=(10, 14)),
+    ),
+    "Fort Augustus": (
+        Alerta("rachas", 50, "Viento en el Lago Ness: el barco puede moverse mucho o no salir", horas=(12, 16)),
+        Alerta("lluvia", 3, "Lluvia a la hora de comer: mejor un sitio a cubierto que comida para llevar",
+               horas=(12, 16)),
+    ),
+    "Inverness": (
+        Alerta("rachas", 60, "Viento fuerte en el paseo junto al río Ness", horas=(15, 18)),
+        Alerta("lluvia", 3, "Lluvia en el paseo por Inverness", horas=(15, 18)),
+    ),
+    "Pitlochry": (
+        Alerta("cota_nieve", 500, "Nieve en la A9 por el puerto de Drumochter (unos 460 m), el camino de vuelta: "
+                                  "puede retrasar la llegada a Edimburgo", horas=(16, 21)),
+        Alerta("helada", 0, "Hielo en la carretera de vuelta y en las aceras de Pitlochry", horas=(17, 21)),
+    ),
+}
+
 ESCOCIA = [
     Ciudad(nombre, lat, lon, tz="Europe/London", ensemble="ukmo", presion_y_cape=False,
            nieve=nieve, pais="united-kingdom", zonas_aviso=zonas,
-           estaciones=(Estacion("metar", metar, "aeropuerto"),) if metar else (), bandas=bandas, kp_auroras=kp)
+           estaciones=(Estacion("metar", metar, "aeropuerto"),) if metar else (), bandas=bandas, kp_auroras=kp,
+           alertas=ALERTAS_ESCOCIA.get(nombre, ()))
     for nombre, lat, lon, nieve, zonas, metar, bandas, kp in [
         ("Edimburgo", 55.953, -3.189, False, ("lothian",), "EGPH", "datos/bandas/edimburgo.csv", 4),
         ("Kilmahog", 56.248, -4.245, True, ("tayside",), None, None, 4),
