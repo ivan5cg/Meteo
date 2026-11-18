@@ -169,19 +169,23 @@ BELGICA = [
 ]
 
 # Fuera del dominio del PE-AROME: el ensemble a 48 h es el de la Met Office (MOGREPS-UK 2 km + MOGREPS-G).
-# Zonas de aviso: regiones de la Met Office en Meteoalarm. Observación: METAR de los aeropuertos de Edimburgo e
-# Inverness (la Met Office solo da las de sus estaciones con clave); rangos habituales, solo los de Edimburgo.
-# Auroras: latitud geomagnética de 58,1º en Edimburgo y de 59,3-60,0º en las Highlands (Portree, la más alta)
+# Lugares: Edimburgo y las paradas de la excursión del domingo 22/11/2026, en el orden de la ruta: Kilmahog (junto a
+# Callander), Glen Coe (mirador de las Tres Hermanas, en la A82), Fort Augustus (Lago Ness), Inverness y Pitlochry.
+# Zonas de aviso: regiones de la Met Office en Meteoalarm («Lothian & Borders», «Highlands & Eilean Siar» y
+# «Central, Tayside & Fife», que incluye Stirling y Perth and Kinross). Observación: METAR de los aeropuertos de
+# Edimburgo e Inverness (la Met Office solo da las de sus estaciones con clave); rangos habituales, solo los de
+# Edimburgo. Auroras: latitud geomagnética de 58,1º en Edimburgo y de 58,6-59,8º en el resto (Kp 4 en todos)
 ESCOCIA = [
     Ciudad(nombre, lat, lon, tz="Europe/London", ensemble="ukmo", presion_y_cape=False,
            nieve=nieve, pais="united-kingdom", zonas_aviso=zonas,
            estaciones=(Estacion("metar", metar, "aeropuerto"),) if metar else (), bandas=bandas, kp_auroras=kp)
     for nombre, lat, lon, nieve, zonas, metar, bandas, kp in [
         ("Edimburgo", 55.953, -3.189, False, ("lothian",), "EGPH", "datos/bandas/edimburgo.csv", 4),
+        ("Kilmahog", 56.248, -4.245, True, ("tayside",), None, None, 4),
+        ("Glen Coe", 56.668, -4.986, True, ("highland",), None, None, 4),
+        ("Fort Augustus", 57.143, -4.681, True, ("highland",), None, None, 4),
         ("Inverness", 57.478, -4.224, True, ("highland",), "EGPE", None, 4),
-        ("Fort William", 56.819, -5.105, True, ("highland",), None, None, 4),
-        ("Aviemore", 57.195, -3.826, True, ("highland", "grampian"), None, None, 4),
-        ("Portree (Skye)", 57.413, -6.196, True, ("highland",), None, None, 3),
+        ("Pitlochry", 56.704, -3.730, True, ("tayside",), None, None, 4),
     ]
 ]
 
