@@ -12,11 +12,10 @@ from .observaciones import Estacion
 
 
 # Cámaras: mejor de sitios céntricos o emblemáticos con imagen fija (JPG con URL estable) o vídeo HLS que se pueda
-# reproducir fuera de su web; si no hay, las de carreteras a unos pocos km. Sin ninguna así: Torla-Ordesa, Milán,
-# Bélgica (la de la Grand-Place no deja reproducirse fuera de la web del ayuntamiento), Escocia y Tallin (las de sus
-# carreteras no tienen URL fija: la imagen va dentro de su web o cambia de nombre con cada foto), Riga (las de
-# carretera están a 10-20 km y la imagen va dentro de las teselas de su mapa), Nueva York (falta comprobar las del
-# Departamento de Transporte de la ciudad) y Asia (sin buscar todavía)
+# reproducir fuera de su web; si no hay, las de carreteras a unos pocos km. Sin ninguna así: Kilmahog, Bélgica (la de
+# la Grand-Place no deja reproducirse fuera de la web del ayuntamiento y las de verkeerscentrum.be devuelven 403),
+# Riga (las de carretera están a 10-20 km y la imagen va dentro de las teselas de su mapa), Nueva York (nyctmc.org
+# bloquea peticiones desde fuera de EE. UU.) y Asia salvo Hong Kong (sin feeds JPG/HLS abiertos y estables)
 
 def _dgt(*camaras):
     return tuple(Camara(f"https://etraffic.dgt.es/camarasEtraffic/{codigo}.jpg", "DGT", nombre)
@@ -117,7 +116,9 @@ PIRINEOS = [
         ("Tramacastilla de Tena", 42.71396690891642, -0.3163249093993428,
          (Estacion("aemet", "9453X", "Embalse de Búbal"),),
          _dgt(("180323", "A-136 km 8,8, Saqués"), ("183192", "N-260a km 505, Biescas"))),
-        ("Torla-Ordesa", 42.640, 0.000, (), ()),
+        ("Torla-Ordesa", 42.640, 0.000, (),
+         (Camara("https://images-webcams.windy.com/03/1456992103/current/full/1456992103.jpg",
+                 "Windy Webcams", "Refugio de Góriz, Ordesa"),)),
     ]
 ]
 
@@ -133,7 +134,8 @@ DUBLIN = Ciudad(nombre="Dublín", lat=53.338, lon=-6.28, tz="Europe/Dublin", pai
 
 # Observación: METAR de Linate, a 7 km (los datos de ARPA Lombardia ya no se pueden consultar sin registro)
 MILAN = Ciudad(nombre="Milán", lat=45.464, lon=9.190, tz="Europe/Rome", pais="italy", zonas_aviso=("lombardia",),
-               estaciones=(Estacion("metar", "LIML", "aeropuerto de Linate"),), bandas="datos/bandas/milan.csv")
+               estaciones=(Estacion("metar", "LIML", "aeropuerto de Linate"),), bandas="datos/bandas/milan.csv",
+               camaras=(Camara("https://www.meteogiuliacci.it/webcam/milano.jpg", "MeteoGiuliacci"),))
 
 # Fuera del dominio del PE-AROME: el ensemble a 48 h es el ICON-EU EPS.
 # Zonas de aviso: regiones de ARSO, por el nombre en esloveno o en inglés (Liubliana en la central, Bled en la noroeste).
@@ -220,14 +222,23 @@ ESCOCIA = [
     Ciudad(nombre, lat, lon, tz="Europe/London", ensemble="ukmo", presion_y_cape=False,
            nieve=nieve, pais="united-kingdom", zonas_aviso=zonas,
            estaciones=(Estacion("metar", metar, "aeropuerto"),) if metar else (), bandas=bandas, kp_auroras=kp,
-           alertas=ALERTAS_ESCOCIA.get(nombre, ()))
-    for nombre, lat, lon, nieve, zonas, metar, bandas, kp in [
-        ("Edimburgo", 55.953, -3.189, False, ("lothian",), "EGPH", "datos/bandas/edimburgo.csv", 4),
-        ("Kilmahog", 56.248, -4.245, True, ("tayside",), None, None, 4),
-        ("Glen Coe", 56.668, -4.986, True, ("highland",), None, None, 4),
-        ("Fort Augustus", 57.143, -4.681, True, ("highland",), None, None, 4),
-        ("Inverness", 57.478, -4.224, True, ("highland",), "EGPE", None, 4),
-        ("Pitlochry", 56.704, -3.730, True, ("tayside",), None, None, 4),
+           camaras=camaras, alertas=ALERTAS_ESCOCIA.get(nombre, ()))
+    for nombre, lat, lon, nieve, zonas, metar, bandas, kp, camaras in [
+        ("Edimburgo", 55.953, -3.189, False, ("lothian",), "EGPH", "datos/bandas/edimburgo.csv", 4,
+         (Camara("https://images-webcams.windy.com/75/1653631975/current/full/1653631975.jpg", "Windy Webcams"),)),
+        ("Kilmahog", 56.248, -4.245, True, ("tayside",), None, None, 4, ()),
+        ("Glen Coe", 56.668, -4.986, True, ("highland",), None, None, 4,
+         (Camara("https://www.winterhighland.info/cams/glencoe/base.jpeg", "Glencoe Mountain Resort", "Base"),
+          Camara("https://www.winterhighland.info/cams/glencoe/base1200.jpeg", "Glencoe Mountain Resort",
+                 "Cota 365 m (1200 ft)"))),
+        ("Fort Augustus", 57.143, -4.681, True, ("highland",), None, None, 4,
+         (Camara("https://abbeycottagelochness.co.uk/cams/cam-11.jpg", "Abbey Cottage",
+                 "Esclusas del canal de Caledonia"),)),
+        ("Inverness", 57.478, -4.224, True, ("highland",), "EGPE", None, 4,
+         (Camara("https://images-webcams.windy.com/56/1660716056/current/full/1660716056.jpg", "Windy Webcams"),)),
+        ("Pitlochry", 56.704, -3.730, True, ("tayside",), None, None, 4,
+         (Camara("https://s153.ipcamlive.com/streams/992tvpk1jicko47ag/snapshot.jpg", "Pitlochry Webcam",
+                 "Atholl Road"),)),
     ]
 ]
 
@@ -268,7 +279,14 @@ ROVANIEMI = Ciudad(nombre="Rovaniemi", lat=66.503, lon=25.729, tz="Europe/Helsin
 # Auroras: latitud geomagnética de 57,1º
 TALLIN = Ciudad(nombre="Tallin", lat=59.437, lon=24.754, tz="Europe/Tallinn", ensemble="icon_eu", nieve=True,
                 pais="estonia", zonas_aviso=("EE004", "harju"),
-                estaciones=(Estacion("metar", "EETN", "aeropuerto"),), bandas="datos/bandas/tallin.csv", kp_auroras=5)
+                estaciones=(Estacion("metar", "EETN", "aeropuerto"),), bandas="datos/bandas/tallin.csv", kp_auroras=5,
+                camaras=tuple(
+                    Camara(f"https://ristmikud.tallinn.ee/last/cam{codigo}.jpg", "Tallinna Transpordiamet", nombre)
+                    for codigo, nombre in [("103", "Viru väljak (hacia Mere pst)"),
+                                           ("104", "Viru väljak (hacia Pärnu mnt)"),
+                                           ("001", "Estonia pst · Teatri väljak"),
+                                           ("056", "Pärnu mnt · Draamateater")]
+                ))
 
 # Letonia delimita los avisos en tierra con polígonos y no con códigos; por el nombre se colarían los del golfo de Riga.
 # Observación de LVĢMC en la Universidad, en el centro (no hay un registro diario largo y público para los rangos).
@@ -311,7 +329,14 @@ BEIJING = _asia("Beijing", 39.904, 116.397, "Asia/Shanghai", nieve=True,  # plaz
 SHANGHAI = _asia("Shanghái", 31.230, 121.474, "Asia/Shanghai", "ZSSS", "Hongqiao")  # plaza del Pueblo, a 13 km
 CHONGQING = _asia("Chongqing", 29.557, 106.577, "Asia/Shanghai",  # Jiefangbei, en la península de Yuzhong
                   bandas="datos/bandas/chongqing.csv")
-HONG_KONG = _asia("Hong Kong", 22.302, 114.174, "Asia/Hong_Kong")  # Tsim Sha Tsui, junto al Observatorio
+HONG_KONG = _asia("Hong Kong", 22.302, 114.174, "Asia/Hong_Kong",  # Tsim Sha Tsui, junto al Observatorio
+                  camaras=tuple(
+                      Camara(f"https://tdcctv.data.one.gov.hk/{codigo}.JPG", "Transport Department", nombre)
+                      for codigo, nombre in [("K101F", "Nathan Rd · Salisbury Rd (Tsim Sha Tsui)"),
+                                             ("K102F", "Nathan Rd · Peking Rd (Tsim Sha Tsui)"),
+                                             ("K802F", "Chatham Rd South · Austin Ave"),
+                                             ("H201F", "Gloucester Rd (Wan Chai)")]
+                  ))
 HANOI = _asia("Hanói", 21.028, 105.852, "Asia/Ho_Chi_Minh")  # lago Hoan Kiem
 BANGKOK = _asia("Bangkok", 13.746, 100.535, "Asia/Bangkok", "VTBD", "Don Mueang")  # Siam, a 20 km
 KUALA_LUMPUR = _asia("Kuala Lumpur", 3.148, 101.694, "Asia/Kuala_Lumpur", "WMSA", "Subang")  # plaza Merdeka, a 16 km
